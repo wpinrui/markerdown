@@ -46,7 +46,6 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       plugins: true,
-      webviewTag: true,
     },
   })
 
