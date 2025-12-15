@@ -35,7 +35,7 @@ interface EntityViewerProps {
 export function EntityViewer({ entity, activeMember, content, onTabChange }: EntityViewerProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
-      return 'PDF'
+      return member.variant ? `${member.variant} (PDF)` : 'PDF'
     }
     if (member.variant === null) {
       return entity.baseName
