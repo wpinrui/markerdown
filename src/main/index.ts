@@ -297,16 +297,11 @@ ipcMain.handle('agent:cancel', async (): Promise<void> => {
 
 // Encode project path the same way Claude CLI does
 function encodeProjectPath(projectPath: string): string {
-  // On Windows: C:\Users\... -> c--Users-...
-  let encoded = projectPath
-
-  // Handle Windows drive letter: lowercase + replace :\ with --
-  if (/^[A-Za-z]:\\/.test(encoded)) {
-    encoded = encoded[0].toLowerCase() + '--' + encoded.slice(3)
-  }
-
-  // Replace remaining slashes with -
-  return encoded.replace(/[\\/]/g, '-')
+  // On Windows: C:\Users\... -> C--Users-...
+  // Replace :\ with -- and remaining slashes with -
+  return projectPath
+    .replace(/:\\/g, '--')
+    .replace(/[\\/]/g, '-')
 }
 
 function getSessionsDir(workingDir: string): string {
