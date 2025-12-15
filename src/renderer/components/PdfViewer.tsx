@@ -55,7 +55,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   return (
     <div className="pdf-viewer">
       <iframe
-        src={dataUrl}
+        src={`${dataUrl}#pagemode=none`}
         className="pdf-iframe"
         title="PDF Viewer"
       />
