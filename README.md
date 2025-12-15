@@ -50,13 +50,20 @@ A markdown file can be both **content** and a **container** for children.
 - Tree navigation that mirrors Explorer structure
 - Markdown rendering with syntax highlighting
 
+### Completed
+- **Entity system**: Group raw/dense/condensed as one entity via naming convention
+- **AI summarization**: PDF → user-defined variants via Claude CLI
+- **Agent chat**: Integrated Claude CLI assistant panel
+
 ### Planned
-- **Entity linking**: Group raw/dense/condensed as one entity via frontmatter
-- **AI summarization**: PDF → Dense → Condensed via Claude CLI
-- **RAG assistant**: Query across all knowledge ("What deadlines do I have?")
-- **Smart parsing**: Unstructured notes + images → structured markdown
-- **Archive system**: Hide old content while keeping it searchable
-- **Consistency checker**: Propagate edits across entity versions
+- **Markdown editor**: Edit files directly with image pasting support
+- **Smart note-taking**: New Note → raw capture → "Organise with Claude" → drag to hierarchy
+- **Todo management**: Agent-managed todos via sidebar tabs
+- **Full file management**: Rename, delete, reorder, tags, drag & drop external files
+- **Archive system**: Hide old content while keeping it agent-searchable
+- **Consistency checker**: Flag and resolve conflicts across entity versions
+- **User context**: Store personal context to inform agent & summarizer
+- **Polish**: Keyboard shortcuts, right-click menus, custom wallpaper, PDF improvements
 
 ## Tech Stack
 
