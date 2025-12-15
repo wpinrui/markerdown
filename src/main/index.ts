@@ -310,14 +310,30 @@ function getSessionsDir(workingDir: string): string {
   return path.join(claudeDir, encodedPath)
 }
 
+interface ContentBlock {
+  type: string
+  text?: string
+}
+
 interface SessionJsonLine {
   type?: string
   message?: {
     role?: string
-    content?: string | Array<{ type: string; text?: string }>
+    content?: string | ContentBlock[]
   }
   timestamp?: string
   sessionId?: string
+}
+
+function extractTextFromContent(content: string | ContentBlock[] | undefined): string | undefined {
+  if (typeof content === 'string') {
+    return content
+  }
+  if (Array.isArray(content)) {
+    const textBlock = content.find((block) => block.type === 'text')
+    return textBlock?.text
+  }
+  return undefined
 }
 
 async function parseSessionMetadata(filePath: string): Promise<{ timestamp: string; firstMessage: string } | null> {
@@ -341,14 +357,7 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 
         // Get first user message
         if (data.type === 'user' && data.message?.role === 'user') {
-          const content = data.message.content
-          let text: string | undefined
-          if (typeof content === 'string') {
-            text = content
-          } else if (Array.isArray(content)) {
-            const textContent = content.find((c: { type: string; text?: string }) => c.type === 'text')
-            text = textContent?.text
-          }
+          const text = extractTextFromContent(data.message.content)
           if (text) {
             firstMessage = text.slice(0, 100) // Truncate preview
             rl.close()
@@ -410,34 +419,24 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
     const sessionsDir = getSessionsDir(workingDir)
     const filePath = path.join(sessionsDir, `${sessionId}.jsonl`)
 
-    const content = await fs.promises.readFile(filePath, 'utf-8')
-    const lines = content.split('\n').filter((line) => line.trim())
+    const fileContent = await fs.promises.readFile(filePath, 'utf-8')
+    const lines = fileContent.split('\n').filter((line) => line.trim())
 
     const messages: AgentMessage[] = []
 
     for (const line of lines) {
       try {
-        const data: SessionJsonLine = JSON.parse(line)
+        const entry: SessionJsonLine = JSON.parse(line)
 
-        if (data.type === 'user' && data.message?.role === 'user') {
-          const content = data.message.content
-          let text: string | undefined
-          if (typeof content === 'string') {
-            text = content
-          } else if (Array.isArray(content)) {
-            const textContent = content.find((c: { type: string; text?: string }) => c.type === 'text')
-            text = textContent?.text
-          }
+        if (entry.type === 'user' && entry.message?.role === 'user') {
+          const text = extractTextFromContent(entry.message.content)
           if (text) {
             messages.push({ role: 'user', content: text })
           }
-        } else if (data.type === 'assistant' && data.message?.role === 'assistant') {
-          const content = data.message.content
-          if (Array.isArray(content)) {
-            const textContent = content.find((c: { type: string; text?: string }) => c.type === 'text')
-            if (textContent?.text) {
-              messages.push({ role: 'assistant', content: textContent.text })
-            }
+        } else if (entry.type === 'assistant' && entry.message?.role === 'assistant') {
+          const text = extractTextFromContent(entry.message.content)
+          if (text) {
+            messages.push({ role: 'assistant', content: text })
           }
         }
       } catch {
