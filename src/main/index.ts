@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
+import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
+import type { SummarizeRequest, SummarizeResult } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
@@ -159,4 +161,58 @@ ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
 
 ipcMain.handle('fs:unwatchFolder', () => {
   closeWatcher()
+})
+
+ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {
+  const { pdfPath, outputPath, prompt } = request
+
+  // Check if output already exists
+  try {
+    await fs.promises.access(outputPath)
+    return { success: false, error: 'Output file already exists' }
+  } catch {
+    // File doesn't exist, good to proceed
+  }
+
+  return new Promise((resolve) => {
+    const args = [
+      '-a', pdfPath,
+      '-p', prompt,
+      '--model', 'sonnet',
+      '--output-format', 'text',
+    ]
+
+    const child = spawn('claude', args, {
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString()
+    })
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    child.on('close', async (code) => {
+      if (code === 0 && stdout) {
+        try {
+          await fs.promises.writeFile(outputPath, stdout, 'utf-8')
+          resolve({ success: true })
+        } catch (err) {
+          resolve({ success: false, error: `Failed to write output: ${err}` })
+        }
+      } else {
+        resolve({ success: false, error: stderr || `Process exited with code ${code}` })
+      }
+    })
+
+    child.on('error', (err) => {
+      resolve({ success: false, error: `Failed to spawn Claude CLI: ${err.message}` })
+    })
+  })
 })

@@ -3,6 +3,7 @@ import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
+import { SummarizeModal } from './components/SummarizeModal'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
@@ -14,6 +15,8 @@ function App() {
   const [activeMember, setActiveMember] = useState<EntityMember | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showSummarizeModal, setShowSummarizeModal] = useState(false)
+  const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -148,11 +151,59 @@ function App() {
     setActiveMember(member)
   }
 
+  const isPdfActive = activeMember?.type === 'pdf'
+  const canSummarize = isPdfActive && selectedNode?.entity
+
+  const getOutputPath = (pdfPath: string, outputFilename: string) => {
+    const lastSlash = Math.max(pdfPath.lastIndexOf('/'), pdfPath.lastIndexOf('\\'))
+    const dir = pdfPath.substring(0, lastSlash)
+    return `${dir}/${outputFilename}`
+  }
+
+  const handleSummarize = async (prompt: string, outputFilename: string) => {
+    if (!selectedNode?.entity || !activeMember || !selectedNode.path) return
+
+    const pdfPath = activeMember.path
+    const outputPath = getOutputPath(pdfPath, outputFilename)
+
+    // Add to summarizing set
+    setSummarizingPaths((prev) => new Set(prev).add(selectedNode.path))
+    setShowSummarizeModal(false)
+
+    try {
+      const result = await window.electronAPI.summarizePdf({
+        pdfPath,
+        outputPath,
+        prompt,
+      })
+
+      if (!result.success) {
+        setError(result.error || 'Summarization failed')
+      }
+      // File watcher will auto-detect new file and refresh tree
+    } catch (err) {
+      setError(`Summarization failed: ${err}`)
+    } finally {
+      setSummarizingPaths((prev) => {
+        const next = new Set(prev)
+        next.delete(selectedNode.path)
+        return next
+      })
+    }
+  }
+
+  const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
+
   return (
     <div className="app">
       <header className="header">
         <h1>MarkerDown</h1>
-        <button onClick={handleOpenFolder}>Open Folder</button>
+        <div className="header-actions">
+          {canSummarize && (
+            <button onClick={() => setShowSummarizeModal(true)}>Summarize</button>
+          )}
+          <button onClick={handleOpenFolder}>Open Folder</button>
+        </div>
       </header>
       <main className="main">
         <aside className="sidebar">
@@ -161,6 +212,7 @@ function App() {
               nodes={treeNodes}
               selectedPath={selectedNode?.path ?? null}
               onSelect={handleSelectNode}
+              summarizingPaths={summarizingPaths}
             />
           ) : (
             <p className="placeholder">No folder opened</p>
@@ -183,6 +235,13 @@ function App() {
           ) : null}
         </section>
       </main>
+      <SummarizeModal
+        isOpen={showSummarizeModal}
+        onClose={() => setShowSummarizeModal(false)}
+        onSubmit={handleSummarize}
+        entityBaseName={selectedNode?.entity?.baseName ?? ''}
+        existingVariants={existingVariants}
+      />
     </div>
   )
 }

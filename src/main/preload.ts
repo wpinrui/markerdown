@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
-import type { FileEntry, FileChangeEvent } from '@shared/types'
+import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult } from '@shared/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),
@@ -21,4 +21,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('fs:changed', listener)
     return () => ipcRenderer.removeListener('fs:changed', listener)
   },
+  summarizePdf: (request: SummarizeRequest): Promise<SummarizeResult> =>
+    ipcRenderer.invoke('claude:summarize', request),
 })

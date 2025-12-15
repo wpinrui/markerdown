@@ -47,6 +47,17 @@ export function isStructureChange(eventType: FileChangeEventType): boolean {
   return eventType === 'add' || eventType === 'addDir' || eventType === 'unlink' || eventType === 'unlinkDir'
 }
 
+export interface SummarizeRequest {
+  pdfPath: string
+  outputPath: string
+  prompt: string
+}
+
+export interface SummarizeResult {
+  success: boolean
+  error?: string
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
@@ -58,6 +69,7 @@ export interface ElectronAPI {
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
+  summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
 }
 
 declare global {
