@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { AgentMessage } from '@shared/types'
+import { StyledMarkdown } from '../markdownConfig'
 
 interface AgentPanelProps {
   workingDir: string | null
@@ -133,12 +134,20 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       <div className="agent-messages">
         {messages.map((msg, i) => (
           <div key={i} className={`agent-message agent-message-${msg.role}`}>
-            <div className="agent-message-content">{msg.content}</div>
+            <div className="agent-message-content">
+              {msg.role === 'assistant' ? (
+                <StyledMarkdown content={msg.content} />
+              ) : (
+                msg.content
+              )}
+            </div>
           </div>
         ))}
         {streamingContent && (
           <div className="agent-message agent-message-assistant">
-            <div className="agent-message-content">{streamingContent}</div>
+            <div className="agent-message-content">
+              <StyledMarkdown content={streamingContent} />
+            </div>
           </div>
         )}
         {isLoading && !streamingContent && (
