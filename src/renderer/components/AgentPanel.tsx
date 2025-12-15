@@ -31,6 +31,27 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     inputRef.current?.focus()
   }, [])
 
+  // Load most recent session when panel opens
+  useEffect(() => {
+    if (!workingDir) return
+
+    const loadMostRecent = async () => {
+      try {
+        const fetchedSessions = await window.electronAPI.getAgentSessions(workingDir)
+        if (fetchedSessions.length > 0) {
+          const mostRecent = fetchedSessions[0]
+          const history = await window.electronAPI.loadAgentSession(workingDir, mostRecent.sessionId)
+          setMessages(history.messages)
+          setSessionId(mostRecent.sessionId)
+        }
+      } catch (err) {
+        console.error('Failed to load most recent session:', err)
+      }
+    }
+
+    loadMostRecent()
+  }, [workingDir])
+
   // Set up streaming listeners
   useEffect(() => {
     const unsubChunk = window.electronAPI.onAgentChunk((chunk) => {
