@@ -22,6 +22,8 @@ function closeWatcher() {
 
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
+const AGENT_MEMORY_FILE = 'Agent Memory.md'
+const AGENT_MEMORY_INSTRUCTION = `If "${AGENT_MEMORY_FILE}" exists in the current directory, read it first to understand the user's context and preferences.`
 
 interface Settings {
   lastFolder?: string
@@ -180,7 +182,7 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   }
 
   return new Promise((resolve) => {
-    const fullPrompt = `If "Agent Memory.md" exists in the current directory, read it first to understand the user's context and preferences.
+    const fullPrompt = `${AGENT_MEMORY_INSTRUCTION}
 Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
 
 ${prompt}`
@@ -241,7 +243,7 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
 When you need information, use your tools to list directories and read files.
 Prefer reading .md files over .pdf files when both exist for the same topic.
-If "Agent Memory.md" exists in the current directory, read it first to understand the user's context and preferences.
+${AGENT_MEMORY_INSTRUCTION}
 Be concise but thorough in your answers. Do not generate files - only answer verbally.`
 
   const args = [
