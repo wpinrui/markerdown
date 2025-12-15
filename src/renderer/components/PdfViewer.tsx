@@ -144,10 +144,12 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    if (!container || numPages === 0) return
     container.addEventListener('scroll', handleScroll)
+    // Run once on mount to set initial page
+    handleScroll()
     return () => container.removeEventListener('scroll', handleScroll)
-  }, [handleScroll])
+  }, [handleScroll, numPages])
 
   // Navigate to a specific page
   const goToPage = useCallback((pageNum: number) => {
