@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import { REMARK_PLUGINS, REHYPE_PLUGINS } from '../markdownConfig'
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 2.0
@@ -38,8 +36,8 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
   return (
     <div className="markdown-viewer" style={{ fontSize: `${zoom}em` }}>
       <Markdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={REHYPE_PLUGINS}
       >
         {content}
       </Markdown>

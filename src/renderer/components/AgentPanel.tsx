@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
 import type { AgentMessage } from '@shared/types'
+import { REMARK_PLUGINS, REHYPE_PLUGINS } from '../markdownConfig'
 
-const REMARK_PLUGINS = [remarkGfm, remarkMath]
-const REHYPE_PLUGINS = [rehypeKatex]
+function AgentMarkdown({ content }: { content: string }) {
+  return (
+    <Markdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+      {content}
+    </Markdown>
+  )
+}
 
 interface AgentPanelProps {
   workingDir: string | null
@@ -142,12 +145,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
           <div key={i} className={`agent-message agent-message-${msg.role}`}>
             <div className="agent-message-content">
               {msg.role === 'assistant' ? (
-                <Markdown
-                  remarkPlugins={REMARK_PLUGINS}
-                  rehypePlugins={REHYPE_PLUGINS}
-                >
-                  {msg.content}
-                </Markdown>
+                <AgentMarkdown content={msg.content} />
               ) : (
                 msg.content
               )}
@@ -157,12 +155,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
         {streamingContent && (
           <div className="agent-message agent-message-assistant">
             <div className="agent-message-content">
-              <Markdown
-                remarkPlugins={REMARK_PLUGINS}
-                rehypePlugins={REHYPE_PLUGINS}
-              >
-                {streamingContent}
-              </Markdown>
+              <AgentMarkdown content={streamingContent} />
             </div>
           </div>
         )}
