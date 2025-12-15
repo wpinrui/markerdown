@@ -707,7 +707,7 @@ body {
   color: #808080;
 }
 
-.agent-clear-btn {
+.agent-close-btn {
   background: transparent;
   border: none;
   color: #808080;
@@ -717,7 +717,7 @@ body {
   border-radius: 3px;
 }
 
-.agent-clear-btn:hover {
+.agent-close-btn:hover {
   background-color: #3c3c3c;
   color: #d4d4d4;
 }

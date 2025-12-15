@@ -3,9 +3,10 @@ import type { AgentMessage } from '@shared/types'
 
 interface AgentPanelProps {
   workingDir: string | null
+  onClose: () => void
 }
 
-export function AgentPanel({ workingDir }: AgentPanelProps) {
+export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -85,11 +86,6 @@ export function AgentPanel({ workingDir }: AgentPanelProps) {
     }
   }
 
-  const handleClear = () => {
-    setMessages([])
-    setStreamingContent('')
-  }
-
   if (!workingDir) {
     return (
       <div className="agent-panel">
@@ -102,7 +98,7 @@ export function AgentPanel({ workingDir }: AgentPanelProps) {
     <div className="agent-panel">
       <div className="agent-header">
         <span className="agent-title">Agent</span>
-        <button className="agent-clear-btn" onClick={handleClear} title="Clear chat">
+        <button className="agent-close-btn" onClick={onClose} title="Close panel">
           ✕
         </button>
       </div>

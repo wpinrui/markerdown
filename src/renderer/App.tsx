@@ -312,7 +312,7 @@ function App() {
               className="agent-sidebar-resize-handle"
               onMouseDown={handleAgentPanelMouseDown}
             />
-            <AgentPanel workingDir={folderPath} />
+            <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
           </aside>
         )}
       </main>
