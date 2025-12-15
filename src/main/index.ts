@@ -241,7 +241,6 @@ Be concise but thorough in your answers.`
     '--dangerously-skip-permissions',
     '--allowed-tools', 'Read',
     '--model', 'sonnet',
-    '--cwd', workingDir,
     '-p', systemPrompt,
     message,
   ]
