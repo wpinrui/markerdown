@@ -254,15 +254,6 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   // Use existing session ID or generate a new one
   const sessionId = existingSessionId ?? crypto.randomUUID()
 
-  const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
-
-  const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
-When you need information, use your tools to list directories and read files.
-Prefer reading .md files over .pdf files when both exist for the same topic.
-Be concise but thorough in your answers. Do not generate files - only answer verbally.
-
-${memoryContext}`
-
   const args = [
     '--print',
     '--dangerously-skip-permissions',
@@ -271,10 +262,17 @@ ${memoryContext}`
     '--setting-sources', 'user',
   ]
 
-  // For new sessions, use --session-id; for existing sessions, use --resume
+  // For new sessions, use --session-id with system prompt; for existing sessions, use --resume
   if (existingSessionId) {
     args.push('--resume', sessionId)
   } else {
+    const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
+    const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
+When you need information, use your tools to list directories and read files.
+Prefer reading .md files over .pdf files when both exist for the same topic.
+Be concise but thorough in your answers. Do not generate files - only answer verbally.
+
+${memoryContext}`
     args.push('--session-id', sessionId)
     args.push('--system-prompt', systemPrompt)
   }
