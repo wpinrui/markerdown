@@ -175,11 +175,15 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   }
 
   return new Promise((resolve) => {
+    // Construct full prompt with file path included
+    const fullPrompt = `Read the PDF file at "${pdfPath}" and then:\n\n${prompt}`
+
     const args = [
-      '-a', pdfPath,
-      '-p', prompt,
+      '--print',
+      '--tools', 'Read',
       '--model', 'sonnet',
       '--output-format', 'text',
+      fullPrompt,
     ]
 
     const child = spawn('claude', args, {
