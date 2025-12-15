@@ -183,7 +183,24 @@ body {
   overflow-y: auto;
 }
 
-.pdf-placeholder {
+/* PDF Viewer */
+.pdf-viewer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-object {
+  width: 100%;
+  flex: 1;
+  min-height: 500px;
+  border: none;
+  border-radius: 4px;
+  background-color: #2d2d2d;
+}
+
+.pdf-fallback {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -193,12 +210,7 @@ body {
   text-align: center;
 }
 
-.pdf-placeholder .pdf-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.pdf-placeholder .pdf-path {
+.pdf-fallback .pdf-path {
   font-size: 12px;
   margin-top: 8px;
   word-break: break-all;
