@@ -180,7 +180,8 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   }
 
   return new Promise((resolve) => {
-    const fullPrompt = `Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
+    const fullPrompt = `If "Agent Memory.md" exists in the current directory, read it first to understand the user's context and preferences.
+Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
 
 ${prompt}`
 
@@ -240,6 +241,7 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
 When you need information, use your tools to list directories and read files.
 Prefer reading .md files over .pdf files when both exist for the same topic.
+If "Agent Memory.md" exists in the current directory, read it first to understand the user's context and preferences.
 Be concise but thorough in your answers. Do not generate files - only answer verbally.`
 
   const args = [
