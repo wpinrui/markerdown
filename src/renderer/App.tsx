@@ -43,16 +43,31 @@ function App() {
       return
     }
 
-    window.electronAPI.readFile(selectedNode.path)
+    let cancelled = false
+    const filePath = selectedNode.path
+    const fileName = selectedNode.name
+
+    window.electronAPI.readFile(filePath)
       .then((content) => {
-        setFileContent(content)
-        setError(null)
+        if (cancelled) return
+        if (content === null) {
+          setError(`Failed to read ${fileName}`)
+          setFileContent(null)
+        } else {
+          setFileContent(content)
+          setError(null)
+        }
       })
       .catch((err) => {
+        if (cancelled) return
         console.error('Failed to read file:', err)
-        setError(`Failed to read ${selectedNode.name}`)
+        setError(`Failed to read ${fileName}`)
         setFileContent(null)
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [selectedNode])
 
   const handleSelectNode = (node: TreeNode) => {

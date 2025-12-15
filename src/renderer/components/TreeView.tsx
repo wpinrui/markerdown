@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { isMarkdownFile } from '@shared/types'
+import { isMarkdownFile, isPdfFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
 
 const INDENT_PX = 16
@@ -59,7 +59,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
     if (isMarkdown) {
       return '📄'
     }
-    if (node.name.endsWith('.pdf')) {
+    if (isPdfFile(node.name)) {
       return '📑'
     }
     return '📎'

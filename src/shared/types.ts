@@ -5,9 +5,14 @@ export interface FileEntry {
 }
 
 export const MARKDOWN_EXTENSION = '.md'
+export const PDF_EXTENSION = '.pdf'
 
 export function isMarkdownFile(name: string): boolean {
   return name.endsWith(MARKDOWN_EXTENSION)
+}
+
+export function isPdfFile(name: string): boolean {
+  return name.endsWith(PDF_EXTENSION)
 }
 
 export interface TreeNode {
