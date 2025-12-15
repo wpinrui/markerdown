@@ -33,6 +33,11 @@ async function readAgentMemory(workingDir: string): Promise<string | null> {
   }
 }
 
+function formatMemoryContext(agentMemory: string | null): string {
+  if (!agentMemory) return ''
+  return `User context:\n${agentMemory}\n\n`
+}
+
 interface Settings {
   lastFolder?: string
 }
@@ -189,8 +194,7 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
     // File doesn't exist, good to proceed
   }
 
-  const agentMemory = await readAgentMemory(workingDir)
-  const memoryContext = agentMemory ? `Use the following user context:\n\n${agentMemory}\n\n` : ''
+  const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
 
   return new Promise((resolve) => {
     const fullPrompt = `${memoryContext}Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
@@ -250,13 +254,14 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   // Use existing session ID or generate a new one
   const sessionId = existingSessionId ?? crypto.randomUUID()
 
-  const agentMemory = await readAgentMemory(workingDir)
-  const memoryContext = agentMemory ? `\nUser context:\n${agentMemory}` : ''
+  const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
 
   const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
 When you need information, use your tools to list directories and read files.
 Prefer reading .md files over .pdf files when both exist for the same topic.
-Be concise but thorough in your answers. Do not generate files - only answer verbally.${memoryContext}`
+Be concise but thorough in your answers. Do not generate files - only answer verbally.
+
+${memoryContext}`
 
   const args = [
     '--print',
