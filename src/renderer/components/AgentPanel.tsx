@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { AgentMessage, AgentSession } from '@shared/types'
 import { StyledMarkdown } from '../markdownConfig'
 
+const MAX_DISPLAYED_SESSIONS = 20
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+
 interface AgentPanelProps {
   workingDir: string | null
   onClose: () => void
@@ -190,7 +193,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     const date = new Date(timestamp)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffDays = Math.floor(diffMs / MS_PER_DAY)
 
     if (diffDays === 0) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -231,7 +234,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
                 ) : sessions.length === 0 ? (
                   <div className="agent-history-empty">No past chats</div>
                 ) : (
-                  sessions.slice(0, 20).map((session) => (
+                  sessions.slice(0, MAX_DISPLAYED_SESSIONS).map((session) => (
                     <button
                       key={session.sessionId}
                       className={`agent-history-item ${session.sessionId === sessionId ? 'active' : ''}`}

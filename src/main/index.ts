@@ -310,6 +310,8 @@ function getSessionsDir(workingDir: string): string {
   return path.join(claudeDir, encodedPath)
 }
 
+const MESSAGE_PREVIEW_LENGTH = 100
+
 interface ContentBlock {
   type: string
   text?: string
@@ -359,7 +361,7 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
         if (data.type === 'user' && data.message?.role === 'user') {
           const text = extractTextFromContent(data.message.content)
           if (text) {
-            firstMessage = text.slice(0, 100) // Truncate preview
+            firstMessage = text.slice(0, MESSAGE_PREVIEW_LENGTH)
             rl.close()
             stream.close()
           }
