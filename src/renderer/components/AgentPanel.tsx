@@ -14,6 +14,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const isCancelledRef = useRef(false)
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -33,6 +34,11 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
 
     const unsubComplete = window.electronAPI.onAgentComplete((error) => {
       setIsLoading(false)
+      // Ignore errors from intentional cancellation (already handled in handleCancel/handleNewChat)
+      if (isCancelledRef.current) {
+        isCancelledRef.current = false
+        return
+      }
       if (error) {
         setStreamingContent('')
         setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
@@ -83,6 +89,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   }
 
   const handleCancel = () => {
+    isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setIsLoading(false)
     if (streamingContent) {
@@ -92,9 +99,12 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   }
 
   const handleNewChat = () => {
+    isCancelledRef.current = true
+    window.electronAPI.agentCancel()
     setMessages([])
     setSessionId(null)
     setStreamingContent('')
+    setIsLoading(false)
   }
 
   if (!workingDir) {
