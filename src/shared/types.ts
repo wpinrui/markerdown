@@ -51,6 +51,7 @@ export interface SummarizeRequest {
   pdfPath: string
   outputPath: string
   prompt: string
+  workingDir: string
 }
 
 export interface SummarizeResult {
@@ -70,6 +71,7 @@ export interface ElectronAPI {
   unwatchFolder: () => Promise<void>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
+  onClaudeLog: (callback: (log: string) => void) => () => void
 }
 
 declare global {

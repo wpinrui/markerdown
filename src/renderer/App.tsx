@@ -4,6 +4,7 @@ import { MarkdownViewer } from './components/MarkdownViewer'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
+import { SummarizeButton } from './components/SummarizeButton'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
@@ -17,6 +18,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
+  const [claudeLogs, setClaudeLogs] = useState<string>('')
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -39,6 +41,14 @@ function App() {
     }).catch((err) => {
       console.error('Failed to load last folder:', err)
     })
+  }, [])
+
+  // Listen for Claude CLI logs
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.onClaudeLog((log) => {
+      setClaudeLogs((prev) => prev + log)
+    })
+    return () => unsubscribe()
   }, [])
 
   const refreshTree = useCallback(() => {
@@ -173,7 +183,8 @@ function App() {
     const pdfPath = activeMember?.path ?? selectedNode.path
     const outputPath = getOutputPath(pdfPath, outputFilename)
 
-    // Add to summarizing set
+    // Clear logs and add to summarizing set
+    setClaudeLogs('')
     setSummarizingPaths((prev) => new Set(prev).add(selectedNode.path))
     setShowSummarizeModal(false)
 
@@ -182,6 +193,7 @@ function App() {
         pdfPath,
         outputPath,
         prompt,
+        workingDir: folderPath!,
       })
 
       if (!result.success) {
@@ -209,8 +221,12 @@ function App() {
       <header className="header">
         <h1>MarkerDown</h1>
         <div className="header-actions">
-          {canSummarize && (
-            <button onClick={() => setShowSummarizeModal(true)}>Summarize</button>
+          {(canSummarize || summarizingPaths.size > 0) && (
+            <SummarizeButton
+              isSummarizing={summarizingPaths.size > 0}
+              logs={claudeLogs}
+              onClick={() => setShowSummarizeModal(true)}
+            />
           )}
           <button onClick={handleOpenFolder}>Open Folder</button>
         </div>

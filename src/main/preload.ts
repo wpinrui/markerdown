@@ -23,4 +23,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   summarizePdf: (request: SummarizeRequest): Promise<SummarizeResult> =>
     ipcRenderer.invoke('claude:summarize', request),
+  onClaudeLog: (callback: (log: string) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, data: string) => callback(data)
+    ipcRenderer.on('claude:log', listener)
+    return () => ipcRenderer.removeListener('claude:log', listener)
+  },
 })

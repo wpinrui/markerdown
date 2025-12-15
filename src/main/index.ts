@@ -164,7 +164,7 @@ ipcMain.handle('fs:unwatchFolder', () => {
 })
 
 ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {
-  const { pdfPath, outputPath, prompt } = request
+  const { pdfPath, outputPath, prompt, workingDir } = request
 
   // Check if output already exists
   try {
@@ -175,41 +175,41 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   }
 
   return new Promise((resolve) => {
-    // Construct full prompt with file path included
-    const fullPrompt = `Read the PDF file at "${pdfPath}" and then:\n\n${prompt}`
+    const fullPrompt = `Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
+
+${prompt}`
 
     const args = [
       '--print',
-      '--tools', 'Read',
+      '--dangerously-skip-permissions',
+      '--allowed-tools', 'Read,Write',
       '--model', 'sonnet',
-      '--output-format', 'text',
       fullPrompt,
     ]
 
     const child = spawn('claude', args, {
-      shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: workingDir,
     })
 
-    let stdout = ''
     let stderr = ''
 
     child.stdout.on('data', (data) => {
-      stdout += data.toString()
+      const text = data.toString()
+      mainWindow?.webContents.send('claude:log', text)
+      console.log(text)
     })
 
     child.stderr.on('data', (data) => {
-      stderr += data.toString()
+      const text = data.toString()
+      stderr += text
+      mainWindow?.webContents.send('claude:log', text)
+      console.log(text)
     })
 
     child.on('close', async (code) => {
-      if (code === 0 && stdout) {
-        try {
-          await fs.promises.writeFile(outputPath, stdout, 'utf-8')
-          resolve({ success: true })
-        } catch (err) {
-          resolve({ success: false, error: `Failed to write output: ${err}` })
-        }
+      if (code === 0) {
+        resolve({ success: true })
       } else {
         resolve({ success: false, error: stderr || `Process exited with code ${code}` })
       }
