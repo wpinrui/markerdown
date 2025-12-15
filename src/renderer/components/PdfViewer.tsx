@@ -40,6 +40,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const searchInputRef = useRef<HTMLInputElement>(null)
   const zoomInputRef = useRef<HTMLInputElement>(null)
+  const currentPageRef = useRef(currentPage)
+  currentPageRef.current = currentPage
 
   // Load PDF
   useEffect(() => {
@@ -178,18 +180,18 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
         return
       }
 
-      // Left/Right arrow for page navigation
+      // Left/Right arrow for page navigation (use ref to avoid stale closure)
       if (e.key === 'ArrowRight') {
         e.preventDefault()
-        goToPage(currentPage + 1)
+        goToPage(currentPageRef.current + 1)
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
-        goToPage(currentPage - 1)
+        goToPage(currentPageRef.current - 1)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [searchOpen, currentPage, goToPage])
+  }, [searchOpen, goToPage])
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
