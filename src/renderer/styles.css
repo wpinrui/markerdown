@@ -660,45 +660,26 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Resizable Sidebar */
-.sidebar {
+/* Agent Right Sidebar */
+.agent-sidebar {
+  background-color: #252526;
+  border-left: 1px solid #3c3c3c;
   display: flex;
   flex-direction: column;
-  min-width: 200px;
-  max-width: 600px;
   position: relative;
 }
 
-.sidebar-resize-handle {
+.agent-sidebar-resize-handle {
   position: absolute;
   top: 0;
-  right: -3px;
+  left: -3px;
   width: 6px;
   height: 100%;
   cursor: ew-resize;
   z-index: 10;
 }
 
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle.dragging {
-  background-color: #0e639c;
-}
-
-.sidebar-content {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 100px;
-}
-
-.sidebar-divider {
-  height: 6px;
-  background-color: #3c3c3c;
-  cursor: ns-resize;
-  flex-shrink: 0;
-}
-
-.sidebar-divider:hover,
-.sidebar-divider.dragging {
+.agent-sidebar-resize-handle:hover {
   background-color: #0e639c;
 }
 
@@ -706,8 +687,8 @@ body {
 .agent-panel {
   display: flex;
   flex-direction: column;
-  min-height: 100px;
-  background-color: #1e1e1e;
+  height: 100%;
+  background-color: #252526;
 }
 
 .agent-header {
