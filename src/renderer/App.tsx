@@ -27,6 +27,8 @@ function App() {
   useEffect(() => {
     window.electronAPI.getLastFolder().then((path) => {
       if (path) setFolderPath(path)
+    }).catch((err) => {
+      console.error('Failed to load last folder:', err)
     })
   }, [])
 
