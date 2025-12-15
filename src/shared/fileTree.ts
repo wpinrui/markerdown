@@ -123,7 +123,8 @@ export async function buildFileTree(
 
   // Process entity files (create entity nodes or regular nodes)
   for (const file of entityFiles) {
-    // Check if this file is part of an entity
+    // Skip files that belong to an entity (they're accessed via entity tabs)
+    // Only the entity's base file (fullBaseName === entity baseName) creates a node
     if (entityMemberPaths.has(file.path)) {
       const entity = entities.get(file.fullBaseName)
       if (entity) {
