@@ -1,10 +1,84 @@
-import { isMarkdownFile, MARKDOWN_EXTENSION } from './types'
-import type { FileEntry, TreeNode } from './types'
+import { isMarkdownFile, isPdfFile, MARKDOWN_EXTENSION, PDF_EXTENSION } from './types'
+import type { FileEntry, TreeNode, Entity, EntityMember } from './types'
+
+/**
+ * Parse entity info from a filename.
+ * Returns fullBaseName (without extension) and file type.
+ */
+function parseFileInfo(filename: string): { fullBaseName: string; type: 'markdown' | 'pdf' } | null {
+  if (isPdfFile(filename)) {
+    return { fullBaseName: filename.slice(0, -PDF_EXTENSION.length), type: 'pdf' }
+  }
+  if (isMarkdownFile(filename)) {
+    return { fullBaseName: filename.slice(0, -MARKDOWN_EXTENSION.length), type: 'markdown' }
+  }
+  return null
+}
+
+/**
+ * Group files into entities based on naming convention.
+ * Files with same base name are grouped (e.g., physics.md, physics.summary.md, physics.pdf).
+ */
+function groupFilesIntoEntities(
+  files: Array<{ name: string; path: string; fullBaseName: string; type: 'markdown' | 'pdf' }>
+): Map<string, Entity> {
+  const fullBaseNames = new Set(files.map((f) => f.fullBaseName))
+  const entityGroups = new Map<string, EntityMember[]>()
+
+  for (const file of files) {
+    let entityBase = file.fullBaseName
+    let variant: string | null = null
+
+    // Check if this file's fullBaseName has a prefix that matches another file's fullBaseName
+    // e.g., physics.summary → prefix physics matches physics.md or physics.pdf
+    const parts = file.fullBaseName.split('.')
+    for (let i = 1; i < parts.length; i++) {
+      const potentialBase = parts.slice(0, i).join('.')
+      if (fullBaseNames.has(potentialBase) && potentialBase !== file.fullBaseName) {
+        entityBase = potentialBase
+        variant = parts.slice(i).join('.')
+        break
+      }
+    }
+
+    if (!entityGroups.has(entityBase)) {
+      entityGroups.set(entityBase, [])
+    }
+
+    entityGroups.get(entityBase)!.push({
+      path: file.path,
+      variant,
+      type: file.type,
+    })
+  }
+
+  // Convert to Entity objects, filtering out single-file "entities"
+  const entities = new Map<string, Entity>()
+  for (const [baseName, members] of entityGroups) {
+    if (members.length >= 2) {
+      // Sort members: PDF first, then default (null variant), then alphabetical
+      members.sort((a, b) => {
+        if (a.type === 'pdf' && b.type !== 'pdf') return -1
+        if (a.type !== 'pdf' && b.type === 'pdf') return 1
+        if (a.variant === null && b.variant !== null) return -1
+        if (a.variant !== null && b.variant === null) return 1
+        return (a.variant ?? '').localeCompare(b.variant ?? '')
+      })
+
+      const defaultMember = members.find((m) => m.type === 'markdown' && m.variant === null) ?? null
+
+      entities.set(baseName, { baseName, members, defaultMember })
+    }
+  }
+
+  return entities
+}
 
 /**
  * Build a hierarchical tree from a flat list of file entries.
  * Detects sidecar relationships: if X.md exists alongside X/ folder,
  * the folder's contents become children of the markdown file.
+ * Groups related files into entities based on naming convention.
  */
 export async function buildFileTree(
   dirPath: string,
@@ -16,9 +90,27 @@ export async function buildFileTree(
   const files = entries.filter((e) => !e.isDirectory)
   const dirs = entries.filter((e) => e.isDirectory)
 
-  // Find markdown files
-  const mdFiles = files.filter((f) => isMarkdownFile(f.name))
-  const otherFiles = files.filter((f) => !isMarkdownFile(f.name))
+  // Parse entity info for markdown and PDF files
+  const entityFiles: Array<{ name: string; path: string; fullBaseName: string; type: 'markdown' | 'pdf' }> = []
+  const otherFiles: FileEntry[] = []
+
+  for (const file of files) {
+    const info = parseFileInfo(file.name)
+    if (info) {
+      entityFiles.push({ name: file.name, path: file.path, ...info })
+    } else {
+      otherFiles.push(file)
+    }
+  }
+
+  // Group files into entities
+  const entities = groupFilesIntoEntities(entityFiles)
+  const entityMemberPaths = new Set<string>()
+  for (const entity of entities.values()) {
+    for (const member of entity.members) {
+      entityMemberPaths.add(member.path)
+    }
+  }
 
   // Build a set of directory names for quick lookup
   const dirNames = new Set(dirs.map((d) => d.name))
@@ -26,19 +118,61 @@ export async function buildFileTree(
   const nodes: TreeNode[] = []
   const processedDirs = new Set<string>()
 
-  // Process markdown files first (they may have sidecar folders)
-  for (const mdFile of mdFiles) {
-    const baseName = mdFile.name.slice(0, -MARKDOWN_EXTENSION.length)
+  // Track which entities have been processed (to avoid duplicates)
+  const processedEntities = new Set<string>()
+
+  // Process entity files (create entity nodes or regular nodes)
+  for (const file of entityFiles) {
+    // Check if this file is part of an entity
+    if (entityMemberPaths.has(file.path)) {
+      const entity = entities.get(file.fullBaseName)
+      if (entity) {
+        // Skip if we already created a node for this entity
+        if (processedEntities.has(entity.baseName)) {
+          continue
+        }
+
+        // Only create entity node for the default member (or first member if no default)
+        const representativePath = entity.defaultMember?.path ?? entity.members[0].path
+        if (file.path !== representativePath) {
+          continue
+        }
+
+        // This is the entity's representative file - create the entity node
+        const hasSidecar = dirNames.has(entity.baseName)
+
+        const node: TreeNode = {
+          name: file.name,
+          path: representativePath,
+          isDirectory: false,
+          hasSidecar,
+          entity,
+        }
+
+        // If there's a sidecar folder, recursively get its contents as children
+        if (hasSidecar) {
+          const sidecarDir = dirs.find((d) => d.name === entity.baseName)!
+          node.children = await buildFileTree(sidecarDir.path, readDirectory)
+          processedDirs.add(entity.baseName)
+        }
+
+        nodes.push(node)
+        processedEntities.add(entity.baseName)
+      }
+      continue
+    }
+
+    // Regular file (not part of an entity)
+    const baseName = file.fullBaseName
     const hasSidecar = dirNames.has(baseName)
 
     const node: TreeNode = {
-      name: mdFile.name,
-      path: mdFile.path,
+      name: file.name,
+      path: file.path,
       isDirectory: false,
       hasSidecar,
     }
 
-    // If there's a sidecar folder, recursively get its contents as children
     if (hasSidecar) {
       const sidecarDir = dirs.find((d) => d.name === baseName)!
       node.children = await buildFileTree(sidecarDir.path, readDirectory)
@@ -63,7 +197,7 @@ export async function buildFileTree(
     nodes.push(node)
   }
 
-  // Add non-markdown files (PDFs, images, etc.)
+  // Add other files (images, etc.)
   for (const file of otherFiles) {
     nodes.push({
       name: file.name,
@@ -73,10 +207,10 @@ export async function buildFileTree(
     })
   }
 
-  // Sort: directories/sidecars first, then files, alphabetically within each group
+  // Sort: directories/sidecars/entities first, then files, alphabetically within each group
   return nodes.sort((a, b) => {
-    const aIsContainer = a.isDirectory || a.hasSidecar
-    const bIsContainer = b.isDirectory || b.hasSidecar
+    const aIsContainer = a.isDirectory || a.hasSidecar || a.entity
+    const bIsContainer = b.isDirectory || b.hasSidecar || b.entity
 
     if (aIsContainer && !bIsContainer) return -1
     if (!aIsContainer && bIsContainer) return 1

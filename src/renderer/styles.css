@@ -4,6 +4,25 @@
   box-sizing: border-box;
 }
 
+/* Thin scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #5a5a5a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6a6a6a;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   background-color: #1e1e1e;
@@ -120,6 +139,69 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tree-variant-count {
+  margin-left: 8px;
+  font-style: italic;
+  color: #808080;
+  font-size: 12px;
+}
+
+/* Entity Viewer */
+.entity-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.entity-tabs {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #3c3c3c;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.entity-tab {
+  padding: 6px 12px;
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: filter 0.15s, border-color 0.15s;
+}
+
+.entity-tab:hover {
+  filter: brightness(1.15);
+}
+
+.entity-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pdf-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #808080;
+  text-align: center;
+}
+
+.pdf-placeholder .pdf-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.pdf-placeholder .pdf-path {
+  font-size: 12px;
+  margin-top: 8px;
+  word-break: break-all;
 }
 
 /* Markdown Viewer */

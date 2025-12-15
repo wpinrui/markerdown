@@ -15,11 +15,24 @@ export function isPdfFile(name: string): boolean {
   return name.endsWith(PDF_EXTENSION)
 }
 
+export interface EntityMember {
+  path: string
+  variant: string | null // null = default (no suffix)
+  type: 'markdown' | 'pdf'
+}
+
+export interface Entity {
+  baseName: string
+  members: EntityMember[]
+  defaultMember: EntityMember | null
+}
+
 export interface TreeNode {
   name: string
   path: string
   isDirectory: boolean
   hasSidecar: boolean // true if this .md file has a matching folder
+  entity?: Entity // if this node represents an entity (grouped files)
   children?: TreeNode[]
 }
 

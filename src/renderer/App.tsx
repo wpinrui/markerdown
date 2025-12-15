@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
+import { EntityViewer } from './components/EntityViewer'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isStructureChange } from '@shared/types'
-import type { TreeNode, FileChangeEvent } from '@shared/types'
+import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([])
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null)
+  const [activeMember, setActiveMember] = useState<EntityMember | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -17,6 +19,7 @@ function App() {
     if (path) {
       setFolderPath(path)
       setSelectedNode(null)
+      setActiveMember(null)
       setFileContent(null)
       setError(null)
       window.electronAPI.setLastFolder(path).catch((err) => {
@@ -83,22 +86,34 @@ function App() {
     }
   }, [folderPath, refreshTree])
 
-  // Load file content when selection changes
+  // Load file content when selection or active member changes
   useEffect(() => {
-    if (!selectedNode || !isMarkdownFile(selectedNode.name)) {
+    // Determine which file to load
+    let filePath: string | null = null
+
+    if (activeMember) {
+      // Loading entity member content
+      if (activeMember.type === 'markdown') {
+        filePath = activeMember.path
+      }
+      // PDF doesn't load content this way
+    } else if (selectedNode && isMarkdownFile(selectedNode.name)) {
+      // Regular markdown file
+      filePath = selectedNode.path
+    }
+
+    if (!filePath) {
       setFileContent(null)
       return
     }
 
     let cancelled = false
-    const filePath = selectedNode.path
-    const fileName = selectedNode.name
 
     window.electronAPI.readFile(filePath)
       .then((content) => {
         if (cancelled) return
         if (content === null) {
-          setError(`Failed to read ${fileName}`)
+          setError(`Failed to read file`)
           setFileContent(null)
         } else {
           setFileContent(content)
@@ -108,17 +123,28 @@ function App() {
       .catch((err) => {
         if (cancelled) return
         console.error('Failed to read file:', err)
-        setError(`Failed to read ${fileName}`)
+        setError(`Failed to read file`)
         setFileContent(null)
       })
 
     return () => {
       cancelled = true
     }
-  }, [selectedNode])
+  }, [selectedNode, activeMember])
 
   const handleSelectNode = (node: TreeNode) => {
     setSelectedNode(node)
+    // If node has an entity, set the default member as active
+    if (node.entity) {
+      const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
+      setActiveMember(defaultMember)
+    } else {
+      setActiveMember(null)
+    }
+  }
+
+  const handleTabChange = (member: EntityMember) => {
+    setActiveMember(member)
   }
 
   return (
@@ -142,6 +168,13 @@ function App() {
         <section className="content">
           {error ? (
             <p className="error-message">{error}</p>
+          ) : selectedNode?.entity && activeMember ? (
+            <EntityViewer
+              entity={selectedNode.entity}
+              activeMember={activeMember}
+              content={fileContent}
+              onTabChange={handleTabChange}
+            />
           ) : fileContent !== null ? (
             <MarkdownViewer content={fileContent} />
           ) : (
