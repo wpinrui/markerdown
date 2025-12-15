@@ -18,6 +18,10 @@ const ZOOM_STEP = 0.25
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 // Persist scroll positions across tab switches
 const scrollPositions = new Map<string, number>()
 
@@ -283,17 +287,6 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     return `${effectivePercent}%`
   }
 
-  // Simple text highlight via CSS
-  const searchStyle = searchText ? `
-    .react-pdf__Page__textContent span {
-      background-color: transparent;
-    }
-    .react-pdf__Page__textContent span[data-highlight="true"] {
-      background-color: yellow;
-      color: black;
-    }
-  ` : ''
-
   if (loading) {
     return (
       <div className="pdf-viewer">
@@ -384,9 +377,9 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
                 renderAnnotationLayer={true}
                 onLoadSuccess={index === 0 ? onPageLoadSuccess : undefined}
                 customTextRenderer={searchText ? ({ str }) => {
-                  if (searchText && str.toLowerCase().includes(searchText.toLowerCase())) {
-                    const parts = str.split(new RegExp(`(${searchText})`, 'gi'))
-                    return parts.map((part, i) =>
+                  if (str.toLowerCase().includes(searchText.toLowerCase())) {
+                    const parts = str.split(new RegExp(`(${escapeRegExp(searchText)})`, 'gi'))
+                    return parts.map((part) =>
                       part.toLowerCase() === searchText.toLowerCase()
                         ? `<mark>${part}</mark>`
                         : part
