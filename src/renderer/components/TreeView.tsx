@@ -9,9 +9,10 @@ interface TreeViewProps {
   nodes: TreeNode[]
   selectedPath: string | null
   onSelect: (node: TreeNode) => void
+  summarizingPaths?: Set<string>
 }
 
-export function TreeView({ nodes, selectedPath, onSelect }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths }: TreeViewProps) {
   return (
     <div className="tree-view">
       {nodes.map((node) => (
@@ -21,6 +22,7 @@ export function TreeView({ nodes, selectedPath, onSelect }: TreeViewProps) {
           depth={0}
           selectedPath={selectedPath}
           onSelect={onSelect}
+          summarizingPaths={summarizingPaths}
         />
       ))}
     </div>
@@ -32,13 +34,15 @@ interface TreeItemProps {
   depth: number
   selectedPath: string | null
   onSelect: (node: TreeNode) => void
+  summarizingPaths?: Set<string>
 }
 
-function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
+function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: TreeItemProps) {
   const [expanded, setExpanded] = useState(false)
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
   const isMarkdown = isMarkdownFile(node.name)
+  const isSummarizing = summarizingPaths?.has(node.path) ?? false
   const isPdf = isPdfFile(node.name)
   const isEntity = !!node.entity
   const isSelectable = isMarkdown || isPdf || isEntity
@@ -107,6 +111,11 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
         {node.entity && (
           <span className="tree-variant-count">{getVariantCount()}</span>
         )}
+        {isSummarizing && (
+          <span className="tree-spinner" title="Summarizing with Claude...">
+            ⏳
+          </span>
+        )}
       </div>
       {expanded && hasChildren && (
         <div className="tree-children">
@@ -117,6 +126,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
               depth={depth + 1}
               selectedPath={selectedPath}
               onSelect={onSelect}
+              summarizingPaths={summarizingPaths}
             />
           ))}
         </div>
