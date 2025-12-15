@@ -193,14 +193,18 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     setSearchText('')
   }, [])
 
+  const openSearch = useCallback(() => {
+    setSearchOpen(true)
+    setTimeout(() => searchInputRef.current?.focus(), 0)
+  }, [])
+
   const toggleSearch = useCallback(() => {
     if (searchOpen) {
       closeSearch()
     } else {
-      setSearchOpen(true)
-      setTimeout(() => searchInputRef.current?.focus(), 0)
+      openSearch()
     }
-  }, [searchOpen, closeSearch])
+  }, [searchOpen, closeSearch, openSearch])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -208,8 +212,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
       // Search shortcut
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
-        setSearchOpen(true)
-        setTimeout(() => searchInputRef.current?.focus(), 0)
+        openSearch()
         return
       }
       if (e.key === 'Escape' && searchOpen) {
@@ -234,7 +237,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [searchOpen, goToPage, closeSearch])
+  }, [searchOpen, goToPage, closeSearch, openSearch])
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
