@@ -43,12 +43,24 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
   const isEntity = !!node.entity
   const isSelectable = isMarkdown || isPdf || isEntity
 
-  const handleClick = () => {
-    if (hasChildren) {
-      setExpanded(!expanded)
-    }
+  const handleChevronClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpanded(!expanded)
+  }
+
+  const handleRowClick = () => {
     if (isSelectable) {
       onSelect(node)
+    }
+    if (hasChildren) {
+      if (isSelected) {
+        // Only toggle collapse if already viewing this item
+        setExpanded(!expanded)
+      } else if (!expanded) {
+        // Expand when navigating to a collapsed item
+        setExpanded(true)
+      }
+      // Don't collapse when navigating to an already-expanded item
     }
   }
 
@@ -79,10 +91,13 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
       <div
         className={`tree-item-row ${isSelected ? 'selected' : ''}`}
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
-        onClick={handleClick}
+        onClick={handleRowClick}
       >
         {hasChildren && (
-          <span className={`tree-chevron ${expanded ? 'expanded' : ''}`}>
+          <span
+            className={`tree-chevron ${expanded ? 'expanded' : ''}`}
+            onClick={handleChevronClick}
+          >
             ▶
           </span>
         )}
