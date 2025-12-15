@@ -18,7 +18,6 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
-  const [claudeLogs, setClaudeLogs] = useState<string>('')
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -43,13 +42,6 @@ function App() {
     })
   }, [])
 
-  // Listen for Claude CLI logs
-  useEffect(() => {
-    const unsubscribe = window.electronAPI.onClaudeLog((log) => {
-      setClaudeLogs((prev) => prev + log)
-    })
-    return () => unsubscribe()
-  }, [])
 
   const refreshTree = useCallback(() => {
     if (!folderPath) {
@@ -183,8 +175,6 @@ function App() {
     const pdfPath = activeMember?.path ?? selectedNode.path
     const outputPath = getOutputPath(pdfPath, outputFilename)
 
-    // Clear logs and add to summarizing set
-    setClaudeLogs('')
     setSummarizingPaths((prev) => new Set(prev).add(selectedNode.path))
     setShowSummarizeModal(false)
 
@@ -224,7 +214,6 @@ function App() {
           {(canSummarize || summarizingPaths.size > 0) && (
             <SummarizeButton
               isSummarizing={summarizingPaths.size > 0}
-              logs={claudeLogs}
               onClick={() => setShowSummarizeModal(true)}
             />
           )}
