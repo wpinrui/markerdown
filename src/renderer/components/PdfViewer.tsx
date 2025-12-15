@@ -151,8 +151,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const goToPage = useCallback((pageNum: number) => {
     const targetPage = Math.max(1, Math.min(pageNum, numPages))
     const pageEl = pageRefs.current.get(targetPage)
-    if (pageEl && containerRef.current) {
-      pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (pageEl) {
+      pageEl.scrollIntoView({ block: 'start' })
     }
   }, [numPages])
 
@@ -178,11 +178,11 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
         return
       }
 
-      // Arrow key page navigation
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      // Left/Right arrow for page navigation
+      if (e.key === 'ArrowRight') {
         e.preventDefault()
         goToPage(currentPage + 1)
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         goToPage(currentPage - 1)
       }
