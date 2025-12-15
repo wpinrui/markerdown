@@ -191,7 +191,7 @@ body {
   flex-direction: column;
 }
 
-.pdf-webview {
+.pdf-iframe {
   width: 100%;
   flex: 1;
   min-height: 500px;
