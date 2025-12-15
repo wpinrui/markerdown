@@ -156,10 +156,9 @@ body {
 
 .entity-tabs {
   display: flex;
-  gap: 4px;
-  padding-bottom: 12px;
+  gap: 8px;
+  padding: 12px;
   border-bottom: 1px solid #3c3c3c;
-  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
