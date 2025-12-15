@@ -79,7 +79,6 @@ body {
 
 .content {
   flex: 1;
-  padding: 20px;
   overflow-y: auto;
 }
 
@@ -191,12 +190,141 @@ body {
   flex-direction: column;
 }
 
-.pdf-iframe {
-  width: 100%;
-  flex: 1;
-  min-height: 500px;
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background-color: #2d2d2d;
+  border-radius: 4px 4px 0 0;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pdf-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdf-toolbar button {
+  background: transparent;
   border: none;
-  border-radius: 4px;
+  color: #d4d4d4;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.pdf-toolbar button:hover {
+  background-color: #3c3c3c;
+}
+
+.pdf-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pdf-toolbar button.active {
+  background-color: #094771;
+}
+
+.pdf-fit-btn {
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+}
+
+.pdf-zoom-input {
+  font-size: 11px;
+  width: 48px;
+  text-align: center;
+  color: #d4d4d4;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+
+.pdf-zoom-input:hover {
+  border-color: #555;
+}
+
+.pdf-zoom-input:focus {
+  outline: none;
+  border-color: #0e639c;
+  background-color: #3c3c3c;
+}
+
+.pdf-page-indicator {
+  font-size: 12px;
+  color: #999;
+}
+
+.pdf-search-bar {
+  display: flex;
+  padding: 4px 8px;
+  background-color: #252526;
+  gap: 4px;
+}
+
+.pdf-search-bar input {
+  flex: 1;
+  background-color: #3c3c3c;
+  border: 1px solid #555;
+  color: #d4d4d4;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.pdf-search-bar input:focus {
+  outline: none;
+  border-color: #0e639c;
+}
+
+.pdf-search-bar button {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.pdf-search-bar button:hover {
+  color: #d4d4d4;
+}
+
+.pdf-container {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: #3c3c3c;
+  border-radius: 0 0 4px 4px;
+}
+
+.pdf-page-wrapper {
+  line-height: 0;
+}
+
+.pdf-container .react-pdf__Page {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-container .react-pdf__Page__canvas {
+  display: block;
+}
+
+.pdf-container .react-pdf__Page__textContent mark {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 0 2px;
+  border-radius: 2px;
 }
 
 .pdf-loading,
@@ -213,6 +341,7 @@ body {
   font-size: 15px;
   line-height: 1.7;
   max-width: 800px;
+  padding: 20px;
 }
 
 .markdown-viewer h1,
