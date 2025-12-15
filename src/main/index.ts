@@ -5,6 +5,19 @@ import * as fs from 'fs'
 let mainWindow: BrowserWindow | null = null
 
 const isDev = process.env.NODE_ENV !== 'production'
+const settingsPath = path.join(app.getPath('userData'), 'settings.json')
+
+function loadSettings(): { lastFolder?: string } {
+  try {
+    return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+
+function saveSettings(settings: { lastFolder?: string }) {
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -84,4 +97,14 @@ ipcMain.handle('fs:exists', async (_event, filePath: string) => {
   } catch {
     return false
   }
+})
+
+ipcMain.handle('settings:getLastFolder', () => {
+  return loadSettings().lastFolder ?? null
+})
+
+ipcMain.handle('settings:setLastFolder', (_event, folderPath: string | null) => {
+  const settings = loadSettings()
+  settings.lastFolder = folderPath ?? undefined
+  saveSettings(settings)
 })

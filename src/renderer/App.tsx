@@ -19,8 +19,16 @@ function App() {
       setSelectedNode(null)
       setFileContent(null)
       setError(null)
+      window.electronAPI.setLastFolder(path)
     }
   }
+
+  // Load last folder on startup
+  useEffect(() => {
+    window.electronAPI.getLastFolder().then((path) => {
+      if (path) setFolderPath(path)
+    })
+  }, [])
 
   // Build tree when folder changes
   useEffect(() => {

@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFile: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:readFile', filePath),
   exists: (filePath: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', filePath),
+  getLastFolder: (): Promise<string | null> => ipcRenderer.invoke('settings:getLastFolder'),
+  setLastFolder: (folderPath: string | null): Promise<void> =>
+    ipcRenderer.invoke('settings:setLastFolder', folderPath),
 })
