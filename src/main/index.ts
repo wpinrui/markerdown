@@ -1,8 +1,10 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
+import chokidar, { FSWatcher } from 'chokidar'
 
 let mainWindow: BrowserWindow | null = null
+let watcher: FSWatcher | null = null
 
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
@@ -46,6 +48,10 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => {
+    if (watcher) {
+      watcher.close()
+      watcher = null
+    }
     mainWindow = null
   })
 }
@@ -115,4 +121,27 @@ ipcMain.handle('settings:setLastFolder', (_event, folderPath: string | null) => 
   const settings = loadSettings()
   settings.lastFolder = folderPath ?? undefined
   saveSettings(settings)
+})
+
+ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
+  if (watcher) {
+    watcher.close()
+  }
+
+  watcher = chokidar.watch(folderPath, {
+    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    persistent: true,
+    ignoreInitial: true,
+  })
+
+  watcher.on('all', (event, filePath) => {
+    mainWindow?.webContents.send('fs:changed', { event, path: filePath })
+  })
+})
+
+ipcMain.handle('fs:unwatchFolder', () => {
+  if (watcher) {
+    watcher.close()
+    watcher = null
+  }
 })

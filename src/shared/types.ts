@@ -23,6 +23,11 @@ export interface TreeNode {
   children?: TreeNode[]
 }
 
+export interface FileChangeEvent {
+  event: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir'
+  path: string
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
@@ -30,6 +35,9 @@ export interface ElectronAPI {
   exists: (filePath: string) => Promise<boolean>
   getLastFolder: () => Promise<string | null>
   setLastFolder: (folderPath: string | null) => Promise<void>
+  watchFolder: (folderPath: string) => Promise<void>
+  unwatchFolder: () => Promise<void>
+  onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
 }
 
 declare global {
