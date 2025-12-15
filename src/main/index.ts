@@ -137,6 +137,17 @@ ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
   }
 })
 
+ipcMain.handle('fs:readPdfAsDataUrl', async (_event, filePath: string) => {
+  try {
+    const buffer = await fs.promises.readFile(filePath)
+    const base64 = buffer.toString('base64')
+    return `data:application/pdf;base64,${base64}`
+  } catch (error) {
+    console.error('Error reading PDF:', error)
+    return null
+  }
+})
+
 ipcMain.handle('fs:exists', async (_event, filePath: string) => {
   try {
     await fs.promises.access(filePath)
