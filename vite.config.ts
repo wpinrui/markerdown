@@ -15,6 +15,9 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, 'src/shared'),
     },
   },
+  optimizeDeps: {
+    include: ['pdfjs-dist'],
+  },
   server: {
     port: 5173,
   },
