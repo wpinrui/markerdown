@@ -62,7 +62,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
     if (isMarkdown || isEntity) {
       return '📄'
     }
-    if (isPdfFile(node.name)) {
+    if (isPdf) {
       return '📑'
     }
     return '📎'
