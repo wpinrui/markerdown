@@ -152,7 +152,8 @@ function App() {
   }
 
   const isPdfActive = activeMember?.type === 'pdf'
-  const canSummarize = isPdfActive && selectedNode?.entity
+  const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
+  const canSummarize = isPdfActive || isStandalonePdf
 
   const getOutputPath = (pdfPath: string, outputFilename: string) => {
     const lastSlash = Math.max(pdfPath.lastIndexOf('/'), pdfPath.lastIndexOf('\\'))
@@ -160,10 +161,16 @@ function App() {
     return `${dir}/${outputFilename}`
   }
 
-  const handleSummarize = async (prompt: string, outputFilename: string) => {
-    if (!selectedNode?.entity || !activeMember || !selectedNode.path) return
+  const getBaseName = (filename: string) => {
+    // Remove .pdf extension to get base name
+    return filename.replace(/\.pdf$/i, '')
+  }
 
-    const pdfPath = activeMember.path
+  const handleSummarize = async (prompt: string, outputFilename: string) => {
+    if (!selectedNode?.path) return
+
+    // Get PDF path - either from active member (entity) or selected node (standalone)
+    const pdfPath = activeMember?.path ?? selectedNode.path
     const outputPath = getOutputPath(pdfPath, outputFilename)
 
     // Add to summarizing set
@@ -192,7 +199,10 @@ function App() {
     }
   }
 
+  // For entities, use entity members; for standalone PDFs, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
+  // For entities, use baseName; for standalone PDFs, extract from filename
+  const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? getBaseName(selectedNode.name) : '')
 
   return (
     <div className="app">
@@ -239,7 +249,7 @@ function App() {
         isOpen={showSummarizeModal}
         onClose={() => setShowSummarizeModal(false)}
         onSubmit={handleSummarize}
-        entityBaseName={selectedNode?.entity?.baseName ?? ''}
+        entityBaseName={summarizeBaseName}
         existingVariants={existingVariants}
       />
     </div>
