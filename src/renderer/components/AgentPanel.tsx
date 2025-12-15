@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 import type { AgentMessage } from '@shared/types'
 
 interface AgentPanelProps {
@@ -133,12 +137,30 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       <div className="agent-messages">
         {messages.map((msg, i) => (
           <div key={i} className={`agent-message agent-message-${msg.role}`}>
-            <div className="agent-message-content">{msg.content}</div>
+            <div className="agent-message-content">
+              {msg.role === 'assistant' ? (
+                <Markdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {msg.content}
+                </Markdown>
+              ) : (
+                msg.content
+              )}
+            </div>
           </div>
         ))}
         {streamingContent && (
           <div className="agent-message agent-message-assistant">
-            <div className="agent-message-content">{streamingContent}</div>
+            <div className="agent-message-content">
+              <Markdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {streamingContent}
+              </Markdown>
+            </div>
           </div>
         )}
         {isLoading && !streamingContent && (
