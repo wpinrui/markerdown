@@ -3,10 +3,12 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
-import type { SummarizeRequest, SummarizeResult } from '@shared/types'
+import type { SummarizeRequest, SummarizeResult, AgentChatRequest } from '@shared/types'
+import type { ChildProcess } from 'child_process'
 
 let mainWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
+let agentProcess: ChildProcess | null = null
 
 function closeWatcher() {
   if (watcher) {
@@ -214,4 +216,63 @@ ${prompt}`
       resolve({ success: false, error: `Failed to spawn Claude CLI: ${err.message}` })
     })
   })
+})
+
+function cancelAgent() {
+  if (agentProcess) {
+    agentProcess.kill()
+    agentProcess = null
+  }
+}
+
+ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<void> => {
+  const { message, workingDir } = request
+
+  // Cancel any existing agent process
+  cancelAgent()
+
+  const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
+When you need information, use your tools to list directories and read files.
+Prefer reading .md files over .pdf files when both exist for the same topic.
+Be concise but thorough in your answers.`
+
+  const args = [
+    '--print',
+    '--dangerously-skip-permissions',
+    '--model', 'sonnet',
+    '-p', systemPrompt,
+    message,
+  ]
+
+  agentProcess = spawn('claude', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: workingDir,
+  })
+
+  agentProcess.stdout?.on('data', (data: Buffer) => {
+    mainWindow?.webContents.send('agent:chunk', data.toString())
+  })
+
+  agentProcess.stderr?.on('data', (data: Buffer) => {
+    // Log stderr but don't send to renderer (usually just progress info)
+    console.error('Agent stderr:', data.toString())
+  })
+
+  agentProcess.on('close', (code) => {
+    if (code === 0) {
+      mainWindow?.webContents.send('agent:complete')
+    } else {
+      mainWindow?.webContents.send('agent:complete', `Process exited with code ${code}`)
+    }
+    agentProcess = null
+  })
+
+  agentProcess.on('error', (err) => {
+    mainWindow?.webContents.send('agent:complete', `Failed to spawn Claude CLI: ${err.message}`)
+    agentProcess = null
+  })
+})
+
+ipcMain.handle('agent:cancel', async (): Promise<void> => {
+  cancelAgent()
 })

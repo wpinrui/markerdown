@@ -59,6 +59,16 @@ export interface SummarizeResult {
   error?: string
 }
 
+export interface AgentMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface AgentChatRequest {
+  message: string
+  workingDir: string
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
@@ -71,6 +81,10 @@ export interface ElectronAPI {
   unwatchFolder: () => Promise<void>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
+  agentChat: (request: AgentChatRequest) => Promise<void>
+  agentCancel: () => Promise<void>
+  onAgentChunk: (callback: (chunk: string) => void) => () => void
+  onAgentComplete: (callback: (error?: string) => void) => () => void
 }
 
 declare global {

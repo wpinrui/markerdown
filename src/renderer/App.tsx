@@ -5,9 +5,16 @@ import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { SummarizeButton } from './components/SummarizeButton'
+import { AgentPanel } from './components/AgentPanel'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
+
+const DEFAULT_SIDEBAR_WIDTH = 280
+const DEFAULT_TREE_HEIGHT_RATIO = 0.6
+const MIN_SIDEBAR_WIDTH = 200
+const MAX_SIDEBAR_WIDTH = 600
+const MIN_PANEL_HEIGHT = 100
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -18,6 +25,14 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
+
+  // Agent panel state
+  const [showAgent, setShowAgent] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  const [treeHeightRatio, setTreeHeightRatio] = useState(DEFAULT_TREE_HEIGHT_RATIO)
+  const sidebarRef = useRef<HTMLElement>(null)
+  const isDraggingSidebar = useRef(false)
+  const isDraggingDivider = useRef(false)
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -42,6 +57,79 @@ function App() {
     })
   }, [])
 
+  // Keyboard shortcut for agent toggle (Ctrl+Shift+A)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        setShowAgent((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Sidebar width resize handler
+  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingSidebar.current = true
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingSidebar.current) return
+      const newWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, e.clientX))
+      setSidebarWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      isDraggingSidebar.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [])
+
+  // Divider resize handler (between tree and agent panel)
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingDivider.current = true
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+
+    const sidebarEl = sidebarRef.current
+    if (!sidebarEl) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingDivider.current || !sidebarEl) return
+      const rect = sidebarEl.getBoundingClientRect()
+      const totalHeight = rect.height
+      const relativeY = e.clientY - rect.top
+      const newRatio = Math.min(0.9, Math.max(0.1, relativeY / totalHeight))
+
+      // Ensure minimum heights
+      const treeHeight = totalHeight * newRatio
+      const agentHeight = totalHeight * (1 - newRatio)
+      if (treeHeight >= MIN_PANEL_HEIGHT && agentHeight >= MIN_PANEL_HEIGHT) {
+        setTreeHeightRatio(newRatio)
+      }
+    }
+
+    const handleMouseUp = () => {
+      isDraggingDivider.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [])
 
   const refreshTree = useCallback(() => {
     if (!folderPath) {
@@ -211,6 +299,14 @@ function App() {
       <header className="header">
         <h1>MarkerDown</h1>
         <div className="header-actions">
+          <button
+            className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
+            onClick={() => setShowAgent((prev) => !prev)}
+            title="Toggle Agent Panel (Ctrl+Shift+A)"
+          >
+            Agent
+            <span className="shortcut">Ctrl+Shift+A</span>
+          </button>
           {(canSummarize || summarizingPaths.size > 0) && (
             <SummarizeButton
               isSummarizing={summarizingPaths.size > 0}
@@ -221,17 +317,41 @@ function App() {
         </div>
       </header>
       <main className="main">
-        <aside className="sidebar">
-          {folderPath ? (
-            <TreeView
-              nodes={treeNodes}
-              selectedPath={selectedNode?.path ?? null}
-              onSelect={handleSelectNode}
-              summarizingPaths={summarizingPaths}
-            />
-          ) : (
-            <p className="placeholder">No folder opened</p>
+        <aside
+          className="sidebar"
+          ref={sidebarRef}
+          style={{ width: sidebarWidth }}
+        >
+          <div
+            className="sidebar-content"
+            style={{ height: showAgent ? `${treeHeightRatio * 100}%` : '100%' }}
+          >
+            {folderPath ? (
+              <TreeView
+                nodes={treeNodes}
+                selectedPath={selectedNode?.path ?? null}
+                onSelect={handleSelectNode}
+                summarizingPaths={summarizingPaths}
+              />
+            ) : (
+              <p className="placeholder">No folder opened</p>
+            )}
+          </div>
+          {showAgent && (
+            <>
+              <div
+                className="sidebar-divider"
+                onMouseDown={handleDividerMouseDown}
+              />
+              <div style={{ height: `${(1 - treeHeightRatio) * 100}%` }}>
+                <AgentPanel workingDir={folderPath} />
+              </div>
+            </>
           )}
+          <div
+            className="sidebar-resize-handle"
+            onMouseDown={handleSidebarMouseDown}
+          />
         </aside>
         <section className="content">
           {error ? (
