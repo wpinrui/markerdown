@@ -31,21 +31,21 @@ export function SummarizeModal({
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [mode, setMode] = useState<'auto' | 'custom'>('auto')
   const [customPrompt, setCustomPrompt] = useState('')
-  const [filename, setFilename] = useState('')
-  const [filenameError, setFilenameError] = useState<string | null>(null)
+  const [suffix, setSuffix] = useState('')
+  const [suffixError, setSuffixError] = useState<string | null>(null)
 
-  // Compute default filename
+  // Compute the full filename from suffix
+  const outputFilename = suffix ? `${entityBaseName}.${suffix}.md` : `${entityBaseName}.md`
+
+  // Compute default suffix
   useEffect(() => {
     if (!isOpen) return
     const hasDefault = existingVariants.includes('')
-    const defaultFilename = hasDefault
-      ? `${entityBaseName}.summary.md`
-      : `${entityBaseName}.md`
-    setFilename(defaultFilename)
-    setFilenameError(null)
+    setSuffix(hasDefault ? 'summary' : '')
+    setSuffixError(null)
     setMode('auto')
     setCustomPrompt('')
-  }, [isOpen, entityBaseName, existingVariants])
+  }, [isOpen, existingVariants])
 
   // Open/close dialog
   useEffect(() => {
@@ -59,44 +59,27 @@ export function SummarizeModal({
     }
   }, [isOpen])
 
-  // Validate filename
+  // Validate suffix
   useEffect(() => {
-    if (!filename) {
-      setFilenameError('Filename is required')
-      return
-    }
-    if (!filename.endsWith('.md')) {
-      setFilenameError('Filename must end with .md')
-      return
-    }
-    // Extract variant from filename
-    const expectedPrefix = `${entityBaseName}.`
-    if (!filename.startsWith(expectedPrefix) && filename !== `${entityBaseName}.md`) {
-      setFilenameError(`Filename must start with "${entityBaseName}."`)
+    // Check for invalid characters in suffix
+    if (suffix && !/^[a-zA-Z0-9_-]+$/.test(suffix)) {
+      setSuffixError('Only letters, numbers, - and _ allowed')
       return
     }
     // Check if variant already exists
-    let variant: string | null = null
-    if (filename === `${entityBaseName}.md`) {
-      variant = ''
-    } else {
-      // e.g., physics.summary.md -> variant = "summary"
-      const withoutExt = filename.slice(0, -3) // remove .md
-      const afterBase = withoutExt.slice(entityBaseName.length + 1) // remove "physics."
-      variant = afterBase
-    }
+    const variant = suffix || ''
     if (existingVariants.includes(variant)) {
-      setFilenameError('A file with this name already exists')
+      setSuffixError('A file with this name already exists')
       return
     }
-    setFilenameError(null)
-  }, [filename, entityBaseName, existingVariants])
+    setSuffixError(null)
+  }, [suffix, existingVariants])
 
   const handleSubmit = () => {
-    if (filenameError) return
+    if (suffixError) return
     const prompt = mode === 'auto' ? AUTO_PROMPT : customPrompt
     if (!prompt.trim()) return
-    onSubmit(prompt, filename)
+    onSubmit(prompt, outputFilename)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -105,7 +88,7 @@ export function SummarizeModal({
     }
   }
 
-  const isSubmitDisabled = !!filenameError || (mode === 'custom' && !customPrompt.trim())
+  const isSubmitDisabled = !!suffixError || (mode === 'custom' && !customPrompt.trim())
 
   return (
     <dialog
@@ -142,16 +125,20 @@ export function SummarizeModal({
         />
 
         <div className="summarize-input-group">
-          <label htmlFor="output-filename">Output filename</label>
+          <label htmlFor="output-suffix">Variant suffix (optional)</label>
           <input
-            id="output-filename"
+            id="output-suffix"
             type="text"
-            className={`summarize-input ${filenameError ? 'error' : ''}`}
-            value={filename}
-            onChange={(e) => setFilename(e.target.value)}
+            className={`summarize-input ${suffixError ? 'error' : ''}`}
+            value={suffix}
+            onChange={(e) => setSuffix(e.target.value)}
+            placeholder="e.g., summary, notes"
           />
-          {filenameError && (
-            <div className="summarize-error">{filenameError}</div>
+          <div className="summarize-filename-preview">
+            Output: <strong>{outputFilename}</strong>
+          </div>
+          {suffixError && (
+            <div className="summarize-error">{suffixError}</div>
           )}
         </div>
       </div>
