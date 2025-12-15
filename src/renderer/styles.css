@@ -707,6 +707,13 @@ body {
   color: #808080;
 }
 
+.agent-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-new-chat-btn,
 .agent-close-btn {
   background: transparent;
   border: none;
@@ -717,6 +724,7 @@ body {
   border-radius: 3px;
 }
 
+.agent-new-chat-btn:hover,
 .agent-close-btn:hover {
   background-color: #3c3c3c;
   color: #d4d4d4;

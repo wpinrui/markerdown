@@ -11,6 +11,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -60,15 +61,18 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     setStreamingContent('')
 
     try {
-      await window.electronAPI.agentChat({
+      const response = await window.electronAPI.agentChat({
         message: userMessage,
         workingDir,
+        sessionId: sessionId ?? undefined,
       })
+      // Store session ID for conversation continuity
+      setSessionId(response.sessionId)
     } catch (err) {
       setIsLoading(false)
       setMessages((prev) => [...prev, { role: 'assistant', content: `Failed to start agent: ${err}` }])
     }
-  }, [input, isLoading, workingDir])
+  }, [input, isLoading, workingDir, sessionId])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -86,6 +90,12 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     }
   }
 
+  const handleNewChat = () => {
+    setMessages([])
+    setSessionId(null)
+    setStreamingContent('')
+  }
+
   if (!workingDir) {
     return (
       <div className="agent-panel">
@@ -98,9 +108,16 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     <div className="agent-panel">
       <div className="agent-header">
         <span className="agent-title">Agent</span>
-        <button className="agent-close-btn" onClick={onClose} title="Close panel">
-          ✕
-        </button>
+        <div className="agent-header-actions">
+          {sessionId && (
+            <button className="agent-new-chat-btn" onClick={handleNewChat} title="New chat">
+              +
+            </button>
+          )}
+          <button className="agent-close-btn" onClick={onClose} title="Close panel">
+            ✕
+          </button>
+        </div>
       </div>
       <div className="agent-messages">
         {messages.map((msg, i) => (

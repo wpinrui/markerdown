@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
-import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, AgentChatRequest } from '@shared/types'
+import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse } from '@shared/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),
@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   summarizePdf: (request: SummarizeRequest): Promise<SummarizeResult> =>
     ipcRenderer.invoke('claude:summarize', request),
-  agentChat: (request: AgentChatRequest): Promise<void> =>
+  agentChat: (request: AgentChatRequest): Promise<AgentChatResponse> =>
     ipcRenderer.invoke('agent:chat', request),
   agentCancel: (): Promise<void> => ipcRenderer.invoke('agent:cancel'),
   onAgentChunk: (callback: (chunk: string) => void): (() => void) => {
