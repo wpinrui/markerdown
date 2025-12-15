@@ -180,9 +180,7 @@ function App() {
             <PdfViewer filePath={selectedNode.path} />
           ) : fileContent !== null ? (
             <MarkdownViewer content={fileContent} />
-          ) : (
-            <p className="placeholder">Select a file to view</p>
-          )}
+          ) : null}
         </section>
       </main>
     </div>
