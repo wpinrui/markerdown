@@ -238,7 +238,7 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
 When you need information, use your tools to list directories and read files.
 Prefer reading .md files over .pdf files when both exist for the same topic.
-Be concise but thorough in your answers.`
+Be concise but thorough in your answers. Do not generate files - only answer verbally.`
 
   const args = [
     '--print',
