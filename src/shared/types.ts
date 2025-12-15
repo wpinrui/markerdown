@@ -23,9 +23,15 @@ export interface TreeNode {
   children?: TreeNode[]
 }
 
+export type FileChangeEventType = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir'
+
 export interface FileChangeEvent {
-  event: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir'
+  event: FileChangeEventType
   path: string
+}
+
+export function isStructureChange(eventType: FileChangeEventType): boolean {
+  return eventType === 'add' || eventType === 'addDir' || eventType === 'unlink' || eventType === 'unlinkDir'
 }
 
 export interface ElectronAPI {

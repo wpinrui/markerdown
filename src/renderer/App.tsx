@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { buildFileTree } from '@shared/fileTree'
-import { isMarkdownFile } from '@shared/types'
+import { isMarkdownFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent } from '@shared/types'
 
 function App() {
@@ -59,16 +59,20 @@ function App() {
   useEffect(() => {
     if (!folderPath) return
 
-    window.electronAPI.watchFolder(folderPath)
+    window.electronAPI.watchFolder(folderPath).catch((err) => {
+      console.error('Failed to watch folder:', err)
+    })
 
     const unsubscribe = window.electronAPI.onFileChange((event: FileChangeEvent) => {
-      if (event.event === 'add' || event.event === 'addDir' || event.event === 'unlink' || event.event === 'unlinkDir') {
+      if (isStructureChange(event.event)) {
         refreshTree()
       } else if (event.event === 'change' && selectedPathRef.current === event.path) {
         window.electronAPI.readFile(event.path).then((content) => {
           if (content !== null) {
             setFileContent(content)
           }
+        }).catch((err) => {
+          console.error('Failed to reload file:', err)
         })
       }
     })
