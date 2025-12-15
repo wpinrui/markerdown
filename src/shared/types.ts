@@ -4,6 +4,12 @@ export interface FileEntry {
   path: string
 }
 
+export const MARKDOWN_EXTENSION = '.md'
+
+export function isMarkdownFile(name: string): boolean {
+  return name.endsWith(MARKDOWN_EXTENSION)
+}
+
 export interface TreeNode {
   name: string
   path: string

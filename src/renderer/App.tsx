@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TreeView } from './components/TreeView'
 import { buildFileTree } from '@shared/fileTree'
+import { isMarkdownFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([])
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -15,6 +17,7 @@ function App() {
       setFolderPath(path)
       setSelectedNode(null)
       setFileContent(null)
+      setError(null)
     }
   }
 
@@ -27,19 +30,29 @@ function App() {
 
     buildFileTree(folderPath, window.electronAPI.readDirectory)
       .then(setTreeNodes)
-      .catch(console.error)
+      .catch((err) => {
+        console.error('Failed to build file tree:', err)
+        setError('Failed to load folder contents')
+      })
   }, [folderPath])
 
   // Load file content when selection changes
   useEffect(() => {
-    if (!selectedNode || !selectedNode.name.endsWith('.md')) {
+    if (!selectedNode || !isMarkdownFile(selectedNode.name)) {
       setFileContent(null)
       return
     }
 
     window.electronAPI.readFile(selectedNode.path)
-      .then(setFileContent)
-      .catch(console.error)
+      .then((content) => {
+        setFileContent(content)
+        setError(null)
+      })
+      .catch((err) => {
+        console.error('Failed to read file:', err)
+        setError(`Failed to read ${selectedNode.name}`)
+        setFileContent(null)
+      })
   }, [selectedNode])
 
   const handleSelectNode = (node: TreeNode) => {
@@ -65,7 +78,9 @@ function App() {
           )}
         </aside>
         <section className="content">
-          {fileContent !== null ? (
+          {error ? (
+            <p className="error-message">{error}</p>
+          ) : fileContent !== null ? (
             <pre className="markdown-raw">{fileContent}</pre>
           ) : (
             <p className="placeholder">Select a markdown file to view</p>

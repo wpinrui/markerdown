@@ -1,3 +1,4 @@
+import { isMarkdownFile, MARKDOWN_EXTENSION } from './types'
 import type { FileEntry, TreeNode } from './types'
 
 /**
@@ -16,8 +17,8 @@ export async function buildFileTree(
   const dirs = entries.filter((e) => e.isDirectory)
 
   // Find markdown files
-  const mdFiles = files.filter((f) => f.name.endsWith('.md'))
-  const otherFiles = files.filter((f) => !f.name.endsWith('.md'))
+  const mdFiles = files.filter((f) => isMarkdownFile(f.name))
+  const otherFiles = files.filter((f) => !isMarkdownFile(f.name))
 
   // Build a set of directory names for quick lookup
   const dirNames = new Set(dirs.map((d) => d.name))
@@ -27,7 +28,7 @@ export async function buildFileTree(
 
   // Process markdown files first (they may have sidecar folders)
   for (const mdFile of mdFiles) {
-    const baseName = mdFile.name.replace(/\.md$/, '')
+    const baseName = mdFile.name.slice(0, -MARKDOWN_EXTENSION.length)
     const hasSidecar = dirNames.has(baseName)
 
     const node: TreeNode = {

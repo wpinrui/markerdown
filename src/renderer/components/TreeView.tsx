@@ -1,5 +1,9 @@
 import { useState } from 'react'
+import { isMarkdownFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
+
+const INDENT_PX = 16
+const BASE_PADDING_PX = 8
 
 interface TreeViewProps {
   nodes: TreeNode[]
@@ -34,7 +38,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
   const [expanded, setExpanded] = useState(false)
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
-  const isMarkdown = node.name.endsWith('.md')
+  const isMarkdown = isMarkdownFile(node.name)
 
   const handleClick = () => {
     if (hasChildren) {
@@ -65,7 +69,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
     <div className="tree-item">
       <div
         className={`tree-item-row ${isSelected ? 'selected' : ''}`}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         onClick={handleClick}
       >
         {hasChildren && (

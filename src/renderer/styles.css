@@ -69,6 +69,11 @@ body {
   font-size: 14px;
 }
 
+.error-message {
+  color: #f48771;
+  font-size: 14px;
+}
+
 /* Tree View */
 .tree-view {
   font-size: 13px;
