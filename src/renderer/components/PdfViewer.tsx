@@ -20,7 +20,7 @@ const MAX_ZOOM = 3
 const SCROLL_RESTORE_DELAY_MS = 100
 const CONTAINER_PADDING_WITH_SCROLLBAR = 24
 const TOOLBAR_HEIGHT = 32
-const LETTER_ASPECT_RATIO = 8.5 / 11
+const DEFAULT_ASPECT_RATIO = 8.5 / 11 // US Letter fallback before page dimensions load
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -62,6 +62,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const [containerWidth, setContainerWidth] = useState<number>(800)
   const [containerHeight, setContainerHeight] = useState<number>(600)
   const [originalPageWidth, setOriginalPageWidth] = useState<number>(0)
+  const [originalPageHeight, setOriginalPageHeight] = useState<number>(0)
   const [searchText, setSearchText] = useState<string>('')
   const [searchOpen, setSearchOpen] = useState<boolean>(false)
   const [zoomInputValue, setZoomInputValue] = useState<string>('')
@@ -244,9 +245,10 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     setCurrentPage(1)
   }
 
-  function onPageLoadSuccess({ width }: { width: number }) {
+  function onPageLoadSuccess({ width, height }: { width: number; height: number }) {
     if (originalPageWidth === 0) {
       setOriginalPageWidth(width)
+      setOriginalPageHeight(height)
     }
   }
 
@@ -313,7 +315,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   if (fitMode === 'width') {
     pageWidth = containerWidth
   } else if (fitMode === 'page') {
-    const widthFromHeight = (containerHeight - TOOLBAR_HEIGHT) * LETTER_ASPECT_RATIO
+    const aspectRatio = originalPageHeight > 0 ? originalPageWidth / originalPageHeight : DEFAULT_ASPECT_RATIO
+    const widthFromHeight = (containerHeight - TOOLBAR_HEIGHT) * aspectRatio
     pageWidth = Math.min(containerWidth, widthFromHeight)
   } else {
     // Custom mode: scale is relative to original page width
