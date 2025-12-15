@@ -1,4 +1,5 @@
 import { MarkdownViewer } from './MarkdownViewer'
+import { PdfViewer } from './PdfViewer'
 import type { Entity, EntityMember } from '@shared/types'
 
 /**
@@ -72,11 +73,7 @@ export function EntityViewer({ entity, activeMember, content, onTabChange }: Ent
       </div>
       <div className="entity-content">
         {activeMember.type === 'pdf' ? (
-          <div className="pdf-placeholder">
-            <span className="pdf-icon">📑</span>
-            <p>PDF viewing coming soon</p>
-            <p className="pdf-path">{activeMember.path}</p>
-          </div>
+          <PdfViewer filePath={activeMember.path} />
         ) : content ? (
           <MarkdownViewer content={content} />
         ) : (

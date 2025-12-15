@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { EntityViewer } from './components/EntityViewer'
+import { PdfViewer } from './components/PdfViewer'
 import { buildFileTree } from '@shared/fileTree'
-import { isMarkdownFile, isStructureChange } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
 
 function App() {
@@ -175,10 +176,12 @@ function App() {
               content={fileContent}
               onTabChange={handleTabChange}
             />
+          ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
+            <PdfViewer filePath={selectedNode.path} />
           ) : fileContent !== null ? (
             <MarkdownViewer content={fileContent} />
           ) : (
-            <p className="placeholder">Select a markdown file to view</p>
+            <p className="placeholder">Select a file to view</p>
           )}
         </section>
       </main>

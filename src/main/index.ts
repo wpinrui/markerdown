@@ -45,6 +45,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      plugins: true,
     },
   })
 
@@ -104,6 +105,17 @@ ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
     return content
   } catch (error) {
     console.error('Error reading file:', error)
+    return null
+  }
+})
+
+ipcMain.handle('fs:readPdfAsDataUrl', async (_event, filePath: string) => {
+  try {
+    const buffer = await fs.promises.readFile(filePath)
+    const base64 = buffer.toString('base64')
+    return `data:application/pdf;base64,${base64}`
+  } catch (error) {
+    console.error('Error reading PDF:', error)
     return null
   }
 })

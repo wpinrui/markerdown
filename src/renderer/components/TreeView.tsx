@@ -39,8 +39,9 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
   const isMarkdown = isMarkdownFile(node.name)
+  const isPdf = isPdfFile(node.name)
   const isEntity = !!node.entity
-  const isSelectable = isMarkdown || isEntity
+  const isSelectable = isMarkdown || isPdf || isEntity
 
   const handleClick = () => {
     if (hasChildren) {
@@ -61,7 +62,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
     if (isMarkdown || isEntity) {
       return '📄'
     }
-    if (isPdfFile(node.name)) {
+    if (isPdf) {
       return '📑'
     }
     return '📎'

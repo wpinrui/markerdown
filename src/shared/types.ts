@@ -51,6 +51,7 @@ export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
   readFile: (filePath: string) => Promise<string | null>
+  readPdfAsDataUrl: (filePath: string) => Promise<string | null>
   exists: (filePath: string) => Promise<boolean>
   getLastFolder: () => Promise<string | null>
   setLastFolder: (folderPath: string | null) => Promise<void>
