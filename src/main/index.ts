@@ -240,9 +240,9 @@ Be concise but thorough in your answers.`
     '--print',
     '--dangerously-skip-permissions',
     '--allowed-tools', 'Read',
-    '--model', 'sonnet',
-    '-p', systemPrompt,
-    message,
+    '--model', 'haiku',
+    '--setting-sources', 'user',
+    systemPrompt + message,
   ]
 
   agentProcess = spawn('claude', args, {
