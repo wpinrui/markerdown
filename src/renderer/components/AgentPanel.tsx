@@ -5,6 +5,9 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import type { AgentMessage } from '@shared/types'
 
+const REMARK_PLUGINS = [remarkGfm, remarkMath]
+const REHYPE_PLUGINS = [rehypeKatex]
+
 interface AgentPanelProps {
   workingDir: string | null
   onClose: () => void
@@ -140,8 +143,8 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
             <div className="agent-message-content">
               {msg.role === 'assistant' ? (
                 <Markdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
+                  remarkPlugins={REMARK_PLUGINS}
+                  rehypePlugins={REHYPE_PLUGINS}
                 >
                   {msg.content}
                 </Markdown>
@@ -155,8 +158,8 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
           <div className="agent-message agent-message-assistant">
             <div className="agent-message-content">
               <Markdown
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeKatex]}
+                remarkPlugins={REMARK_PLUGINS}
+                rehypePlugins={REHYPE_PLUGINS}
               >
                 {streamingContent}
               </Markdown>
