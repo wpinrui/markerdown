@@ -19,7 +19,9 @@ function App() {
       setSelectedNode(null)
       setFileContent(null)
       setError(null)
-      window.electronAPI.setLastFolder(path)
+      window.electronAPI.setLastFolder(path).catch((err) => {
+        console.error('Failed to save last folder:', err)
+      })
     }
   }
 

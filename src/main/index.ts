@@ -7,7 +7,11 @@ let mainWindow: BrowserWindow | null = null
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
 
-function loadSettings(): { lastFolder?: string } {
+interface Settings {
+  lastFolder?: string
+}
+
+function loadSettings(): Settings {
   try {
     return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
   } catch {
@@ -15,7 +19,7 @@ function loadSettings(): { lastFolder?: string } {
   }
 }
 
-function saveSettings(settings: { lastFolder?: string }) {
+function saveSettings(settings: Settings) {
   try {
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
   } catch (error) {
