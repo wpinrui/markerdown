@@ -1,12 +1,15 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
+import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
-import type { SummarizeRequest, SummarizeResult } from '@shared/types'
+import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse } from '@shared/types'
+import type { ChildProcess } from 'child_process'
 
 let mainWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
+let agentProcess: ChildProcess | null = null
 
 function closeWatcher() {
   if (watcher) {
@@ -214,4 +217,78 @@ ${prompt}`
       resolve({ success: false, error: `Failed to spawn Claude CLI: ${err.message}` })
     })
   })
+})
+
+function cancelAgent() {
+  if (agentProcess) {
+    agentProcess.kill()
+    agentProcess = null
+  }
+}
+
+ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<AgentChatResponse> => {
+  const { message, workingDir, sessionId: existingSessionId } = request
+
+  // Cancel any existing agent process
+  cancelAgent()
+
+  // Use existing session ID or generate a new one
+  const sessionId = existingSessionId ?? crypto.randomUUID()
+
+  const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
+When you need information, use your tools to list directories and read files.
+Prefer reading .md files over .pdf files when both exist for the same topic.
+Be concise but thorough in your answers. Do not generate files - only answer verbally.`
+
+  const args = [
+    '--print',
+    '--dangerously-skip-permissions',
+    '--allowed-tools', 'Read',
+    '--model', 'sonnet',
+    '--setting-sources', 'user',
+  ]
+
+  // For new sessions, use --session-id; for existing sessions, use --resume
+  if (existingSessionId) {
+    args.push('--resume', sessionId)
+  } else {
+    args.push('--session-id', sessionId)
+    args.push('--system-prompt', systemPrompt)
+  }
+
+  args.push(message)
+
+  agentProcess = spawn('claude', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: workingDir,
+  })
+
+  agentProcess.stdout?.on('data', (data: Buffer) => {
+    mainWindow?.webContents.send('agent:chunk', data.toString())
+  })
+
+  agentProcess.stderr?.on('data', (data: Buffer) => {
+    // Log stderr but don't send to renderer (usually just progress info)
+    console.error('Agent stderr:', data.toString())
+  })
+
+  agentProcess.on('close', (code) => {
+    if (code === 0) {
+      mainWindow?.webContents.send('agent:complete')
+    } else {
+      mainWindow?.webContents.send('agent:complete', `Process exited with code ${code}`)
+    }
+    agentProcess = null
+  })
+
+  agentProcess.on('error', (err) => {
+    mainWindow?.webContents.send('agent:complete', `Failed to spawn Claude CLI: ${err.message}`)
+    agentProcess = null
+  })
+
+  return { sessionId }
+})
+
+ipcMain.handle('agent:cancel', async (): Promise<void> => {
+  cancelAgent()
 })

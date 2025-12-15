@@ -59,6 +59,21 @@ export interface SummarizeResult {
   error?: string
 }
 
+export interface AgentMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface AgentChatRequest {
+  message: string
+  workingDir: string
+  sessionId?: string // If provided, resumes this session; if not, starts new session
+}
+
+export interface AgentChatResponse {
+  sessionId: string // The session ID for this conversation (new or resumed)
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
@@ -71,6 +86,10 @@ export interface ElectronAPI {
   unwatchFolder: () => Promise<void>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
+  agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>
+  agentCancel: () => Promise<void>
+  onAgentChunk: (callback: (chunk: string) => void) => () => void
+  onAgentComplete: (callback: (error?: string) => void) => () => void
 }
 
 declare global {

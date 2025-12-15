@@ -5,9 +5,14 @@ import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { SummarizeButton } from './components/SummarizeButton'
+import { AgentPanel } from './components/AgentPanel'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
+
+const DEFAULT_AGENT_PANEL_WIDTH = 400
+const MIN_AGENT_PANEL_WIDTH = 250
+const MAX_AGENT_PANEL_WIDTH = 800
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -18,6 +23,11 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
+
+  // Agent panel state
+  const [showAgent, setShowAgent] = useState(false)
+  const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
+  const isDraggingAgentPanel = useRef(false)
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -42,6 +52,45 @@ function App() {
     })
   }, [])
 
+  // Keyboard shortcut for agent toggle (Ctrl+Shift+A)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        setShowAgent((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Agent panel resize handler (drag from left edge)
+  const handleAgentPanelMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingAgentPanel.current = true
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingAgentPanel.current) return
+      const newWidth = Math.min(
+        MAX_AGENT_PANEL_WIDTH,
+        Math.max(MIN_AGENT_PANEL_WIDTH, window.innerWidth - e.clientX)
+      )
+      setAgentPanelWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      isDraggingAgentPanel.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [])
 
   const refreshTree = useCallback(() => {
     if (!folderPath) {
@@ -211,6 +260,14 @@ function App() {
       <header className="header">
         <h1>MarkerDown</h1>
         <div className="header-actions">
+          <button
+            className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
+            onClick={() => setShowAgent((prev) => !prev)}
+            title="Toggle Agent Panel (Ctrl+Shift+A)"
+          >
+            Agent
+            <span className="shortcut">Ctrl+Shift+A</span>
+          </button>
           {(canSummarize || summarizingPaths.size > 0) && (
             <SummarizeButton
               isSummarizing={summarizingPaths.size > 0}
@@ -249,6 +306,16 @@ function App() {
             <MarkdownViewer content={fileContent} />
           ) : null}
         </section>
+        <aside
+          className="agent-sidebar"
+          style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
+        >
+          <div
+            className="agent-sidebar-resize-handle"
+            onMouseDown={handleAgentPanelMouseDown}
+          />
+          <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
+        </aside>
       </main>
       <SummarizeModal
         isOpen={showSummarizeModal}
