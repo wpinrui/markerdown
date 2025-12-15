@@ -28,6 +28,8 @@ export interface ElectronAPI {
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
   readFile: (filePath: string) => Promise<string | null>
   exists: (filePath: string) => Promise<boolean>
+  getLastFolder: () => Promise<string | null>
+  setLastFolder: (folderPath: string | null) => Promise<void>
 }
 
 declare global {

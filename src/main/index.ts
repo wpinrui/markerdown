@@ -5,11 +5,33 @@ import * as fs from 'fs'
 let mainWindow: BrowserWindow | null = null
 
 const isDev = process.env.NODE_ENV !== 'production'
+const settingsPath = path.join(app.getPath('userData'), 'settings.json')
+
+interface Settings {
+  lastFolder?: string
+}
+
+function loadSettings(): Settings {
+  try {
+    return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+
+function saveSettings(settings: Settings) {
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+  } catch (error) {
+    console.error('Failed to save settings:', error)
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -19,7 +41,6 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
@@ -84,4 +105,14 @@ ipcMain.handle('fs:exists', async (_event, filePath: string) => {
   } catch {
     return false
   }
+})
+
+ipcMain.handle('settings:getLastFolder', () => {
+  return loadSettings().lastFolder ?? null
+})
+
+ipcMain.handle('settings:setLastFolder', (_event, folderPath: string | null) => {
+  const settings = loadSettings()
+  settings.lastFolder = folderPath ?? undefined
+  saveSettings(settings)
 })

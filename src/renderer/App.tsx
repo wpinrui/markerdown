@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TreeView } from './components/TreeView'
+import { MarkdownViewer } from './components/MarkdownViewer'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
@@ -18,8 +19,20 @@ function App() {
       setSelectedNode(null)
       setFileContent(null)
       setError(null)
+      window.electronAPI.setLastFolder(path).catch((err) => {
+        console.error('Failed to save last folder:', err)
+      })
     }
   }
+
+  // Load last folder on startup
+  useEffect(() => {
+    window.electronAPI.getLastFolder().then((path) => {
+      if (path) setFolderPath(path)
+    }).catch((err) => {
+      console.error('Failed to load last folder:', err)
+    })
+  }, [])
 
   // Build tree when folder changes
   useEffect(() => {
@@ -96,7 +109,7 @@ function App() {
           {error ? (
             <p className="error-message">{error}</p>
           ) : fileContent !== null ? (
-            <pre className="markdown-raw">{fileContent}</pre>
+            <MarkdownViewer content={fileContent} />
           ) : (
             <p className="placeholder">Select a markdown file to view</p>
           )}
