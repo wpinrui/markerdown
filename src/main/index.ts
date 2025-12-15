@@ -240,6 +240,7 @@ Be concise but thorough in your answers.`
     '--print',
     '--dangerously-skip-permissions',
     '--model', 'sonnet',
+    '--cwd', workingDir,
     '-p', systemPrompt,
     message,
   ]
