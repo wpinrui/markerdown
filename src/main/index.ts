@@ -6,6 +6,13 @@ import chokidar, { FSWatcher } from 'chokidar'
 let mainWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
 
+function closeWatcher() {
+  if (watcher) {
+    watcher.close()
+    watcher = null
+  }
+}
+
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
 
@@ -48,10 +55,7 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => {
-    if (watcher) {
-      watcher.close()
-      watcher = null
-    }
+    closeWatcher()
     mainWindow = null
   })
 }
@@ -124,9 +128,7 @@ ipcMain.handle('settings:setLastFolder', (_event, folderPath: string | null) => 
 })
 
 ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
-  if (watcher) {
-    watcher.close()
-  }
+  closeWatcher()
 
   watcher = chokidar.watch(folderPath, {
     ignored: /(^|[\/\\])\../, // ignore dotfiles
@@ -137,11 +139,12 @@ ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   watcher.on('all', (event, filePath) => {
     mainWindow?.webContents.send('fs:changed', { event, path: filePath })
   })
+
+  watcher.on('error', (error) => {
+    console.error('File watcher error:', error)
+  })
 })
 
 ipcMain.handle('fs:unwatchFolder', () => {
-  if (watcher) {
-    watcher.close()
-    watcher = null
-  }
+  closeWatcher()
 })
