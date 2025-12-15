@@ -1,10 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-
-export interface FileEntry {
-  name: string
-  isDirectory: boolean
-  path: string
-}
+import type { FileEntry } from '@shared/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),

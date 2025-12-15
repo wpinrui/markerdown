@@ -16,7 +16,11 @@ function loadSettings(): { lastFolder?: string } {
 }
 
 function saveSettings(settings: { lastFolder?: string }) {
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+  try {
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+  } catch (error) {
+    console.error('Failed to save settings:', error)
+  }
 }
 
 function createWindow() {
