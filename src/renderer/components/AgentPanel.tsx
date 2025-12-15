@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import Markdown from 'react-markdown'
 import type { AgentMessage } from '@shared/types'
-import { REMARK_PLUGINS, REHYPE_PLUGINS } from '../markdownConfig'
-
-function AgentMarkdown({ content }: { content: string }) {
-  return (
-    <Markdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
-      {content}
-    </Markdown>
-  )
-}
+import { StyledMarkdown } from '../markdownConfig'
 
 interface AgentPanelProps {
   workingDir: string | null
@@ -145,7 +136,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
           <div key={i} className={`agent-message agent-message-${msg.role}`}>
             <div className="agent-message-content">
               {msg.role === 'assistant' ? (
-                <AgentMarkdown content={msg.content} />
+                <StyledMarkdown content={msg.content} />
               ) : (
                 msg.content
               )}
@@ -155,7 +146,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
         {streamingContent && (
           <div className="agent-message agent-message-assistant">
             <div className="agent-message-content">
-              <AgentMarkdown content={streamingContent} />
+              <StyledMarkdown content={streamingContent} />
             </div>
           </div>
         )}
