@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TreeView } from './components/TreeView'
+import { MarkdownViewer } from './components/MarkdownViewer'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
@@ -96,7 +97,7 @@ function App() {
           {error ? (
             <p className="error-message">{error}</p>
           ) : fileContent !== null ? (
-            <pre className="markdown-raw">{fileContent}</pre>
+            <MarkdownViewer content={fileContent} />
           ) : (
             <p className="placeholder">Select a markdown file to view</p>
           )}
