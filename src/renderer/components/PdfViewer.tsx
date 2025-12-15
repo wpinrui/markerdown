@@ -17,11 +17,11 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
   return (
     <div className="pdf-viewer">
+      {/* @ts-expect-error webview is Electron-specific */}
       <webview
         src={fileUrl}
         className="pdf-webview"
-        // @ts-expect-error webview is Electron-specific
-        plugins="true"
+        webpreferences="plugins"
       />
     </div>
   )
