@@ -34,6 +34,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     const unsubComplete = window.electronAPI.onAgentComplete((error) => {
       setIsLoading(false)
       if (error) {
+        setStreamingContent('')
         setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
       } else {
         setStreamingContent((prev) => {
