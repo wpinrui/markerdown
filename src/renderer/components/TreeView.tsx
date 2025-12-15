@@ -39,10 +39,21 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
   const isMarkdown = isMarkdownFile(node.name)
+  const isPdf = isPdfFile(node.name)
   const isEntity = !!node.entity
-  const isSelectable = isMarkdown || isEntity
+  const isSelectable = isMarkdown || isPdf || isEntity
 
   const handleClick = () => {
+    console.log('[TreeView] clicked:', {
+      name: node.name,
+      path: node.path,
+      isMarkdown,
+      isPdf,
+      isEntity,
+      isSelectable,
+      hasEntity: !!node.entity,
+      entityMembers: node.entity?.members,
+    })
     if (hasChildren) {
       setExpanded(!expanded)
     }

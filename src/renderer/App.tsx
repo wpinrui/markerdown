@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { EntityViewer } from './components/EntityViewer'
+import { PdfViewer } from './components/PdfViewer'
 import { buildFileTree } from '@shared/fileTree'
-import { isMarkdownFile, isStructureChange } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
 
 function App() {
@@ -133,10 +134,18 @@ function App() {
   }, [selectedNode, activeMember])
 
   const handleSelectNode = (node: TreeNode) => {
+    console.log('[App] handleSelectNode:', {
+      name: node.name,
+      hasEntity: !!node.entity,
+      entityBaseName: node.entity?.baseName,
+      defaultMember: node.entity?.defaultMember,
+      firstMember: node.entity?.members[0],
+    })
     setSelectedNode(node)
     // If node has an entity, set the default member as active
     if (node.entity) {
       const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
+      console.log('[App] setting activeMember:', defaultMember)
       setActiveMember(defaultMember)
     } else {
       setActiveMember(null)
@@ -175,10 +184,12 @@ function App() {
               content={fileContent}
               onTabChange={handleTabChange}
             />
+          ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
+            <PdfViewer filePath={selectedNode.path} />
           ) : fileContent !== null ? (
             <MarkdownViewer content={fileContent} />
           ) : (
-            <p className="placeholder">Select a markdown file to view</p>
+            <p className="placeholder">Select a file to view</p>
           )}
         </section>
       </main>
