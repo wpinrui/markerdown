@@ -17,9 +17,27 @@ type FitMode = 'width' | 'page' | 'custom'
 const ZOOM_STEP = 0.25
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
+const SCROLL_RESTORE_DELAY_MS = 100
+const CONTAINER_PADDING_WITH_SCROLLBAR = 24
+const TOOLBAR_HEIGHT = 32
+const LETTER_ASPECT_RATIO = 8.5 / 11
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function createSearchHighlighter(searchText: string) {
+  return ({ str }: { str: string }) => {
+    if (str.toLowerCase().includes(searchText.toLowerCase())) {
+      const parts = str.split(new RegExp(`(${escapeRegExp(searchText)})`, 'gi'))
+      return parts.map((part) =>
+        part.toLowerCase() === searchText.toLowerCase()
+          ? `<mark>${part}</mark>`
+          : part
+      ).join('')
+    }
+    return str
+  }
 }
 
 // Persist scroll positions across tab switches
@@ -82,8 +100,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
     const updateSize = () => {
       const rect = container.getBoundingClientRect()
-      // Account for padding (16px) + scrollbar width (8px)
-      setContainerWidth(rect.width - 24)
+      setContainerWidth(rect.width - CONTAINER_PADDING_WITH_SCROLLBAR)
       setContainerHeight(rect.height)
     }
 
@@ -102,12 +119,11 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     if (!containerRef.current || numPages === 0) return
     const savedPosition = scrollPositions.get(filePath)
     if (savedPosition !== undefined) {
-      // Delay to ensure pages have rendered
       const timer = setTimeout(() => {
         if (containerRef.current) {
           containerRef.current.scrollTop = savedPosition
         }
-      }, 100)
+      }, SCROLL_RESTORE_DELAY_MS)
       return () => clearTimeout(timer)
     }
   }, [filePath, numPages])
@@ -164,6 +180,11 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     }
   }, [numPages])
 
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearchText('')
+  }, [])
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -175,8 +196,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
         return
       }
       if (e.key === 'Escape' && searchOpen) {
-        setSearchOpen(false)
-        setSearchText('')
+        closeSearch()
         return
       }
 
@@ -197,7 +217,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [searchOpen, goToPage])
+  }, [searchOpen, goToPage, closeSearch])
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
@@ -273,9 +293,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   if (fitMode === 'width') {
     pageWidth = containerWidth
   } else if (fitMode === 'page') {
-    // Fit entire page in view - estimate aspect ratio (letter ~8.5x11)
-    const aspectRatio = 8.5 / 11
-    const widthFromHeight = (containerHeight - 32) * aspectRatio
+    const widthFromHeight = (containerHeight - TOOLBAR_HEIGHT) * LETTER_ASPECT_RATIO
     pageWidth = Math.min(containerWidth, widthFromHeight)
   } else {
     // Custom mode: scale is relative to original page width
@@ -353,12 +371,11 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
             onChange={(e) => setSearchText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
-                setSearchOpen(false)
-                setSearchText('')
+                closeSearch()
               }
             }}
           />
-          <button onClick={() => { setSearchOpen(false); setSearchText('') }}>✕</button>
+          <button onClick={closeSearch}>✕</button>
         </div>
       )}
       <div className="pdf-container" ref={containerRef}>
@@ -376,17 +393,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
                 onLoadSuccess={index === 0 ? onPageLoadSuccess : undefined}
-                customTextRenderer={searchText ? ({ str }) => {
-                  if (str.toLowerCase().includes(searchText.toLowerCase())) {
-                    const parts = str.split(new RegExp(`(${escapeRegExp(searchText)})`, 'gi'))
-                    return parts.map((part) =>
-                      part.toLowerCase() === searchText.toLowerCase()
-                        ? `<mark>${part}</mark>`
-                        : part
-                    ).join('')
-                  }
-                  return str
-                } : undefined}
+                customTextRenderer={searchText ? createSearchHighlighter(searchText) : undefined}
               />
             </div>
           ))}
