@@ -314,7 +314,7 @@ interface SessionJsonLine {
   type?: string
   message?: {
     role?: string
-    content?: Array<{ type: string; text?: string }>
+    content?: string | Array<{ type: string; text?: string }>
   }
   timestamp?: string
   sessionId?: string
@@ -341,9 +341,16 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 
         // Get first user message
         if (data.type === 'user' && data.message?.role === 'user') {
-          const textContent = data.message.content?.find((c) => c.type === 'text')
-          if (textContent?.text) {
-            firstMessage = textContent.text.slice(0, 100) // Truncate preview
+          const content = data.message.content
+          let text: string | undefined
+          if (typeof content === 'string') {
+            text = content
+          } else if (Array.isArray(content)) {
+            const textContent = content.find((c: { type: string; text?: string }) => c.type === 'text')
+            text = textContent?.text
+          }
+          if (text) {
+            firstMessage = text.slice(0, 100) // Truncate preview
             rl.close()
             stream.close()
           }
@@ -369,7 +376,10 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<AgentSession[]> => {
   try {
     const sessionsDir = getSessionsDir(workingDir)
+    console.log('workingDir:', workingDir)
+    console.log('sessionsDir:', sessionsDir)
     const files = await fs.promises.readdir(sessionsDir)
+    console.log('files found:', files)
     const jsonlFiles = files.filter((f) => f.endsWith('.jsonl') && !f.startsWith('agent-'))
 
     const sessions: AgentSession[] = []
@@ -378,6 +388,7 @@ ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<
       const sessionId = file.replace('.jsonl', '')
       const filePath = path.join(sessionsDir, file)
       const metadata = await parseSessionMetadata(filePath)
+      console.log('file:', file, 'metadata:', metadata)
 
       if (metadata) {
         sessions.push({
@@ -387,6 +398,7 @@ ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<
         })
       }
     }
+    console.log('sessions count:', sessions.length)
 
     // Sort by timestamp descending (newest first)
     sessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -413,14 +425,24 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
         const data: SessionJsonLine = JSON.parse(line)
 
         if (data.type === 'user' && data.message?.role === 'user') {
-          const textContent = data.message.content?.find((c) => c.type === 'text')
-          if (textContent?.text) {
-            messages.push({ role: 'user', content: textContent.text })
+          const content = data.message.content
+          let text: string | undefined
+          if (typeof content === 'string') {
+            text = content
+          } else if (Array.isArray(content)) {
+            const textContent = content.find((c: { type: string; text?: string }) => c.type === 'text')
+            text = textContent?.text
+          }
+          if (text) {
+            messages.push({ role: 'user', content: text })
           }
         } else if (data.type === 'assistant' && data.message?.role === 'assistant') {
-          const textContent = data.message.content?.find((c) => c.type === 'text')
-          if (textContent?.text) {
-            messages.push({ role: 'assistant', content: textContent.text })
+          const content = data.message.content
+          if (Array.isArray(content)) {
+            const textContent = content.find((c: { type: string; text?: string }) => c.type === 'text')
+            if (textContent?.text) {
+              messages.push({ role: 'assistant', content: textContent.text })
+            }
           }
         }
       } catch {
