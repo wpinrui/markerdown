@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron'
-import type { FileEntry } from '@shared/types'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+import type { FileEntry, FileChangeEvent } from '@shared/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),
@@ -11,4 +11,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLastFolder: (): Promise<string | null> => ipcRenderer.invoke('settings:getLastFolder'),
   setLastFolder: (folderPath: string | null): Promise<void> =>
     ipcRenderer.invoke('settings:setLastFolder', folderPath),
+  watchFolder: (folderPath: string): Promise<void> =>
+    ipcRenderer.invoke('fs:watchFolder', folderPath),
+  unwatchFolder: (): Promise<void> => ipcRenderer.invoke('fs:unwatchFolder'),
+  onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, data: FileChangeEvent) => callback(data)
+    ipcRenderer.on('fs:changed', listener)
+    return () => ipcRenderer.removeListener('fs:changed', listener)
+  },
 })

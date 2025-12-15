@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { buildFileTree } from '@shared/fileTree'
-import { isMarkdownFile } from '@shared/types'
-import type { TreeNode } from '@shared/types'
+import { isMarkdownFile, isStructureChange } from '@shared/types'
+import type { TreeNode, FileChangeEvent } from '@shared/types'
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -34,13 +34,11 @@ function App() {
     })
   }, [])
 
-  // Build tree when folder changes
-  useEffect(() => {
+  const refreshTree = useCallback(() => {
     if (!folderPath) {
       setTreeNodes([])
       return
     }
-
     buildFileTree(folderPath, window.electronAPI.readDirectory)
       .then(setTreeNodes)
       .catch((err) => {
@@ -48,6 +46,42 @@ function App() {
         setError('Failed to load folder contents')
       })
   }, [folderPath])
+
+  // Build tree when folder changes
+  useEffect(() => {
+    refreshTree()
+  }, [refreshTree])
+
+  // Watch folder for changes
+  const selectedPathRef = useRef<string | null>(null)
+  selectedPathRef.current = selectedNode?.path ?? null
+
+  useEffect(() => {
+    if (!folderPath) return
+
+    window.electronAPI.watchFolder(folderPath).catch((err) => {
+      console.error('Failed to watch folder:', err)
+    })
+
+    const unsubscribe = window.electronAPI.onFileChange((event: FileChangeEvent) => {
+      if (isStructureChange(event.event)) {
+        refreshTree()
+      } else if (event.event === 'change' && selectedPathRef.current === event.path) {
+        window.electronAPI.readFile(event.path).then((content) => {
+          if (content !== null) {
+            setFileContent(content)
+          }
+        }).catch((err) => {
+          console.error('Failed to reload file:', err)
+        })
+      }
+    })
+
+    return () => {
+      unsubscribe()
+      window.electronAPI.unwatchFolder()
+    }
+  }, [folderPath, refreshTree])
 
   // Load file content when selection changes
   useEffect(() => {
