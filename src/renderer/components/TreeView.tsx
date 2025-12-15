@@ -39,12 +39,14 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
   const isMarkdown = isMarkdownFile(node.name)
+  const isEntity = !!node.entity
+  const isSelectable = isMarkdown || isEntity
 
   const handleClick = () => {
     if (hasChildren) {
       setExpanded(!expanded)
     }
-    if (isMarkdown) {
+    if (isSelectable) {
       onSelect(node)
     }
   }
@@ -56,13 +58,19 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
     if (node.hasSidecar) {
       return expanded ? '📖' : '📕'
     }
-    if (isMarkdown) {
+    if (isMarkdown || isEntity) {
       return '📄'
     }
     if (isPdfFile(node.name)) {
       return '📑'
     }
     return '📎'
+  }
+
+  const getVariantCount = () => {
+    if (!node.entity) return null
+    const count = node.entity.members.length
+    return count > 1 ? `${count} variants` : '1 variant'
   }
 
   return (
@@ -80,6 +88,9 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps) {
         {!hasChildren && <span className="tree-chevron-placeholder" />}
         <span className="tree-icon">{getIcon()}</span>
         <span className="tree-name">{node.name}</span>
+        {node.entity && (
+          <span className="tree-variant-count">{getVariantCount()}</span>
+        )}
       </div>
       {expanded && hasChildren && (
         <div className="tree-children">
