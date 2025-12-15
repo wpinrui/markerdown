@@ -239,6 +239,7 @@ Be concise but thorough in your answers.`
   const args = [
     '--print',
     '--dangerously-skip-permissions',
+    '--allowed-tools', 'Read',
     '--model', 'sonnet',
     '--cwd', workingDir,
     '-p', systemPrompt,
