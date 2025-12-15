@@ -195,16 +195,11 @@ ${prompt}`
     let stderr = ''
 
     child.stdout.on('data', (data) => {
-      const text = data.toString()
-      mainWindow?.webContents.send('claude:log', text)
-      console.log(text)
+      console.log(data.toString())
     })
 
     child.stderr.on('data', (data) => {
-      const text = data.toString()
-      stderr += text
-      mainWindow?.webContents.send('claude:log', text)
-      console.log(text)
+      stderr += data.toString()
     })
 
     child.on('close', async (code) => {
