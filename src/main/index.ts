@@ -4,7 +4,9 @@ import * as fs from 'fs'
 import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
-import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse } from '@shared/types'
+import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
+import * as os from 'os'
+import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
 
 let mainWindow: BrowserWindow | null = null
@@ -291,4 +293,162 @@ Be concise but thorough in your answers. Do not generate files - only answer ver
 
 ipcMain.handle('agent:cancel', async (): Promise<void> => {
   cancelAgent()
+})
+
+// Encode project path the same way Claude CLI does
+function encodeProjectPath(projectPath: string): string {
+  // On Windows: C:\Users\... -> C--Users-...
+  // Replace :\ with -- and remaining slashes with -
+  return projectPath
+    .replace(/:\\/g, '--')
+    .replace(/[\\/]/g, '-')
+}
+
+function getSessionsDir(workingDir: string): string {
+  const claudeDir = path.join(os.homedir(), '.claude', 'projects')
+  const encodedPath = encodeProjectPath(workingDir)
+  return path.join(claudeDir, encodedPath)
+}
+
+const MESSAGE_PREVIEW_LENGTH = 100
+
+interface ContentBlock {
+  type: string
+  text?: string
+}
+
+interface SessionJsonLine {
+  type?: string
+  message?: {
+    role?: string
+    content?: string | ContentBlock[]
+  }
+  timestamp?: string
+  sessionId?: string
+}
+
+function extractTextFromContent(content: string | ContentBlock[] | undefined): string | undefined {
+  if (typeof content === 'string') {
+    return content
+  }
+  if (Array.isArray(content)) {
+    const textBlock = content.find((block) => block.type === 'text')
+    return textBlock?.text
+  }
+  return undefined
+}
+
+async function parseSessionMetadata(filePath: string): Promise<{ timestamp: string; firstMessage: string } | null> {
+  return new Promise((resolve) => {
+    const stream = fs.createReadStream(filePath, { encoding: 'utf-8' })
+    const rl = readline.createInterface({ input: stream, crlfDelay: Infinity })
+
+    let timestamp: string | null = null
+    let firstMessage: string | null = null
+
+    rl.on('line', (line) => {
+      if (firstMessage) return // Already found what we need
+
+      try {
+        const data: SessionJsonLine = JSON.parse(line)
+
+        // Get timestamp from first line
+        if (!timestamp && data.timestamp) {
+          timestamp = data.timestamp
+        }
+
+        // Get first user message
+        if (data.type === 'user' && data.message?.role === 'user') {
+          const text = extractTextFromContent(data.message.content)
+          if (text) {
+            firstMessage = text.slice(0, MESSAGE_PREVIEW_LENGTH)
+            rl.close()
+            stream.close()
+          }
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    })
+
+    rl.on('close', () => {
+      if (timestamp && firstMessage) {
+        resolve({ timestamp, firstMessage })
+      } else {
+        resolve(null)
+      }
+    })
+
+    rl.on('error', () => resolve(null))
+    stream.on('error', () => resolve(null))
+  })
+}
+
+ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<AgentSession[]> => {
+  try {
+    const sessionsDir = getSessionsDir(workingDir)
+    const files = await fs.promises.readdir(sessionsDir)
+    const jsonlFiles = files.filter((f) => f.endsWith('.jsonl') && !f.startsWith('agent-'))
+
+    const sessions: AgentSession[] = []
+
+    for (const file of jsonlFiles) {
+      const sessionId = file.replace('.jsonl', '')
+      const filePath = path.join(sessionsDir, file)
+      const metadata = await parseSessionMetadata(filePath)
+
+      if (metadata) {
+        sessions.push({
+          sessionId,
+          timestamp: metadata.timestamp,
+          firstMessage: metadata.firstMessage,
+        })
+      }
+    }
+
+    // Sort by timestamp descending (newest first)
+    sessions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+    return sessions
+  } catch (error) {
+    console.error('Error getting sessions:', error)
+    return []
+  }
+})
+
+ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId: string): Promise<AgentSessionHistory> => {
+  try {
+    const sessionsDir = getSessionsDir(workingDir)
+    const filePath = path.join(sessionsDir, `${sessionId}.jsonl`)
+
+    const fileContent = await fs.promises.readFile(filePath, 'utf-8')
+    const lines = fileContent.split('\n').filter((line) => line.trim())
+
+    const messages: AgentMessage[] = []
+
+    for (const line of lines) {
+      try {
+        const entry: SessionJsonLine = JSON.parse(line)
+
+        if (entry.type === 'user' && entry.message?.role === 'user') {
+          const text = extractTextFromContent(entry.message.content)
+          if (text) {
+            messages.push({ role: 'user', content: text })
+          }
+        } else if (entry.type === 'assistant' && entry.message?.role === 'assistant') {
+          const text = extractTextFromContent(entry.message.content)
+          if (text) {
+            messages.push({ role: 'assistant', content: text })
+          }
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    }
+
+    return { messages }
+  } catch (error) {
+    console.error('Error loading session:', error)
+    return { messages: [] }
+  }
 })

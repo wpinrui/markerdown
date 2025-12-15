@@ -74,6 +74,16 @@ export interface AgentChatResponse {
   sessionId: string // The session ID for this conversation (new or resumed)
 }
 
+export interface AgentSession {
+  sessionId: string
+  timestamp: string // ISO-8601
+  firstMessage: string // Preview of first user message
+}
+
+export interface AgentSessionHistory {
+  messages: AgentMessage[]
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
@@ -90,6 +100,8 @@ export interface ElectronAPI {
   agentCancel: () => Promise<void>
   onAgentChunk: (callback: (chunk: string) => void) => () => void
   onAgentComplete: (callback: (error?: string) => void) => () => void
+  getAgentSessions: (workingDir: string) => Promise<AgentSession[]>
+  loadAgentSession: (workingDir: string, sessionId: string) => Promise<AgentSessionHistory>
 }
 
 declare global {
