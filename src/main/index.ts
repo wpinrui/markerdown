@@ -244,7 +244,7 @@ Be concise but thorough in your answers.`
     '--print',
     '--dangerously-skip-permissions',
     '--allowed-tools', 'Read',
-    '--model', 'haiku',
+    '--model', 'sonnet',
     '--setting-sources', 'user',
   ]
 

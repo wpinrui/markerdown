@@ -306,15 +306,16 @@ function App() {
             <MarkdownViewer content={fileContent} />
           ) : null}
         </section>
-        {showAgent && (
-          <aside className="agent-sidebar" style={{ width: agentPanelWidth }}>
-            <div
-              className="agent-sidebar-resize-handle"
-              onMouseDown={handleAgentPanelMouseDown}
-            />
-            <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
-          </aside>
-        )}
+        <aside
+          className="agent-sidebar"
+          style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
+        >
+          <div
+            className="agent-sidebar-resize-handle"
+            onMouseDown={handleAgentPanelMouseDown}
+          />
+          <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
+        </aside>
       </main>
       <SummarizeModal
         isOpen={showSummarizeModal}
