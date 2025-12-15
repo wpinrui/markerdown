@@ -56,8 +56,8 @@ function App() {
   }, [refreshTree])
 
   // Watch folder for changes
-  const selectedPathRef = useRef<string | null>(null)
-  selectedPathRef.current = selectedNode?.path ?? null
+  const activeFilePathRef = useRef<string | null>(null)
+  activeFilePathRef.current = activeMember?.path ?? selectedNode?.path ?? null
 
   useEffect(() => {
     if (!folderPath) return
@@ -69,7 +69,7 @@ function App() {
     const unsubscribe = window.electronAPI.onFileChange((event: FileChangeEvent) => {
       if (isStructureChange(event.event)) {
         refreshTree()
-      } else if (event.event === 'change' && selectedPathRef.current === event.path) {
+      } else if (event.event === 'change' && activeFilePathRef.current === event.path) {
         window.electronAPI.readFile(event.path).then((content) => {
           if (content !== null) {
             setFileContent(content)
