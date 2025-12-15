@@ -69,11 +69,64 @@ body {
   font-size: 14px;
 }
 
-.folder-info {
+.error-message {
+  color: #f48771;
+  font-size: 14px;
+}
+
+/* Tree View */
+.tree-view {
   font-size: 13px;
 }
 
-.folder-info p {
-  margin-bottom: 8px;
-  word-break: break-all;
+.tree-item-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.tree-item-row:hover {
+  background-color: #2a2d2e;
+}
+
+.tree-item-row.selected {
+  background-color: #094771;
+}
+
+.tree-chevron {
+  font-size: 10px;
+  width: 16px;
+  transition: transform 0.15s;
+  color: #808080;
+}
+
+.tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.tree-chevron-placeholder {
+  width: 16px;
+}
+
+.tree-icon {
+  margin-right: 6px;
+  font-size: 14px;
+}
+
+.tree-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Markdown Content */
+.markdown-raw {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
