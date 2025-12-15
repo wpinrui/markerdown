@@ -26,17 +26,25 @@ function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function createSearchHighlighter(searchText: string) {
   return ({ str }: { str: string }) => {
     if (str.toLowerCase().includes(searchText.toLowerCase())) {
       const parts = str.split(new RegExp(`(${escapeRegExp(searchText)})`, 'gi'))
       return parts.map((part) =>
         part.toLowerCase() === searchText.toLowerCase()
-          ? `<mark>${part}</mark>`
-          : part
+          ? `<mark>${escapeHtml(part)}</mark>`
+          : escapeHtml(part)
       ).join('')
     }
-    return str
+    return escapeHtml(str)
   }
 }
 
@@ -184,6 +192,15 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     setSearchOpen(false)
     setSearchText('')
   }, [])
+
+  const toggleSearch = useCallback(() => {
+    if (searchOpen) {
+      closeSearch()
+    } else {
+      setSearchOpen(true)
+      setTimeout(() => searchInputRef.current?.focus(), 0)
+    }
+  }, [searchOpen, closeSearch])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -353,7 +370,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
             Fit Page
           </button>
           <button
-            onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => searchInputRef.current?.focus(), 0) }}
+            onClick={toggleSearch}
             className={searchOpen ? 'active' : ''}
             title="Search (Ctrl+F)"
           >
