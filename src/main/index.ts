@@ -1,8 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import chokidar, { FSWatcher } from 'chokidar'
-import { pathToFileURL } from 'url'
 
 let mainWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
@@ -63,33 +62,7 @@ function createWindow() {
   })
 }
 
-// Register custom protocol for serving local PDF files securely
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: 'local-pdf',
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      stream: true,
-    },
-  },
-])
-
-app.whenReady().then(() => {
-  // Handle local-pdf:// protocol requests by serving local files
-  protocol.handle('local-pdf', (request) => {
-    // URL format: local-pdf://host/C:/path/to/file.pdf
-    // We extract path after the host portion
-    const url = new URL(request.url)
-    const filePath = decodeURIComponent(url.pathname)
-    // On Windows, pathname starts with / so we get /C:/... - remove leading slash
-    const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
-    return net.fetch(pathToFileURL(normalizedPath).href)
-  })
-
-  createWindow()
-})
+app.whenReady().then(createWindow)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
