@@ -76,7 +76,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
     const updateSize = () => {
       const rect = container.getBoundingClientRect()
-      setContainerWidth(rect.width - 16) // account for padding
+      // Account for padding (16px) + scrollbar width (8px)
+      setContainerWidth(rect.width - 24)
       setContainerHeight(rect.height)
     }
 
@@ -146,22 +147,49 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     return () => container.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
-  // Keyboard shortcut for search
+  // Navigate to a specific page
+  const goToPage = useCallback((pageNum: number) => {
+    const targetPage = Math.max(1, Math.min(pageNum, numPages))
+    const pageEl = pageRefs.current.get(targetPage)
+    if (pageEl && containerRef.current) {
+      pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [numPages])
+
+  // Keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Search shortcut
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
         setSearchOpen(true)
         setTimeout(() => searchInputRef.current?.focus(), 0)
+        return
       }
       if (e.key === 'Escape' && searchOpen) {
         setSearchOpen(false)
         setSearchText('')
+        return
+      }
+
+      // Don't handle arrow keys if user is in an input field
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
+      // Arrow key page navigation
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        goToPage(currentPage + 1)
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        goToPage(currentPage - 1)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [searchOpen])
+  }, [searchOpen, currentPage, goToPage])
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
