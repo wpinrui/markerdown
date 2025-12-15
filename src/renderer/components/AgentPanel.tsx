@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { AgentMessage } from '@shared/types'
+import type { AgentMessage, AgentSession } from '@shared/types'
 import { StyledMarkdown } from '../markdownConfig'
 
 interface AgentPanelProps {
@@ -13,9 +13,13 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [sessions, setSessions] = useState<AgentSession[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isCancelledRef = useRef(false)
+  const historyRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -106,6 +110,76 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     setSessionId(null)
     setStreamingContent('')
     setIsLoading(false)
+    setShowHistory(false)
+  }
+
+  const handleToggleHistory = async () => {
+    if (showHistory) {
+      setShowHistory(false)
+      return
+    }
+    if (!workingDir) return
+
+    setShowHistory(true)
+    setLoadingSessions(true)
+    try {
+      const fetchedSessions = await window.electronAPI.getAgentSessions(workingDir)
+      setSessions(fetchedSessions)
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err)
+      setSessions([])
+    } finally {
+      setLoadingSessions(false)
+    }
+  }
+
+  const handleLoadSession = async (session: AgentSession) => {
+    if (!workingDir) return
+
+    setShowHistory(false)
+    setIsLoading(true)
+
+    try {
+      const history = await window.electronAPI.loadAgentSession(workingDir, session.sessionId)
+      setMessages(history.messages)
+      setSessionId(session.sessionId)
+      setStreamingContent('')
+    } catch (err) {
+      console.error('Failed to load session:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Close history dropdown when clicking outside
+  useEffect(() => {
+    if (!showHistory) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (historyRef.current && !historyRef.current.contains(e.target as Node)) {
+        setShowHistory(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showHistory])
+
+  const formatSessionDate = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } else if (diffDays === 1) {
+      return 'Yesterday'
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' })
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    }
   }
 
   if (!workingDir) {
@@ -121,6 +195,35 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       <div className="agent-header">
         <span className="agent-title">Agent</span>
         <div className="agent-header-actions">
+          <div className="agent-history-container" ref={historyRef}>
+            <button
+              className="agent-history-btn"
+              onClick={handleToggleHistory}
+              title="Chat history"
+            >
+              ☰
+            </button>
+            {showHistory && (
+              <div className="agent-history-dropdown">
+                {loadingSessions ? (
+                  <div className="agent-history-loading">Loading...</div>
+                ) : sessions.length === 0 ? (
+                  <div className="agent-history-empty">No past chats</div>
+                ) : (
+                  sessions.slice(0, 20).map((session) => (
+                    <button
+                      key={session.sessionId}
+                      className={`agent-history-item ${session.sessionId === sessionId ? 'active' : ''}`}
+                      onClick={() => handleLoadSession(session)}
+                    >
+                      <span className="agent-history-date">{formatSessionDate(session.timestamp)}</span>
+                      <span className="agent-history-preview">{session.firstMessage}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           {sessionId && (
             <button className="agent-new-chat-btn" onClick={handleNewChat} title="New chat">
               +
