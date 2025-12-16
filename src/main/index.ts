@@ -23,6 +23,20 @@ function closeWatcher() {
 }
 
 const isDev = process.env.NODE_ENV !== 'production'
+
+// Register custom protocol for serving local media files
+// Must be called before app.whenReady()
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
+  },
+])
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
 const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
@@ -124,6 +138,15 @@ app.whenReady().then(() => {
       console.error('Error loading local image:', error)
       return callback({ error: -2 }) // FILE_NOT_FOUND
     }
+  })
+
+  // Handle media:// protocol for local video/audio files
+  protocol.registerFileProtocol('media', (request, callback) => {
+    const url = new URL(request.url)
+    const filePath = decodeURIComponent(url.pathname)
+    // On Windows, pathname starts with / so we get /C:/... -> C:/...
+    const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
+    callback(normalizedPath)
   })
 
   createWindow()
