@@ -4,6 +4,7 @@ import type { TodoItem } from '@shared/types'
 import { NewTodoModal } from './NewTodoModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
 import { InlineEditInput } from './InlineEditInput'
+import { useInlineEdit } from '../hooks/useInlineEdit'
 
 type FilterMode = 'all' | 'incomplete' | 'completed'
 
@@ -96,8 +97,6 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
   const [filter, setFilter] = useState<FilterMode>('all')
   const [showNewModal, setShowNewModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
 
   // Load todos from file
   const loadTodos = useCallback(async () => {
@@ -173,27 +172,16 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
     setShowNewModal(false)
   }
 
-  const handleStartEdit = (todo: TodoItem) => {
-    setEditingId(todo.id)
-    setEditText(todo.text)
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editText.trim()) return
-
+  // Inline edit state
+  const handleEditSave = useCallback(async (id: string, newText: string) => {
     const newTodos = todos.map((t) =>
-      t.id === editingId ? { ...t, text: editText.trim() } : t
+      t.id === id ? { ...t, text: newText } : t
     )
     setTodos(newTodos)
     await saveTodos(newTodos)
-    setEditingId(null)
-    setEditText('')
-  }
+  }, [todos, saveTodos])
 
-  const handleCancelEdit = () => {
-    setEditingId(null)
-    setEditText('')
-  }
+  const { editingId, editText, setEditText, startEdit, saveEdit, cancelEdit } = useInlineEdit(handleEditSave)
 
   // Filter todos
   const filteredTodos = todos.filter((todo) => {
@@ -271,8 +259,8 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
                     <InlineEditInput
                       value={editText}
                       onChange={setEditText}
-                      onSave={handleSaveEdit}
-                      onCancel={handleCancelEdit}
+                      onSave={saveEdit}
+                      onCancel={cancelEdit}
                       placeholder="Todo text"
                       className="todo-edit-input"
                     />
@@ -285,7 +273,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
                       <button
                         type="button"
                         className="todo-edit-btn"
-                        onClick={() => handleStartEdit(todo)}
+                        onClick={() => startEdit(todo.id, todo.text)}
                         title="Edit"
                       >
                         <Edit2 size={14} />

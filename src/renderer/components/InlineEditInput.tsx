@@ -4,9 +4,10 @@ import { Check, X } from 'lucide-react'
 interface InlineEditInputProps {
   value: string
   onChange: (value: string) => void
-  onSave: () => void
+  onSave: () => void | Promise<void>
   onCancel: () => void
   placeholder: string
+  /** Base className for the input (e.g., 'todo-edit-input'). Button class will be derived by replacing '-input' with '-btn' */
   className: string
 }
 
@@ -29,8 +30,14 @@ export function InlineEditInput({
   }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') onSave()
-    if (e.key === 'Escape') onCancel()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void onSave()
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onCancel()
+    }
   }
 
   return (

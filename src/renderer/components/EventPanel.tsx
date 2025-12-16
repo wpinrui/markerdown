@@ -4,6 +4,7 @@ import type { EventItem } from '@shared/types'
 import { NewEventModal } from './NewEventModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
 import { InlineEditInput } from './InlineEditInput'
+import { useInlineEdit } from '../hooks/useInlineEdit'
 
 type FilterMode = 'all' | 'upcoming' | 'past'
 
@@ -105,8 +106,6 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
   const [filter, setFilter] = useState<FilterMode>('all')
   const [showNewModal, setShowNewModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
 
   // Load events from file
   const loadEvents = useCallback(async () => {
@@ -174,27 +173,16 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
     setShowNewModal(false)
   }
 
-  const handleStartEdit = (event: EventItem) => {
-    setEditingId(event.id)
-    setEditText(event.text)
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editText.trim()) return
-
+  // Inline edit state
+  const handleEditSave = useCallback(async (id: string, newText: string) => {
     const newEvents = events.map((e) =>
-      e.id === editingId ? { ...e, text: editText.trim() } : e
+      e.id === id ? { ...e, text: newText } : e
     )
     setEvents(newEvents)
     await saveEvents(newEvents)
-    setEditingId(null)
-    setEditText('')
-  }
+  }, [events, saveEvents])
 
-  const handleCancelEdit = () => {
-    setEditingId(null)
-    setEditText('')
-  }
+  const { editingId, editText, setEditText, startEdit, saveEdit, cancelEdit } = useInlineEdit(handleEditSave)
 
   // Filter events
   const filteredEvents = events.filter((event) => {
@@ -267,8 +255,8 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
                     <InlineEditInput
                       value={editText}
                       onChange={setEditText}
-                      onSave={handleSaveEdit}
-                      onCancel={handleCancelEdit}
+                      onSave={saveEdit}
+                      onCancel={cancelEdit}
                       placeholder="Event name"
                       className="event-edit-input"
                     />
@@ -282,7 +270,7 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
                       <button
                         type="button"
                         className="event-edit-btn"
-                        onClick={() => handleStartEdit(event)}
+                        onClick={() => startEdit(event.id, event.text)}
                         title="Edit"
                       >
                         <Edit2 size={14} />
