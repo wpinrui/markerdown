@@ -115,7 +115,7 @@ export function EntityViewer({
 
         {/* Show formatting toolbar in edit mode */}
         {isEditing && (
-          <div className="editor-format-toolbar">
+          <div className="editor-format-toolbar" onMouseDown={(e) => e.preventDefault()}>
             <button className={activeFormats.bold ? 'active' : ''} onClick={() => editorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>
             <button className={activeFormats.italic ? 'active' : ''} onClick={() => editorRef.current?.italic()} title="Italic (Ctrl+I)"><em>I</em></button>
             <button className={activeFormats.strikethrough ? 'active' : ''} onClick={() => editorRef.current?.strikethrough()} title="Strikethrough"><s>S</s></button>

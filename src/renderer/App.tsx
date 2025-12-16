@@ -391,7 +391,7 @@ function App() {
               <div className="standalone-markdown-toolbar">
                 {/* Show formatting toolbar in edit mode */}
                 {editMode !== 'view' && (
-                  <div className="editor-format-toolbar">
+                  <div className="editor-format-toolbar" onMouseDown={(e) => e.preventDefault()}>
                     <button className={standaloneActiveFormats.bold ? 'active' : ''} onClick={() => standaloneEditorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>
                     <button className={standaloneActiveFormats.italic ? 'active' : ''} onClick={() => standaloneEditorRef.current?.italic()} title="Italic (Ctrl+I)"><em>I</em></button>
                     <button className={standaloneActiveFormats.strikethrough ? 'active' : ''} onClick={() => standaloneEditorRef.current?.strikethrough()} title="Strikethrough"><s>S</s></button>
