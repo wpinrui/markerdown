@@ -124,45 +124,13 @@ function createWindow() {
 
 app.whenReady().then(() => {
   // Handle media:// protocol for local video/audio files
-  protocol.handle('media', async (request) => {
+  protocol.registerFileProtocol('media', (request, callback) => {
     const url = new URL(request.url)
-    console.log('Media URL parsed:', { href: url.href, host: url.host, pathname: url.pathname })
     const filePath = decodeURIComponent(url.pathname)
     // On Windows, pathname starts with / so we get /C:/... -> C:/...
     const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
     console.log('Media request:', request.url, '-> path:', normalizedPath)
-
-    try {
-      // Determine MIME type
-      const ext = path.extname(normalizedPath).toLowerCase()
-      const mimeTypes: Record<string, string> = {
-        '.mp4': 'video/mp4',
-        '.webm': 'video/webm',
-        '.mov': 'video/quicktime',
-        '.avi': 'video/x-msvideo',
-        '.mkv': 'video/x-matroska',
-        '.mp3': 'audio/mpeg',
-        '.wav': 'audio/wav',
-        '.ogg': 'audio/ogg',
-        '.m4a': 'audio/mp4',
-        '.flac': 'audio/flac',
-      }
-      const contentType = mimeTypes[ext] || 'application/octet-stream'
-
-      // Read entire file into buffer (simpler than streaming for now)
-      const buffer = await fs.promises.readFile(normalizedPath)
-      console.log('Media file read:', buffer.length, 'bytes, type:', contentType)
-
-      return new Response(new Uint8Array(buffer), {
-        headers: {
-          'Content-Type': contentType,
-          'Content-Length': buffer.length.toString(),
-        },
-      })
-    } catch (err) {
-      console.error('Media protocol error:', err)
-      return new Response('File not found', { status: 404 })
-    }
+    callback(normalizedPath)
   })
 
   createWindow()
