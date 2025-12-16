@@ -15,7 +15,7 @@ export const CLAUDE_MD_TEMPLATE = `# Markerdown Instructions
 ## Todo/Event Detection [T1, T2, T3]
 When you find tasks, deadlines, or events in any file:
 1. Auto-create drafts without asking
-2. Check .markerdown\\todos.md and .markerdown\\events.md for duplicates first
+2. Check .markerdown/todos.md and .markerdown/events.md for duplicates first
 3. Never write to the above files directly
 
 **Todos:** .markerdown/todos-draft.md
@@ -43,7 +43,7 @@ Omit unknown fields. After creating drafts, mention "Task Suggestions" or "Event
 4. Done: "Your original is in the 'raw' tab."
 
 ## Memory [T1, T2, T3]
-Read .markerdown\\agent-memory.md before tasks (may not exist).
+Read .markerdown/agent-memory.md before tasks (may not exist).
 When you learn user info, append/update agent-memory.md.
 `
 
