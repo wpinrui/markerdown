@@ -10,9 +10,10 @@ interface TreeViewProps {
   selectedPath: string | null
   onSelect: (node: TreeNode) => void
   summarizingPaths?: Set<string>
+  onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
 }
 
-export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onContextMenu }: TreeViewProps) {
   return (
     <div className="tree-view">
       {nodes.map((node) => (
@@ -23,6 +24,7 @@ export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths }: Tr
           selectedPath={selectedPath}
           onSelect={onSelect}
           summarizingPaths={summarizingPaths}
+          onContextMenu={onContextMenu}
         />
       ))}
     </div>
@@ -35,9 +37,10 @@ interface TreeItemProps {
   selectedPath: string | null
   onSelect: (node: TreeNode) => void
   summarizingPaths?: Set<string>
+  onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
 }
 
-function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: TreeItemProps) {
+function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onContextMenu }: TreeItemProps) {
   const [expanded, setExpanded] = useState(false)
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
@@ -64,6 +67,12 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
     if (hasChildren) {
       setExpanded(!expanded)
     }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onContextMenu?.(e, node)
   }
 
   const getIcon = () => {
@@ -100,6 +109,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         onClick={handleRowClick}
         onDoubleClick={handleRowDoubleClick}
+        onContextMenu={handleContextMenu}
       >
         {hasChildren && (
           <span
@@ -131,6 +141,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
               selectedPath={selectedPath}
               onSelect={onSelect}
               summarizingPaths={summarizingPaths}
+              onContextMenu={onContextMenu}
             />
           ))}
         </div>

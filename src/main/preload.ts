@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getShowClaudeMd: (): Promise<boolean> => ipcRenderer.invoke('settings:getShowClaudeMd'),
   setShowClaudeMd: (show: boolean): Promise<void> =>
     ipcRenderer.invoke('settings:setShowClaudeMd', show),
+  setWindowTitle: (title: string): Promise<void> =>
+    ipcRenderer.invoke('window:setTitle', title),
   watchFolder: (folderPath: string): Promise<void> =>
     ipcRenderer.invoke('fs:watchFolder', folderPath),
   unwatchFolder: (): Promise<void> => ipcRenderer.invoke('fs:unwatchFolder'),
@@ -29,6 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:move', sourcePath, destPath),
   deleteFile: (filePath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('fs:delete', filePath),
+  deleteDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('fs:deleteDir', dirPath),
   saveImage: (markdownFilePath: string, imageData: string, extension: string): Promise<{ success: boolean; relativePath?: string; error?: string }> =>
     ipcRenderer.invoke('fs:saveImage', markdownFilePath, imageData, extension),
   onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {

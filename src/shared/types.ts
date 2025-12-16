@@ -119,12 +119,14 @@ export interface ElectronAPI {
   setLastFolder: (folderPath: string | null) => Promise<void>
   getShowClaudeMd: () => Promise<boolean>
   setShowClaudeMd: (show: boolean) => Promise<void>
+  setWindowTitle: (title: string) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
   openInExplorer: (folderPath: string) => Promise<void>
   mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   move: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
+  deleteDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   saveImage: (markdownFilePath: string, imageData: string, extension: string) => Promise<{ success: boolean; relativePath?: string; error?: string }>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarize: (request: SummarizeRequest) => Promise<SummarizeResult>

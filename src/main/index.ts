@@ -206,6 +206,12 @@ ipcMain.handle('settings:setShowClaudeMd', (_event, show: boolean) => {
   saveSettings(settings)
 })
 
+ipcMain.handle('window:setTitle', (_event, title: string) => {
+  if (mainWindow) {
+    mainWindow.setTitle(title)
+  }
+})
+
 ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   closeWatcher()
 
@@ -232,8 +238,8 @@ ipcMain.handle('fs:unwatchFolder', () => {
   closeWatcher()
 })
 
-ipcMain.handle('shell:openInExplorer', async (_event, folderPath: string) => {
-  await shell.openPath(folderPath)
+ipcMain.handle('shell:openInExplorer', async (_event, filePath: string) => {
+  shell.showItemInFolder(filePath)
 })
 
 ipcMain.handle('fs:mkdir', async (_event, dirPath: string) => {
@@ -262,6 +268,16 @@ ipcMain.handle('fs:delete', async (_event, filePath: string) => {
     return { success: true }
   } catch (error) {
     console.error('Error deleting file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
+ipcMain.handle('fs:deleteDir', async (_event, dirPath: string) => {
+  try {
+    await fs.promises.rm(dirPath, { recursive: true })
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting directory:', error)
     return { success: false, error: String(error) }
   }
 })

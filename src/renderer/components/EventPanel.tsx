@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronRight, MapPin } from 'lucide-react'
+import { Plus, Trash2, Edit2, MapPin } from 'lucide-react'
 import type { EventItem } from '@shared/types'
 import { NewEventModal } from './NewEventModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
+import { InlineEditInput } from './InlineEditInput'
+import { useInlineEdit } from '../hooks/useInlineEdit'
 
 type FilterMode = 'all' | 'upcoming' | 'past'
 
@@ -102,7 +104,6 @@ function isPast(event: EventItem): boolean {
 export function EventPanel({ workingDir, style }: EventPanelProps) {
   const [events, setEvents] = useState<EventItem[]>([])
   const [filter, setFilter] = useState<FilterMode>('all')
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showNewModal, setShowNewModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
@@ -172,17 +173,16 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
     setShowNewModal(false)
   }
 
-  const toggleExpanded = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
+  // Inline edit state
+  const handleEditSave = useCallback(async (id: string, newText: string) => {
+    const newEvents = events.map((e) =>
+      e.id === id ? { ...e, text: newText } : e
+    )
+    setEvents(newEvents)
+    await saveEvents(newEvents)
+  }, [events, saveEvents])
+
+  const { editingId, editText, setEditText, startEdit, saveEdit, cancelEdit } = useInlineEdit(handleEditSave)
 
   // Filter events
   const filteredEvents = events.filter((event) => {
@@ -242,9 +242,8 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
           </div>
         ) : (
           sortedEvents.map((event) => {
-            const isExpanded = expandedIds.has(event.id)
-            const hasDetails = event.location || event.notes
             const eventIsPast = isPast(event)
+            const isEditing = editingId === event.id
 
             return (
               <div
@@ -252,35 +251,49 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
                 className={`event-item ${eventIsPast ? 'past' : ''}`}
               >
                 <div className="event-item-main">
-                  {hasDetails && (
-                    <button
-                      className="event-expand-btn"
-                      onClick={() => toggleExpanded(event.id)}
-                    >
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                  )}
-                  <span className="event-text">{event.text}</span>
-                  <span className="event-datetime">{formatDateForDisplay(event.startDate)}</span>
-                  {event.endDate && (
-                    <span className="event-datetime-end">→ {formatDateForDisplay(event.endDate)}</span>
-                  )}
-                  {deleteConfirmId === event.id ? (
-                    <div className="event-delete-confirm">
-                      <button onClick={() => handleDelete(event.id)}>Yes</button>
-                      <button onClick={() => setDeleteConfirmId(null)}>No</button>
-                    </div>
+                  {isEditing ? (
+                    <InlineEditInput
+                      value={editText}
+                      onChange={setEditText}
+                      onSave={saveEdit}
+                      onCancel={cancelEdit}
+                      placeholder="Event name"
+                      className="event-edit-input"
+                    />
                   ) : (
-                    <button
-                      className="event-delete-btn"
-                      onClick={() => setDeleteConfirmId(event.id)}
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <>
+                      <span className="event-text">{event.text}</span>
+                      <span className="event-datetime">{formatDateForDisplay(event.startDate)}</span>
+                      {event.endDate && (
+                        <span className="event-datetime-end">→ {formatDateForDisplay(event.endDate)}</span>
+                      )}
+                      <button
+                        type="button"
+                        className="event-edit-btn"
+                        onClick={() => startEdit(event.id, event.text)}
+                        title="Edit"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      {deleteConfirmId === event.id ? (
+                        <div className="event-delete-confirm">
+                          <button type="button" onClick={() => handleDelete(event.id)}>Yes</button>
+                          <button type="button" onClick={() => setDeleteConfirmId(null)}>No</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="event-delete-btn"
+                          onClick={() => setDeleteConfirmId(event.id)}
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
-                {isExpanded && (
+                {!isEditing && (event.location || event.notes) && (
                   <div className="event-details">
                     {event.location && (
                       <div className="event-location">
