@@ -120,6 +120,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
         sessionId: sessionId ?? undefined,
       })
       // Store session ID for conversation continuity
+      sessionIdRef.current = response.sessionId
       setSessionId(response.sessionId)
     } catch (err) {
       setIsLoading(false)
