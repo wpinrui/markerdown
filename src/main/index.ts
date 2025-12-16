@@ -151,8 +151,9 @@ app.whenReady().then(() => {
 
       // Read entire file into buffer (simpler than streaming for now)
       const buffer = await fs.promises.readFile(normalizedPath)
+      console.log('Media file read:', buffer.length, 'bytes, type:', contentType)
 
-      return new Response(buffer, {
+      return new Response(new Uint8Array(buffer), {
         headers: {
           'Content-Type': contentType,
           'Content-Length': buffer.length.toString(),
