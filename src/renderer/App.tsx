@@ -368,18 +368,46 @@ function App() {
           ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
             <PdfViewer filePath={selectedNode.path} />
           ) : fileContent !== null && selectedNode ? (
-            editMode === 'view' ? (
-              <MarkdownViewer content={fileContent} />
-            ) : (
-              <MarkdownEditor
-                content={editContent ?? fileContent}
-                filePath={selectedNode.path}
-                mode={editMode}
-                onModeChange={setEditMode}
-                onContentChange={handleEditContentChange}
-                isDirty={isDirty}
-              />
-            )
+            <div className="standalone-markdown">
+              <div className="standalone-markdown-toolbar">
+                <div className="editor-mode-toggle">
+                  <button
+                    className={editMode === 'view' ? 'active' : ''}
+                    onClick={() => setEditMode('view')}
+                  >
+                    View
+                  </button>
+                  <button
+                    className={editMode === 'visual' ? 'active' : ''}
+                    onClick={() => setEditMode('visual')}
+                  >
+                    Visual
+                  </button>
+                  <button
+                    className={editMode === 'code' ? 'active' : ''}
+                    onClick={() => setEditMode('code')}
+                  >
+                    Code
+                  </button>
+                </div>
+                {isDirty && <span className="save-indicator">Saving...</span>}
+              </div>
+              <div className="standalone-markdown-content">
+                {editMode === 'view' ? (
+                  <MarkdownViewer content={fileContent} />
+                ) : (
+                  <MarkdownEditor
+                    content={editContent ?? fileContent}
+                    filePath={selectedNode.path}
+                    mode={editMode}
+                    onModeChange={setEditMode}
+                    onContentChange={handleEditContentChange}
+                    isDirty={isDirty}
+                    showToolbar={false}
+                  />
+                )}
+              </div>
+            </div>
           ) : null}
         </section>
         <aside

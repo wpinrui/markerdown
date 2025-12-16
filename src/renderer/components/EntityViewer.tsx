@@ -90,14 +90,28 @@ export function EntityViewer({
           )
         })}
         {isMarkdownActive && (
-          <button
-            className={`edit-toggle-btn ${editMode !== 'view' ? 'active' : ''}`}
-            onClick={() => onEditModeChange(editMode === 'view' ? 'visual' : 'view')}
-            title="Toggle Edit Mode (Ctrl+E)"
-          >
-            {editMode === 'view' ? 'Edit' : 'Done'}
-          </button>
+          <div className="editor-mode-toggle">
+            <button
+              className={editMode === 'view' ? 'active' : ''}
+              onClick={() => onEditModeChange('view')}
+            >
+              View
+            </button>
+            <button
+              className={editMode === 'visual' ? 'active' : ''}
+              onClick={() => onEditModeChange('visual')}
+            >
+              Visual
+            </button>
+            <button
+              className={editMode === 'code' ? 'active' : ''}
+              onClick={() => onEditModeChange('code')}
+            >
+              Code
+            </button>
+          </div>
         )}
+        {isDirty && <span className="save-indicator">Saving...</span>}
       </div>
       <div className="entity-content">
         {activeMember.type === 'pdf' ? (
@@ -113,6 +127,7 @@ export function EntityViewer({
               onModeChange={onEditModeChange}
               onContentChange={onEditContentChange}
               isDirty={isDirty}
+              showToolbar={false}
             />
           )
         ) : (

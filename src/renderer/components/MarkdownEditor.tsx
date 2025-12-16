@@ -12,6 +12,7 @@ interface MarkdownEditorProps {
   onModeChange: (mode: EditMode) => void
   onContentChange: (content: string) => void
   isDirty: boolean
+  showToolbar?: boolean
 }
 
 export function MarkdownEditor({
@@ -21,6 +22,7 @@ export function MarkdownEditor({
   onModeChange,
   onContentChange,
   isDirty,
+  showToolbar = true,
 }: MarkdownEditorProps) {
   const milkdownRef = useRef<MilkdownEditorRef>(null)
   const currentContentRef = useRef(content)
@@ -49,7 +51,9 @@ export function MarkdownEditor({
 
   return (
     <div className="markdown-editor">
-      <EditorToolbar mode={mode} onModeChange={handleModeChange} isDirty={isDirty} />
+      {showToolbar && (
+        <EditorToolbar mode={mode} onModeChange={handleModeChange} isDirty={isDirty} />
+      )}
 
       <div className="markdown-editor-content">
         {mode === 'view' && <StyledMarkdown content={content} />}
