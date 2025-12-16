@@ -88,6 +88,11 @@ function getContainingFolder(node: TreeNode | null, nodes: TreeNode[]): string |
   return findParentPath(nodes, node.path) ?? null
 }
 
+// Ensure filename has .md extension
+function ensureMdExtension(filename: string): string {
+  return filename.endsWith('.md') ? filename : `${filename}.md`
+}
+
 export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNode }: NewNoteModalProps) {
   const [name, setName] = useState('')
   const [parentPath, setParentPath] = useState<string | null>(null)
@@ -135,8 +140,7 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
       return { type: 'error' as const, message: 'Name is required' }
     }
 
-    // Ensure .md extension
-    const normalizedName = name.endsWith('.md') ? name : `${name}.md`
+    const normalizedName = ensureMdExtension(name)
     const allNodes = flattenTree(treeNodes)
 
     // Check for duplicate at same parent level
@@ -160,8 +164,7 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
 
   const handleSubmit = () => {
     if (!canSubmit) return
-    const normalizedName = name.endsWith('.md') ? name : `${name}.md`
-    onSubmit(normalizedName, parentPath, Array.from(selectedChildren))
+    onSubmit(ensureMdExtension(name), parentPath, Array.from(selectedChildren))
     onClose()
   }
 
