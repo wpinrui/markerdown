@@ -1,16 +1,33 @@
-import { isMarkdownFile, isPdfFile, MARKDOWN_EXTENSION, PDF_EXTENSION } from './types'
-import type { FileEntry, TreeNode, Entity, EntityMember } from './types'
+import {
+  isMarkdownFile,
+  isPdfFile,
+  getVideoExtension,
+  getAudioExtension,
+  MARKDOWN_EXTENSION,
+  PDF_EXTENSION,
+} from './types'
+import type { FileEntry, TreeNode, Entity, EntityMember, EntityMemberType } from './types'
 
 /**
  * Parse entity info from a filename.
  * Returns fullBaseName (without extension) and file type.
  */
-function parseFileInfo(filename: string): { fullBaseName: string; type: 'markdown' | 'pdf' } | null {
+function parseFileInfo(
+  filename: string
+): { fullBaseName: string; type: EntityMemberType } | null {
   if (isPdfFile(filename)) {
     return { fullBaseName: filename.slice(0, -PDF_EXTENSION.length), type: 'pdf' }
   }
   if (isMarkdownFile(filename)) {
     return { fullBaseName: filename.slice(0, -MARKDOWN_EXTENSION.length), type: 'markdown' }
+  }
+  const videoExt = getVideoExtension(filename)
+  if (videoExt) {
+    return { fullBaseName: filename.slice(0, -videoExt.length), type: 'video' }
+  }
+  const audioExt = getAudioExtension(filename)
+  if (audioExt) {
+    return { fullBaseName: filename.slice(0, -audioExt.length), type: 'audio' }
   }
   return null
 }
@@ -20,7 +37,7 @@ function parseFileInfo(filename: string): { fullBaseName: string; type: 'markdow
  * Files with same base name are grouped (e.g., physics.md, physics.summary.md, physics.pdf).
  */
 function groupFilesIntoEntities(
-  files: Array<{ name: string; path: string; fullBaseName: string; type: 'markdown' | 'pdf' }>
+  files: Array<{ name: string; path: string; fullBaseName: string; type: EntityMemberType }>
 ): Map<string, Entity> {
   const fullBaseNames = new Set(files.map((f) => f.fullBaseName))
   const entityGroups = new Map<string, EntityMember[]>()
@@ -56,10 +73,11 @@ function groupFilesIntoEntities(
   const entities = new Map<string, Entity>()
   for (const [baseName, members] of entityGroups) {
     if (members.length >= 2) {
-      // Sort members: PDF first, then default (null variant), then alphabetical
+      // Sort members: source files (pdf/video/audio) first, then default (null variant), then alphabetical
+      const isSourceType = (type: EntityMemberType) => type === 'pdf' || type === 'video' || type === 'audio'
       members.sort((a, b) => {
-        if (a.type === 'pdf' && b.type !== 'pdf') return -1
-        if (a.type !== 'pdf' && b.type === 'pdf') return 1
+        if (isSourceType(a.type) && !isSourceType(b.type)) return -1
+        if (!isSourceType(a.type) && isSourceType(b.type)) return 1
         if (a.variant === null && b.variant !== null) return -1
         if (a.variant !== null && b.variant === null) return 1
         return (a.variant ?? '').localeCompare(b.variant ?? '')
@@ -99,8 +117,13 @@ export async function buildFileTree(
   })
   const dirs = entries.filter((e) => e.isDirectory && e.name !== '.markerdown')
 
-  // Parse entity info for markdown and PDF files
-  const entityFiles: Array<{ name: string; path: string; fullBaseName: string; type: 'markdown' | 'pdf' }> = []
+  // Parse entity info for markdown, PDF, video and audio files
+  const entityFiles: Array<{
+    name: string
+    path: string
+    fullBaseName: string
+    type: EntityMemberType
+  }> = []
   const otherFiles: FileEntry[] = []
 
   for (const file of files) {
