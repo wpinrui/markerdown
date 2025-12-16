@@ -23,14 +23,18 @@ ${EVENT_FORMAT}
 // Template for claude.md file created in each project
 export const CLAUDE_MD_TEMPLATE = `# Markerdown Instructions
 
-## Adding New Todos or Events
-When the user mentions a task, deadline, assignment, or something they need to do - OR when you read content that contains tasks or events that are not already tracked - create a suggestion draft file.
+## IMPORTANT: Automatic Todo and Event Detection
+
+When you read any file or document and find tasks, assignments, deadlines, or events:
+1. **AUTOMATICALLY** create draft files - do NOT ask for confirmation
+2. **DO NOT** use any built-in todo tools - create the actual draft files below
+3. Create drafts even if the user didn't explicitly ask
 
 ${DRAFT_FORMAT_INSTRUCTIONS}
 
 Only include fields that are known. If no due date is mentioned, omit the Due line.
 Multiple items can be added to a single draft file.
-After creating a draft, tell the user you've added suggestions for review.
+After creating drafts, briefly mention you've added suggestions for review.
 `
 
 export function getSummarizePrompt(

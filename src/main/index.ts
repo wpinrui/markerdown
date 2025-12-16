@@ -365,7 +365,9 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     await addChatSessionId(workingDir, sessionId)
   }
 
-  args.push(message)
+  // Prefix message with instruction to read claude.md for project-specific instructions
+  const prefixedMessage = `First read claude.md in this directory for project-specific instructions. Then respond to: ${message}`
+  args.push(prefixedMessage)
 
   agentProcess = spawn('claude', args, {
     stdio: ['ignore', 'pipe', 'pipe'],
