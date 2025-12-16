@@ -133,9 +133,6 @@ app.whenReady().then(() => {
     console.log('Media request:', request.url, '-> path:', normalizedPath)
 
     try {
-      const stat = await fs.promises.stat(normalizedPath)
-      const fileStream = fs.createReadStream(normalizedPath)
-
       // Determine MIME type
       const ext = path.extname(normalizedPath).toLowerCase()
       const mimeTypes: Record<string, string> = {
@@ -152,20 +149,13 @@ app.whenReady().then(() => {
       }
       const contentType = mimeTypes[ext] || 'application/octet-stream'
 
-      // Convert Node stream to Web ReadableStream
-      const webStream = new ReadableStream({
-        start(controller) {
-          fileStream.on('data', (chunk) => controller.enqueue(chunk))
-          fileStream.on('end', () => controller.close())
-          fileStream.on('error', (err) => controller.error(err))
-        },
-      })
+      // Read entire file into buffer (simpler than streaming for now)
+      const buffer = await fs.promises.readFile(normalizedPath)
 
-      return new Response(webStream, {
+      return new Response(buffer, {
         headers: {
           'Content-Type': contentType,
-          'Content-Length': stat.size.toString(),
-          'Accept-Ranges': 'bytes',
+          'Content-Length': buffer.length.toString(),
         },
       })
     } catch (err) {
