@@ -230,6 +230,16 @@ ipcMain.handle('fs:move', async (_event, sourcePath: string, destPath: string) =
   }
 })
 
+ipcMain.handle('fs:delete', async (_event, filePath: string) => {
+  try {
+    await fs.promises.unlink(filePath)
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {
   const { pdfPath, outputPath, prompt, workingDir } = request
 

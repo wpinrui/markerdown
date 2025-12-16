@@ -335,6 +335,62 @@ function App() {
     setActiveMember(member)
   }
 
+  const handleAcceptSuggestion = async () => {
+    if (!selectedNode?.isSuggestion || !folderPath) return
+
+    const suggestionType = selectedNode.isSuggestion
+    const draftPath = selectedNode.path
+    const sep = folderPath.includes('\\') ? '\\' : '/'
+    const mainFilePath = `${folderPath}${sep}.markerdown${sep}${suggestionType}.md`
+
+    try {
+      // Read draft content
+      const draftContent = await window.electronAPI.readFile(draftPath)
+      if (!draftContent) return
+
+      // Read existing main file (or empty)
+      const existingContent = await window.electronAPI.readFile(mainFilePath) ?? ''
+
+      // Append draft content to main file
+      const newContent = existingContent
+        ? `${existingContent.trimEnd()}\n\n${draftContent.trim()}\n`
+        : `${draftContent.trim()}\n`
+
+      // Ensure .markerdown directory exists
+      const markerdownDir = `${folderPath}${sep}.markerdown`
+      await window.electronAPI.mkdir(markerdownDir)
+
+      // Write updated main file
+      await window.electronAPI.writeFile(mainFilePath, newContent)
+
+      // Delete draft file
+      await window.electronAPI.deleteFile(draftPath)
+
+      // Deselect and refresh
+      setSelectedNode(null)
+      setFileContent(null)
+      refreshTree()
+    } catch (err) {
+      console.error('Failed to accept suggestion:', err)
+    }
+  }
+
+  const handleDiscardSuggestion = async () => {
+    if (!selectedNode?.isSuggestion) return
+
+    try {
+      // Delete draft file
+      await window.electronAPI.deleteFile(selectedNode.path)
+
+      // Deselect and refresh
+      setSelectedNode(null)
+      setFileContent(null)
+      refreshTree()
+    } catch (err) {
+      console.error('Failed to discard suggestion:', err)
+    }
+  }
+
   const isPdfActive = activeMember?.type === 'pdf'
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
   const canSummarize = isPdfActive || isStandalonePdf
@@ -565,6 +621,9 @@ function App() {
             onSummarizeClick={() => setShowSummarizeModal(true)}
             activePane={activePane}
             onPaneToggle={handlePaneToggle}
+            suggestionType={selectedNode?.isSuggestion}
+            onAcceptSuggestion={handleAcceptSuggestion}
+            onDiscardSuggestion={handleDiscardSuggestion}
           />
           <div className="content-body-wrapper">
             <div className="content-body">

@@ -1720,6 +1720,52 @@ body {
   background-color: #1177bb;
 }
 
+/* Suggestion Actions */
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  padding: 0 12px;
+}
+
+.suggestion-label {
+  color: #ffc107;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.suggestion-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.suggestion-btn.accept {
+  background-color: #2ea043;
+  color: #ffffff;
+}
+
+.suggestion-btn.accept:hover {
+  background-color: #3fb950;
+}
+
+.suggestion-btn.discard {
+  background-color: #6e7681;
+  color: #ffffff;
+}
+
+.suggestion-btn.discard:hover {
+  background-color: #8b949e;
+}
+
 /* Todo Panel */
 .todo-panel {
   display: flex;

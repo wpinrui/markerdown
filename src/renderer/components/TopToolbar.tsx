@@ -2,7 +2,7 @@ import type { Entity, EntityMember, EditMode } from '@shared/types'
 import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
 import { ModeToggle } from './ModeToggle'
-import { MessageSquare, CheckSquare, Calendar } from 'lucide-react'
+import { MessageSquare, CheckSquare, Calendar, Check, X } from 'lucide-react'
 
 export type PaneType = 'agent' | 'todos' | 'events'
 
@@ -47,6 +47,10 @@ interface TopToolbarProps {
   // Pane toggle props
   activePane: PaneType | null
   onPaneToggle: (pane: PaneType) => void
+  // Suggestion draft props
+  suggestionType?: 'todos' | 'events'
+  onAcceptSuggestion?: () => void
+  onDiscardSuggestion?: () => void
 }
 
 export function TopToolbar({
@@ -65,6 +69,9 @@ export function TopToolbar({
   onSummarizeClick,
   activePane,
   onPaneToggle,
+  suggestionType,
+  onAcceptSuggestion,
+  onDiscardSuggestion,
 }: TopToolbarProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
@@ -110,6 +117,31 @@ export function TopToolbar({
           editorRef={editorRef}
           activeFormats={activeFormats}
         />
+      )}
+
+      {/* Suggestion draft controls */}
+      {suggestionType && onAcceptSuggestion && onDiscardSuggestion && (
+        <div className="suggestion-actions">
+          <span className="suggestion-label">
+            {suggestionType === 'todos' ? 'Task' : 'Event'} Suggestions
+          </span>
+          <button
+            className="suggestion-btn accept"
+            onClick={onAcceptSuggestion}
+            title="Accept suggestions"
+          >
+            <Check size={16} strokeWidth={2} />
+            Accept
+          </button>
+          <button
+            className="suggestion-btn discard"
+            onClick={onDiscardSuggestion}
+            title="Discard suggestions"
+          >
+            <X size={16} strokeWidth={2} />
+            Discard
+          </button>
+        </div>
       )}
 
       {/* Right-aligned controls */}
