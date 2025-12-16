@@ -109,13 +109,18 @@ export async function buildFileTree(
 ): Promise<TreeNode[]> {
   const entries = await readDirectory(dirPath)
 
-  // Separate files and directories, filtering out .markerdown folder and optionally claude.md
+  // Separate files and directories, filtering out hidden folders and optionally claude.md
   const files = entries.filter((e) => {
     if (e.isDirectory) return false
     if (!options?.showClaudeMd && e.name === 'claude.md') return false
     return true
   })
-  const dirs = entries.filter((e) => e.isDirectory && e.name !== '.markerdown')
+  const dirs = entries.filter((e) => {
+    if (!e.isDirectory) return false
+    // Hide internal folders: .markerdown, .images, .claude
+    if (e.name === '.markerdown' || e.name === '.images' || e.name === '.claude') return false
+    return true
+  })
 
   // Parse entity info for markdown, PDF, video and audio files
   const entityFiles: Array<{
