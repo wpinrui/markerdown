@@ -127,13 +127,12 @@ export function EntityViewer({
           />
         )}
 
-        {isMarkdownActive && (
-          <ModeToggle mode={editMode} onModeChange={onEditModeChange} />
-        )}
-        {isDirty && <span className="save-indicator">Saving...</span>}
-
-        {/* Right-aligned action buttons */}
+        {/* Right-aligned controls */}
         <div className="entity-tabs-actions">
+          {isMarkdownActive && (
+            <ModeToggle mode={editMode} onModeChange={onEditModeChange} />
+          )}
+          {isDirty && <span className="save-indicator">Saving...</span>}
           {(canSummarize || isSummarizing) && (
             <button
               className={`tab-action-btn ${isSummarizing ? 'loading' : ''}`}

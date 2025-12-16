@@ -382,10 +382,10 @@ function App() {
                       onAgentToggle={toggleAgent}
                     />
                   )}
-                  <ModeToggle mode={editMode} onModeChange={setEditMode} />
-                  {isDirty && <span className="save-indicator">Saving...</span>}
-                  {/* Right-aligned action buttons */}
+                  {/* Right-aligned controls */}
                   <div className="entity-tabs-actions">
+                    <ModeToggle mode={editMode} onModeChange={setEditMode} />
+                    {isDirty && <span className="save-indicator">Saving...</span>}
                     <button
                       className={`tab-action-btn ${showAgent ? 'active' : ''}`}
                       onClick={toggleAgent}
