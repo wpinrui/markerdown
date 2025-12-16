@@ -88,12 +88,10 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
     return '📎'
   }
 
-  const getVariantCount = () => {
-    if (!node.entity) return null
-    const count = node.entity.members.length
-    // Only show count if there are multiple variants
-    return count > 1 ? count : null
-  }
+  // Only show variant count when there are multiple variants
+  const variantCount = node.entity && node.entity.members.length > 1
+    ? node.entity.members.length
+    : null
 
   return (
     <div className="tree-item">
@@ -114,8 +112,8 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
         {!hasChildren && <span className="tree-chevron-placeholder" />}
         <span className="tree-icon">{getIcon()}</span>
         <span className="tree-name">{node.name}</span>
-        {getVariantCount() && (
-          <span className="tree-variant-count">{getVariantCount()}</span>
+        {variantCount && (
+          <span className="tree-variant-count">{variantCount}</span>
         )}
         {isSummarizing && (
           <span className="tree-spinner" title="Summarizing with Claude...">
