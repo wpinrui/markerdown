@@ -669,37 +669,6 @@ body {
   cursor: not-allowed;
 }
 
-/* Summarize Button */
-.summarize-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background-color: #0e639c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.summarize-btn:hover {
-  background-color: #1177bb;
-}
-
-.summarize-btn.loading {
-  background-color: #4a4a4a;
-}
-
-.summarize-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid #888;
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

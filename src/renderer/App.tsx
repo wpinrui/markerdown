@@ -40,7 +40,7 @@ function App() {
   const [isDirty, setIsDirty] = useState(false)
   const saveInProgressRef = useRef<Set<string>>(new Set())
   const editorRef = useRef<MarkdownEditorRef>(null)
-  const [activeFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
+  const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleFolderChange = (path: string) => {
     setFolderPath(path)
@@ -141,9 +141,8 @@ function App() {
     setIsDirty(true)
   }, [])
 
-  // Handle selection change for standalone editor
   const handleEditorSelectionChange = useCallback((formats: ActiveFormats) => {
-    setStandaloneActiveFormats(formats)
+    setActiveFormats(formats)
   }, [])
 
   const refreshTree = useCallback(() => {
@@ -328,7 +327,6 @@ function App() {
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
     (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
-  const isStandalonePdfView = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
 
   // Render markdown content (viewer or editor) - shared between entity and standalone
   const renderMarkdownContent = (filePath: string) => {
@@ -400,8 +398,8 @@ function App() {
                 ) : (
                   <div className="placeholder">Loading...</div>
                 )
-              ) : isStandalonePdfView ? (
-                <PdfViewer filePath={selectedNode.path} />
+              ) : isStandalonePdf ? (
+                <PdfViewer filePath={selectedNode!.path} />
               ) : fileContent !== null && selectedNode ? (
                 renderMarkdownContent(selectedNode.path)
               ) : null}
