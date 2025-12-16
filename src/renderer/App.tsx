@@ -697,21 +697,23 @@ function App() {
   // Get sibling names for conflict detection
   const getSiblingNames = useCallback((node: TreeNode): string[] => {
     const dir = getDirname(node.path)
-    const findSiblings = (nodes: TreeNode[], parentPath: string | null): string[] => {
+
+    // Flatten all nodes in tree
+    const flattenNodes = (nodes: TreeNode[]): TreeNode[] => {
+      const result: TreeNode[] = []
       for (const n of nodes) {
-        const nodeDir = getDirname(n.path)
-        if (nodeDir === dir && n.path !== node.path) {
-          // Found a sibling
-        }
+        result.push(n)
         if (n.children) {
-          const found = findSiblings(n.children, n.path)
-          if (found.length > 0) return found
+          result.push(...flattenNodes(n.children))
         }
       }
-      // Return all nodes at the same directory level
-      return nodes.filter((n) => getDirname(n.path) === dir).map((n) => n.name)
+      return result
     }
-    return findSiblings(treeNodes, null)
+
+    // Find all nodes in the same directory (excluding the target node)
+    return flattenNodes(treeNodes)
+      .filter((n) => getDirname(n.path) === dir && n.path !== node.path)
+      .map((n) => n.name)
   }, [treeNodes])
 
   // Build context menu items based on node type

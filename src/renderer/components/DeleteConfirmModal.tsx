@@ -47,7 +47,6 @@ export function DeleteConfirmModal({
         title: 'Delete File',
         description: `Are you sure you want to delete "${fileName}"?`,
         files: [fileName],
-        isEntity: false,
       }
     }
 
@@ -60,7 +59,6 @@ export function DeleteConfirmModal({
           title: 'Delete Entity',
           description: `Are you sure you want to delete the "${node.entity.baseName}" entity? This will delete ${fileNames.length} file(s):`,
           files: fileNames,
-          isEntity: true,
         }
       }
 
@@ -70,7 +68,6 @@ export function DeleteConfirmModal({
           title: 'Delete Folder',
           description: `Are you sure you want to delete the folder "${node.name}" and all its contents?`,
           files: [],
-          isEntity: false,
         }
       }
 
@@ -79,7 +76,6 @@ export function DeleteConfirmModal({
         title: 'Delete File',
         description: `Are you sure you want to delete "${node.name}"?`,
         files: [node.name],
-        isEntity: false,
       }
     }
 
@@ -87,7 +83,6 @@ export function DeleteConfirmModal({
       title: 'Delete',
       description: 'Are you sure you want to delete this item?',
       files: [],
-      isEntity: false,
     }
   }
 
