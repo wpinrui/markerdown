@@ -50,5 +50,5 @@ export function useHorizontalResize({
     [direction, minWidth, maxWidth, setWidth]
   )
 
-  return { handleMouseDown, isDragging }
+  return { handleMouseDown }
 }
