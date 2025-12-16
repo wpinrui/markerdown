@@ -5,7 +5,10 @@ interface FormatToolbarProps {
   activeFormats: ActiveFormats
 }
 
-export function FormatToolbar({ editorRef, activeFormats }: FormatToolbarProps) {
+export function FormatToolbar({
+  editorRef,
+  activeFormats,
+}: FormatToolbarProps) {
   return (
     <div className="editor-format-toolbar" onMouseDown={(e) => e.preventDefault()}>
       <button className={activeFormats.bold ? 'active' : ''} onClick={() => editorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>

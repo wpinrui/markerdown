@@ -2,13 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
-import { FormatToolbar } from './components/FormatToolbar'
-import { ModeToggle } from './components/ModeToggle'
-import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
-import { SummarizeButton } from './components/SummarizeButton'
 import { AgentPanel } from './components/AgentPanel'
+import { OptionsModal } from './components/OptionsModal'
+import { TopToolbar } from './components/TopToolbar'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
@@ -28,6 +26,7 @@ function App() {
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
+  const [showOptionsModal, setShowOptionsModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
   // Agent panel state
@@ -40,21 +39,18 @@ function App() {
   const [editContent, setEditContent] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const saveInProgressRef = useRef<Set<string>>(new Set())
-  const standaloneEditorRef = useRef<MarkdownEditorRef>(null)
-  const [standaloneActiveFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
+  const editorRef = useRef<MarkdownEditorRef>(null)
+  const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
-  const handleOpenFolder = async () => {
-    const path = await window.electronAPI.openFolder()
-    if (path) {
-      setFolderPath(path)
-      setSelectedNode(null)
-      setActiveMember(null)
-      setFileContent(null)
-      setError(null)
-      window.electronAPI.setLastFolder(path).catch((err) => {
-        console.error('Failed to save last folder:', err)
-      })
-    }
+  const handleFolderChange = (path: string) => {
+    setFolderPath(path)
+    setSelectedNode(null)
+    setActiveMember(null)
+    setFileContent(null)
+    setError(null)
+    window.electronAPI.setLastFolder(path).catch((err) => {
+      console.error('Failed to save last folder:', err)
+    })
   }
 
   // Load last folder on startup
@@ -145,9 +141,8 @@ function App() {
     setIsDirty(true)
   }, [])
 
-  // Handle selection change for standalone editor
-  const handleStandaloneSelectionChange = useCallback((formats: ActiveFormats) => {
-    setStandaloneActiveFormats(formats)
+  const handleEditorSelectionChange = useCallback((formats: ActiveFormats) => {
+    setActiveFormats(formats)
   }, [])
 
   const refreshTree = useCallback(() => {
@@ -326,98 +321,101 @@ function App() {
   // For entities, use baseName; for standalone PDFs, extract from filename
   const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? getBaseName(selectedNode.name) : '')
 
+  const isEditing = editMode !== 'view'
+  const toggleAgent = () => setShowAgent((prev) => !prev)
+
+  // Determine if mode toggle should show (markdown content is active)
+  const isMarkdownActive = activeMember?.type === 'markdown' ||
+    (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
+
+  // Render markdown content (viewer or editor) - shared between entity and standalone
+  const renderMarkdownContent = (filePath: string) => {
+    if (editMode === 'view') {
+      return <MarkdownViewer content={fileContent!} />
+    }
+    return (
+      <MarkdownEditor
+        ref={editorRef}
+        content={editContent ?? fileContent!}
+        filePath={filePath}
+        mode={editMode}
+        onModeChange={setEditMode}
+        onContentChange={handleEditContentChange}
+        isDirty={isDirty}
+        showToolbar={false}
+        onSelectionChange={handleEditorSelectionChange}
+      />
+    )
+  }
+
   return (
     <div className="app">
-      <header className="header">
-        <h1>MarkerDown</h1>
-        <div className="header-actions">
-          <button
-            className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
-            onClick={() => setShowAgent((prev) => !prev)}
-            title="Toggle Agent Panel (Ctrl+Shift+A)"
-          >
-            Agent
-            <span className="shortcut">Ctrl+Shift+A</span>
-          </button>
-          {(canSummarize || summarizingPaths.size > 0) && (
-            <SummarizeButton
-              isSummarizing={summarizingPaths.size > 0}
-              onClick={() => setShowSummarizeModal(true)}
-            />
-          )}
-          <button onClick={handleOpenFolder}>Open Folder</button>
-        </div>
-      </header>
       <main className="main">
         <aside className="sidebar">
-          {folderPath ? (
-            <TreeView
-              nodes={treeNodes}
-              selectedPath={selectedNode?.path ?? null}
-              onSelect={handleSelectNode}
-              summarizingPaths={summarizingPaths}
-            />
-          ) : (
-            <p className="placeholder">No folder opened</p>
-          )}
+          <div className="sidebar-tree">
+            {folderPath ? (
+              <TreeView
+                nodes={treeNodes}
+                selectedPath={selectedNode?.path ?? null}
+                onSelect={handleSelectNode}
+                summarizingPaths={summarizingPaths}
+              />
+            ) : (
+              <p className="placeholder">No folder opened</p>
+            )}
+          </div>
+          <button className="sidebar-options-btn" onClick={() => setShowOptionsModal(true)}>
+            Options
+          </button>
         </aside>
         <section className="content">
-          {error ? (
-            <p className="error-message">{error}</p>
-          ) : selectedNode?.entity && activeMember ? (
-            <EntityViewer
-              entity={selectedNode.entity}
-              activeMember={activeMember}
-              content={fileContent}
-              onTabChange={handleTabChange}
-              editMode={editMode}
-              onEditModeChange={setEditMode}
-              editContent={editContent}
-              onEditContentChange={handleEditContentChange}
-              isDirty={isDirty}
-            />
-          ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
-            <PdfViewer filePath={selectedNode.path} />
-          ) : fileContent !== null && selectedNode ? (
-            <div className="standalone-markdown">
-              <div className="standalone-markdown-toolbar">
-                {/* Show formatting toolbar in edit mode */}
-                {editMode !== 'view' && (
-                  <FormatToolbar editorRef={standaloneEditorRef} activeFormats={standaloneActiveFormats} />
-                )}
-                <ModeToggle mode={editMode} onModeChange={setEditMode} />
-                {isDirty && <span className="save-indicator">Saving...</span>}
-              </div>
-              <div className="standalone-markdown-content">
-                {editMode === 'view' ? (
-                  <MarkdownViewer content={fileContent} />
-                ) : (
-                  <MarkdownEditor
-                    ref={standaloneEditorRef}
-                    content={editContent ?? fileContent}
-                    filePath={selectedNode.path}
-                    mode={editMode}
-                    onModeChange={setEditMode}
-                    onContentChange={handleEditContentChange}
-                    isDirty={isDirty}
-                    showToolbar={false}
-                    onSelectionChange={handleStandaloneSelectionChange}
-                  />
-                )}
-              </div>
-            </div>
-          ) : null}
-        </section>
-        <aside
-          className="agent-sidebar"
-          style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
-        >
-          <div
-            className="agent-sidebar-resize-handle"
-            onMouseDown={handleAgentPanelMouseDown}
+          <TopToolbar
+            entity={selectedNode?.entity}
+            activeMember={activeMember ?? undefined}
+            onTabChange={handleTabChange}
+            editMode={editMode}
+            onEditModeChange={setEditMode}
+            editorRef={editorRef}
+            activeFormats={activeFormats}
+            isDirty={isDirty}
+            showModeToggle={!!isMarkdownActive}
+            isEditing={isEditing}
+            showAgent={showAgent}
+            onAgentToggle={toggleAgent}
+            canSummarize={!!canSummarize}
+            isSummarizing={summarizingPaths.size > 0}
+            onSummarizeClick={() => setShowSummarizeModal(true)}
           />
-          <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
-        </aside>
+          <div className="content-body-wrapper">
+            <div className="content-body">
+              {error ? (
+                <p className="error-message">{error}</p>
+              ) : selectedNode?.entity && activeMember ? (
+                activeMember.type === 'pdf' ? (
+                  <PdfViewer filePath={activeMember.path} />
+                ) : fileContent !== null ? (
+                  renderMarkdownContent(activeMember.path)
+                ) : (
+                  <div className="placeholder">Loading...</div>
+                )
+              ) : isStandalonePdf ? (
+                <PdfViewer filePath={selectedNode!.path} />
+              ) : fileContent !== null && selectedNode ? (
+                renderMarkdownContent(selectedNode.path)
+              ) : null}
+            </div>
+            <aside
+              className="agent-sidebar"
+              style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
+            >
+              <div
+                className="agent-sidebar-resize-handle"
+                onMouseDown={handleAgentPanelMouseDown}
+              />
+              <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
+            </aside>
+          </div>
+        </section>
       </main>
       <SummarizeModal
         isOpen={showSummarizeModal}
@@ -425,6 +423,12 @@ function App() {
         onSubmit={handleSummarize}
         entityBaseName={summarizeBaseName}
         existingVariants={existingVariants}
+      />
+      <OptionsModal
+        isOpen={showOptionsModal}
+        onClose={() => setShowOptionsModal(false)}
+        currentFolderPath={folderPath}
+        onFolderChange={handleFolderChange}
       />
     </div>
   )
