@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { getBasename, getExtension, stripExtension } from '@shared/pathUtils'
 import type { TreeNode, EntityMember, Entity } from '@shared/types'
 
+const FOCUS_DELAY_MS = 50
+
 type RenameMode = 'entity' | 'file' | 'member'
 
 interface RenameModalProps {
@@ -79,7 +81,7 @@ export function RenameModal({
     if (isOpen) {
       setInputValue(mode === 'member' ? currentInfo.suffix : currentInfo.baseName)
       // Focus input after dialog opens
-      setTimeout(() => inputRef.current?.select(), 50)
+      setTimeout(() => inputRef.current?.select(), FOCUS_DELAY_MS)
     }
   }, [isOpen, mode, currentInfo])
 

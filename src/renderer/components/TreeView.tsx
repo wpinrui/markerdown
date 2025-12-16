@@ -181,7 +181,7 @@ function TreeItem({
     if (!draggedNode || draggedNode.path === node.path) return
 
     // Can't drop into itself or its descendants
-    if (isDescendantPath(draggedNode.path, node.path)) return
+    if (isDescendantPath(node.path, draggedNode.path)) return
 
     // Directories and entities with sidecars can accept drops "into" them
     const canAcceptInto = node.isDirectory || node.hasSidecar

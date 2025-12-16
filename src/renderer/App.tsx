@@ -542,6 +542,40 @@ function App() {
     return true
   }, [])
 
+  // Helper to move an entity (all members + sidecar folder)
+  const moveEntityWithSidecar = useCallback(async (node: TreeNode, targetDir: string): Promise<boolean> => {
+    if (!node.entity) return false
+
+    // Move all entity members
+    for (const member of node.entity.members) {
+      const memberName = getBasename(member.path)
+      const success = await moveItem(member.path, `${targetDir}/${memberName}`, memberName)
+      if (!success) return false
+    }
+
+    // Move sidecar folder if it exists
+    if (node.hasSidecar && node.children) {
+      const entityBaseName = node.entity.baseName
+      const sidecarPath = `${getDirname(node.path)}/${entityBaseName}`
+      await moveItem(sidecarPath, `${targetDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+    }
+
+    return true
+  }, [moveItem])
+
+  // Helper to move a file with its sidecar folder
+  const moveFileWithSidecar = useCallback(async (node: TreeNode, targetDir: string): Promise<boolean> => {
+    const nodeName = getBasename(node.path)
+    const baseName = stripExtension(nodeName)
+    const nodeDir = getDirname(node.path)
+
+    const success = await moveItem(node.path, `${targetDir}/${nodeName}`, nodeName)
+    if (!success) return false
+
+    await moveItem(`${nodeDir}/${baseName}`, `${targetDir}/${baseName}`, `folder ${baseName}`)
+    return true
+  }, [moveItem])
+
   const handleRevealInExplorer = useCallback(async (node: TreeNode) => {
     // Get the path to reveal - for entities use the first member's path
     const pathToReveal = node.entity?.members[0]?.path ?? node.path
@@ -838,25 +872,9 @@ function App() {
         const childNode = findNodeByPath(treeNodes, childPath)
 
         if (childNode?.entity) {
-          // Move all entity members
-          for (const member of childNode.entity.members) {
-            const memberName = getBasename(member.path)
-            await moveItem(member.path, `${sidecarDir}/${memberName}`, memberName)
-          }
-          // Also move entity's sidecar folder if it has children
-          if (childNode.hasSidecar && childNode.children) {
-            const entityBaseName = childNode.entity.baseName
-            const entitySidecarPath = `${getDirname(childNode.path)}/${entityBaseName}`
-            await moveItem(entitySidecarPath, `${sidecarDir}/${entityBaseName}`, `folder ${entityBaseName}`)
-          }
+          await moveEntityWithSidecar(childNode, sidecarDir)
         } else if (childNode?.hasSidecar && childNode.children) {
-          // Move markdown file with sidecar
-          const childName = getBasename(childPath)
-          const baseName = stripExtension(childName)
-          const childDir = getDirname(childPath)
-
-          await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
-          await moveItem(`${childDir}/${baseName}`, `${sidecarDir}/${baseName}`, `folder ${baseName}`)
+          await moveFileWithSidecar(childNode, sidecarDir)
         } else if (childNode?.isDirectory) {
           // Move entire directory
           const dirName = getBasename(childPath)
@@ -952,29 +970,13 @@ function App() {
 
     // Move entity (all members + sidecar)
     if (node.entity) {
-      // Move all entity members
-      for (const member of node.entity.members) {
-        const memberName = getBasename(member.path)
-        const success = await moveItem(member.path, `${targetDir}/${memberName}`, memberName)
-        if (!success) return
-      }
-
-      // Move sidecar folder if it exists
-      if (node.hasSidecar && node.children) {
-        const entityBaseName = node.entity.baseName
-        const sidecarPath = `${getDirname(node.path)}/${entityBaseName}`
-        await moveItem(sidecarPath, `${targetDir}/${entityBaseName}`, `folder ${entityBaseName}`)
-      }
+      const success = await moveEntityWithSidecar(node, targetDir)
+      if (!success) return
     }
     // Move file with sidecar
     else if (node.hasSidecar && node.children) {
-      const nodeName = getBasename(node.path)
-      const baseName = stripExtension(nodeName)
-      const nodeDir = getDirname(node.path)
-
-      const success = await moveItem(node.path, `${targetDir}/${nodeName}`, nodeName)
+      const success = await moveFileWithSidecar(node, targetDir)
       if (!success) return
-      await moveItem(`${nodeDir}/${baseName}`, `${targetDir}/${baseName}`, `folder ${baseName}`)
     }
     // Move directory
     else if (node.isDirectory) {
