@@ -1,4 +1,5 @@
 import type { EditMode } from '@shared/types'
+import { ModeToggle } from './ModeToggle'
 
 interface EditorToolbarProps {
   mode: EditMode
@@ -9,30 +10,7 @@ interface EditorToolbarProps {
 export function EditorToolbar({ mode, onModeChange, isDirty }: EditorToolbarProps) {
   return (
     <div className="editor-toolbar">
-      <div className="editor-mode-toggle">
-        <button
-          className={mode === 'view' ? 'active' : ''}
-          onClick={() => onModeChange('view')}
-          title="View mode"
-        >
-          View
-        </button>
-        <button
-          className={mode === 'visual' ? 'active' : ''}
-          onClick={() => onModeChange('visual')}
-          title="Visual editor"
-        >
-          Visual
-        </button>
-        <button
-          className={mode === 'code' ? 'active' : ''}
-          onClick={() => onModeChange('code')}
-          title="Code editor"
-        >
-          Code
-        </button>
-      </div>
-
+      <ModeToggle mode={mode} onModeChange={onModeChange} />
       {isDirty && <span className="save-indicator">Saving...</span>}
     </div>
   )

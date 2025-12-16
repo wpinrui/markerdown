@@ -2,7 +2,9 @@ import { useRef, useState, useCallback } from 'react'
 import { MarkdownViewer } from './MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
+import { ModeToggle } from './ModeToggle'
 import { PdfViewer } from './PdfViewer'
+import { defaultFormats } from './editorTypes'
 import type { Entity, EntityMember, EditMode } from '@shared/types'
 
 /**
@@ -54,19 +56,7 @@ export function EntityViewer({
   isDirty,
 }: EntityViewerProps) {
   const editorRef = useRef<MarkdownEditorRef>(null)
-  const [activeFormats, setActiveFormats] = useState<ActiveFormats>({
-    bold: false,
-    italic: false,
-    strikethrough: false,
-    code: false,
-    link: false,
-    headingLevel: null,
-    bulletList: false,
-    orderedList: false,
-    taskList: false,
-    blockquote: false,
-    codeBlock: false,
-  })
+  const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleSelectionChange = useCallback((formats: ActiveFormats) => {
     setActiveFormats(formats)
@@ -118,26 +108,7 @@ export function EntityViewer({
         {isEditing && <FormatToolbar editorRef={editorRef} activeFormats={activeFormats} />}
 
         {isMarkdownActive && (
-          <div className="editor-mode-toggle">
-            <button
-              className={editMode === 'view' ? 'active' : ''}
-              onClick={() => onEditModeChange('view')}
-            >
-              View
-            </button>
-            <button
-              className={editMode === 'visual' ? 'active' : ''}
-              onClick={() => onEditModeChange('visual')}
-            >
-              Visual
-            </button>
-            <button
-              className={editMode === 'code' ? 'active' : ''}
-              onClick={() => onEditModeChange('code')}
-            >
-              Code
-            </button>
-          </div>
+          <ModeToggle mode={editMode} onModeChange={onEditModeChange} />
         )}
         {isDirty && <span className="save-indicator">Saving...</span>}
       </div>

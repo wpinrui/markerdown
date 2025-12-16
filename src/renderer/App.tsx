@@ -3,12 +3,14 @@ import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
 import { FormatToolbar } from './components/FormatToolbar'
+import { ModeToggle } from './components/ModeToggle'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { SummarizeButton } from './components/SummarizeButton'
 import { AgentPanel } from './components/AgentPanel'
 import { useAutoSave } from './hooks/useAutoSave'
+import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
@@ -16,6 +18,7 @@ import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
+const SAVE_IN_PROGRESS_DELAY_MS = 500
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -38,19 +41,7 @@ function App() {
   const [isDirty, setIsDirty] = useState(false)
   const saveInProgressRef = useRef<Set<string>>(new Set())
   const standaloneEditorRef = useRef<MarkdownEditorRef>(null)
-  const [standaloneActiveFormats, setStandaloneActiveFormats] = useState<ActiveFormats>({
-    bold: false,
-    italic: false,
-    strikethrough: false,
-    code: false,
-    link: false,
-    headingLevel: null,
-    bulletList: false,
-    orderedList: false,
-    taskList: false,
-    blockquote: false,
-    codeBlock: false,
-  })
+  const [standaloneActiveFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -135,7 +126,7 @@ function App() {
       setError(`Failed to save: ${result.error}`)
     }
     // Remove from set after a delay (in case watcher fires late)
-    setTimeout(() => saveInProgressRef.current.delete(filePath), 500)
+    setTimeout(() => saveInProgressRef.current.delete(filePath), SAVE_IN_PROGRESS_DELAY_MS)
   }, [])
 
   // Auto-save hook
@@ -394,26 +385,7 @@ function App() {
                 {editMode !== 'view' && (
                   <FormatToolbar editorRef={standaloneEditorRef} activeFormats={standaloneActiveFormats} />
                 )}
-                <div className="editor-mode-toggle">
-                  <button
-                    className={editMode === 'view' ? 'active' : ''}
-                    onClick={() => setEditMode('view')}
-                  >
-                    View
-                  </button>
-                  <button
-                    className={editMode === 'visual' ? 'active' : ''}
-                    onClick={() => setEditMode('visual')}
-                  >
-                    Visual
-                  </button>
-                  <button
-                    className={editMode === 'code' ? 'active' : ''}
-                    onClick={() => setEditMode('code')}
-                  >
-                    Code
-                  </button>
-                </div>
+                <ModeToggle mode={editMode} onModeChange={setEditMode} />
                 {isDirty && <span className="save-indicator">Saving...</span>}
               </div>
               <div className="standalone-markdown-content">
