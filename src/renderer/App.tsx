@@ -77,6 +77,8 @@ function App() {
 
   // Rename modal state
   const [renameTarget, setRenameTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
+  // After rename, store the new path to re-select once tree refreshes
+  const [pendingSelectionPath, setPendingSelectionPath] = useState<string | null>(null)
 
   // Right pane state (agent/todos/events)
   const [activePane, setActivePane] = useState<PaneType | null>(null)
@@ -280,6 +282,35 @@ function App() {
   useEffect(() => {
     refreshTree()
   }, [refreshTree])
+
+  // Handle pending selection after rename (re-select the renamed node)
+  useEffect(() => {
+    if (!pendingSelectionPath || treeNodes.length === 0) return
+
+    // Find the node with the new path (try both forward and backslash variants)
+    const node = findNodeByPath(treeNodes, pendingSelectionPath) ??
+      findNodeByPath(treeNodes, pendingSelectionPath.replace(/\//g, '\\'))
+
+    if (node) {
+      setSelectedNode(node)
+      // Set active member to default member if it's an entity
+      if (node.entity) {
+        setActiveMember(node.entity.defaultMember ?? node.entity.members[0])
+      }
+      // Load file content
+      if (node.entity?.defaultMember || !node.isDirectory) {
+        const memberPath = node.entity?.defaultMember?.path ?? node.entity?.members[0]?.path ?? node.path
+        if (isMarkdownFile(memberPath)) {
+          window.electronAPI.readFile(memberPath).then((content) => {
+            if (content !== null) setFileContent(content)
+          })
+        }
+      }
+    }
+
+    // Clear pending selection
+    setPendingSelectionPath(null)
+  }, [treeNodes, pendingSelectionPath])
 
   // Watch folder for changes
   const activeFilePathRef = useRef<string | null>(null)
@@ -589,6 +620,8 @@ function App() {
   const handleRenameSubmit = useCallback(async (newName: string) => {
     if (!renameTarget || !folderPath) return
 
+    let newSelectionPath: string | null = null
+
     try {
       // Renaming a specific entity member suffix
       if (renameTarget.member && selectedNode?.entity) {
@@ -602,6 +635,9 @@ function App() {
         const result = await window.electronAPI.move(member.path, newPath)
         if (!result.success) {
           setError(`Failed to rename: ${result.error}`)
+        } else {
+          // Keep same entity selected, just update active member path
+          newSelectionPath = selectedNode.path
         }
       }
       // Renaming a tree node (entity or file)
@@ -634,6 +670,13 @@ function App() {
               console.warn('Failed to rename sidecar folder:', result.error)
             }
           }
+
+          // New entity path uses the default member's new path
+          const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
+          const ext = defaultMember.type === 'pdf' ? '.pdf' : '.md'
+          const variant = defaultMember.variant
+          const newFileName = variant ? `${newName}.${variant}${ext}` : `${newName}${ext}`
+          newSelectionPath = `${dir}/${newFileName}`
         }
         // Regular file
         else {
@@ -644,14 +687,16 @@ function App() {
           const result = await window.electronAPI.move(node.path, newPath)
           if (!result.success) {
             setError(`Failed to rename: ${result.error}`)
+          } else {
+            newSelectionPath = newPath
           }
         }
       }
 
-      // Clear selection (paths have changed)
-      setSelectedNode(null)
-      setActiveMember(null)
-      setFileContent(null)
+      // Store pending selection to re-select after tree refresh
+      if (newSelectionPath) {
+        setPendingSelectionPath(newSelectionPath)
+      }
 
       // File watcher will refresh tree automatically
       refreshTree()
