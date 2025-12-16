@@ -6,6 +6,23 @@ export interface FileEntry {
 
 export const MARKDOWN_EXTENSION = '.md'
 export const PDF_EXTENSION = '.pdf'
+export const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv']
+export const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
+
+export type EntityMemberType = 'markdown' | 'pdf' | 'video' | 'audio'
+
+const MIME_TYPES: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.avi': 'video/x-msvideo',
+  '.mkv': 'video/x-matroska',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.flac': 'audio/flac',
+}
 
 export function isMarkdownFile(name: string): boolean {
   return name.endsWith(MARKDOWN_EXTENSION)
@@ -15,10 +32,37 @@ export function isPdfFile(name: string): boolean {
   return name.endsWith(PDF_EXTENSION)
 }
 
+export function getVideoExtension(name: string): string | null {
+  const lower = name.toLowerCase()
+  return VIDEO_EXTENSIONS.find(ext => lower.endsWith(ext)) ?? null
+}
+
+export function getAudioExtension(name: string): string | null {
+  const lower = name.toLowerCase()
+  return AUDIO_EXTENSIONS.find(ext => lower.endsWith(ext)) ?? null
+}
+
+export function isVideoFile(name: string): boolean {
+  return getVideoExtension(name) !== null
+}
+
+export function isAudioFile(name: string): boolean {
+  return getAudioExtension(name) !== null
+}
+
+export function isMediaFile(name: string): boolean {
+  return isVideoFile(name) || isAudioFile(name)
+}
+
+export function getMediaMimeType(name: string): string {
+  const ext = name.toLowerCase().match(/\.[^.]+$/)?.[0] || ''
+  return MIME_TYPES[ext] || 'application/octet-stream'
+}
+
 export interface EntityMember {
   path: string
   variant: string | null // null = default (no suffix)
-  type: 'markdown' | 'pdf'
+  type: EntityMemberType
 }
 
 export interface Entity {
@@ -129,6 +173,7 @@ export interface ElectronAPI {
   deleteDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   readOrder: (dirPath: string) => Promise<string[] | null>
   writeOrder: (dirPath: string, order: string[]) => Promise<{ success: boolean; error?: string }>
+  saveImage: (markdownFilePath: string, imageData: string, extension: string) => Promise<{ success: boolean; relativePath?: string; error?: string }>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarize: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>

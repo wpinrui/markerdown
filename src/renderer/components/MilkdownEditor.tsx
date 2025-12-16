@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react'
 import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx, editorViewCtx } from '@milkdown/core'
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, insertImageCommand, toggleInlineCodeCommand } from '@milkdown/preset-commonmark'
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/preset-gfm'
@@ -9,6 +9,8 @@ import { callCommand } from '@milkdown/utils'
 import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
 import { ActiveFormats, defaultFormats } from './editorTypes'
+import { useImagePaste } from '../hooks/useImagePaste'
+import { buildLocalImageUrl } from '../utils/imageUtils'
 
 export type { ActiveFormats }
 
@@ -32,12 +34,13 @@ export interface MilkdownEditorRef {
 
 interface MilkdownEditorProps {
   content: string
+  filePath: string
   onChange: (content: string) => void
   onSelectionChange?: (formats: ActiveFormats) => void
 }
 
 export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>(
-  function MilkdownEditor({ content, onChange, onSelectionChange }, ref) {
+  function MilkdownEditor({ content, filePath, onChange, onSelectionChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const editorRef = useRef<Editor | null>(null)
     const contentRef = useRef(content)
@@ -246,6 +249,22 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
       // If user switches files, the component should remount with new key
       contentRef.current = content
     }, [content])
+
+    // Handle image pasting
+    useImagePaste({
+      containerRef,
+      filePath,
+      onImageSaved: useCallback((relativePath: string) => {
+        const editor = editorRef.current
+        if (!editor) return
+
+        const imageUrl = buildLocalImageUrl(filePath, relativePath)
+        editor.action(callCommand(insertImageCommand.key, {
+          src: imageUrl,
+          alt: 'image'
+        }))
+      }, [filePath]),
+    })
 
     return <div ref={containerRef} className="milkdown-editor" />
   }

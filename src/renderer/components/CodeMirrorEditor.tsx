@@ -5,6 +5,8 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { ActiveFormats, defaultFormats } from './editorTypes'
+import { useImagePaste } from '../hooks/useImagePaste'
+import { buildLocalImageUrl } from '../utils/imageUtils'
 
 export type { ActiveFormats }
 
@@ -28,12 +30,13 @@ export interface CodeMirrorEditorRef {
 
 interface CodeMirrorEditorProps {
   content: string
+  filePath: string
   onChange: (content: string) => void
   onSelectionChange?: (formats: ActiveFormats) => void
 }
 
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditorProps>(
-  function CodeMirrorEditor({ content, onChange, onSelectionChange }, ref) {
+  function CodeMirrorEditor({ content, filePath, onChange, onSelectionChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const onChangeRef = useRef(onChange)
@@ -266,6 +269,25 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         isUpdatingRef.current = false
       }
     }, [content])
+
+    // Handle image pasting
+    useImagePaste({
+      containerRef,
+      filePath,
+      onImageSaved: useCallback((relativePath: string) => {
+        const view = viewRef.current
+        if (!view) return
+
+        const imageUrl = buildLocalImageUrl(filePath, relativePath)
+        const { from } = view.state.selection.main
+        const imgMd = `![image](${imageUrl})`
+        view.dispatch({
+          changes: { from, to: from, insert: imgMd },
+          selection: { anchor: from + imgMd.length },
+        })
+        view.focus()
+      }, [filePath]),
+    })
 
     return <div ref={containerRef} className="codemirror-editor" />
   }

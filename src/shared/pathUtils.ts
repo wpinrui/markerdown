@@ -6,6 +6,9 @@
 export const PATH_SEPARATOR_FORWARD = '/'
 export const PATH_SEPARATOR_BACKWARD = '\\'
 
+/** Custom protocol used to serve local images in markdown */
+export const LOCAL_IMAGE_PROTOCOL = 'local-image://'
+
 export function getBasename(filePath: string): string {
   const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
   return filePath.substring(lastSlash + 1)
