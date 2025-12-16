@@ -1,6 +1,7 @@
 import { MarkdownViewer } from './MarkdownViewer'
+import { MarkdownEditor } from './MarkdownEditor'
 import { PdfViewer } from './PdfViewer'
-import type { Entity, EntityMember } from '@shared/types'
+import type { Entity, EntityMember, EditMode } from '@shared/types'
 
 /**
  * Simple string hash function (djb2 algorithm)
@@ -31,9 +32,25 @@ interface EntityViewerProps {
   activeMember: EntityMember
   content: string | null
   onTabChange: (member: EntityMember) => void
+  // Editor props
+  editMode: EditMode
+  onEditModeChange: (mode: EditMode) => void
+  editContent: string | null
+  onEditContentChange: (content: string) => void
+  isDirty: boolean
 }
 
-export function EntityViewer({ entity, activeMember, content, onTabChange }: EntityViewerProps) {
+export function EntityViewer({
+  entity,
+  activeMember,
+  content,
+  onTabChange,
+  editMode,
+  onEditModeChange,
+  editContent,
+  onEditContentChange,
+  isDirty,
+}: EntityViewerProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
       return member.variant ? `${member.variant} (PDF)` : 'PDF'
@@ -48,6 +65,8 @@ export function EntityViewer({ entity, activeMember, content, onTabChange }: Ent
     const label = getTabLabel(member)
     return stringToColors(label)
   }
+
+  const isMarkdownActive = activeMember.type === 'markdown'
 
   return (
     <div className="entity-viewer">
@@ -70,12 +89,32 @@ export function EntityViewer({ entity, activeMember, content, onTabChange }: Ent
             </button>
           )
         })}
+        {isMarkdownActive && (
+          <button
+            className={`edit-toggle-btn ${editMode !== 'view' ? 'active' : ''}`}
+            onClick={() => onEditModeChange(editMode === 'view' ? 'visual' : 'view')}
+            title="Toggle Edit Mode (Ctrl+E)"
+          >
+            {editMode === 'view' ? 'Edit' : 'Done'}
+          </button>
+        )}
       </div>
       <div className="entity-content">
         {activeMember.type === 'pdf' ? (
           <PdfViewer filePath={activeMember.path} />
-        ) : content ? (
-          <MarkdownViewer content={content} />
+        ) : content !== null ? (
+          editMode === 'view' ? (
+            <MarkdownViewer content={content} />
+          ) : (
+            <MarkdownEditor
+              content={editContent ?? content}
+              filePath={activeMember.path}
+              mode={editMode}
+              onModeChange={onEditModeChange}
+              onContentChange={onEditContentChange}
+              isDirty={isDirty}
+            />
+          )
         ) : (
           <div className="placeholder">Loading...</div>
         )}

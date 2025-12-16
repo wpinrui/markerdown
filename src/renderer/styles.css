@@ -1052,3 +1052,155 @@ body {
   white-space: nowrap;
   max-width: 100%;
 }
+
+/* Edit Toggle Button */
+.edit-toggle-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  background-color: #3c3c3c;
+  color: #d4d4d4;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.edit-toggle-btn:hover {
+  background-color: #4a4a4a;
+}
+
+.edit-toggle-btn.active {
+  background-color: #0e639c;
+  color: white;
+}
+
+/* Markdown Editor */
+.markdown-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.markdown-editor-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Editor Toolbar */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #3c3c3c;
+  flex-shrink: 0;
+}
+
+.editor-mode-toggle {
+  display: flex;
+  gap: 2px;
+  background-color: #1e1e1e;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.editor-mode-toggle button {
+  padding: 4px 12px;
+  background: transparent;
+  color: #808080;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.editor-mode-toggle button:hover {
+  color: #d4d4d4;
+}
+
+.editor-mode-toggle button.active {
+  background-color: #0e639c;
+  color: white;
+}
+
+.save-indicator {
+  font-size: 12px;
+  color: #808080;
+  font-style: italic;
+}
+
+/* CodeMirror Editor */
+.codemirror-editor {
+  flex: 1;
+  overflow: hidden;
+}
+
+.codemirror-editor .cm-editor {
+  height: 100%;
+}
+
+/* Milkdown Editor */
+.milkdown-editor {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  background-color: #1e1e1e;
+}
+
+.milkdown-editor .milkdown {
+  max-width: 800px;
+}
+
+.milkdown-editor .editor {
+  outline: none;
+}
+
+/* Override Milkdown Nord theme for dark mode consistency */
+.milkdown-editor .milkdown .editor {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #d4d4d4;
+}
+
+.milkdown-editor .milkdown h1,
+.milkdown-editor .milkdown h2,
+.milkdown-editor .milkdown h3,
+.milkdown-editor .milkdown h4,
+.milkdown-editor .milkdown h5,
+.milkdown-editor .milkdown h6 {
+  color: #d4d4d4;
+}
+
+.milkdown-editor .milkdown code {
+  background-color: #2d2d2d;
+}
+
+.milkdown-editor .milkdown pre {
+  background-color: #2d2d2d;
+}
+
+.milkdown-editor .milkdown blockquote {
+  border-left-color: #3c3c3c;
+  color: #9d9d9d;
+}
+
+.milkdown-editor .milkdown table th,
+.milkdown-editor .milkdown table td {
+  border-color: #3c3c3c;
+}
+
+.milkdown-editor .milkdown table th {
+  background-color: #2d2d2d;
+}
+
+.milkdown-editor .milkdown a {
+  color: #58a6ff;
+}
+
+.milkdown-editor .milkdown hr {
+  border-color: #3c3c3c;
+}
