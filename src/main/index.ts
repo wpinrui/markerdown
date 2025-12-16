@@ -22,6 +22,21 @@ function closeWatcher() {
 
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
+const AGENT_MEMORY_FILE = 'Agent Memory.md'
+
+async function readAgentMemory(workingDir: string): Promise<string | null> {
+  try {
+    const memoryPath = path.join(workingDir, AGENT_MEMORY_FILE)
+    return await fs.promises.readFile(memoryPath, 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+function formatMemoryContext(agentMemory: string | null): string {
+  if (!agentMemory) return ''
+  return `User context:\n${agentMemory}\n\n`
+}
 
 interface Settings {
   lastFolder?: string
@@ -179,8 +194,10 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
     // File doesn't exist, good to proceed
   }
 
+  const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
+
   return new Promise((resolve) => {
-    const fullPrompt = `Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
+    const fullPrompt = `${memoryContext}Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
 
 ${prompt}`
 
@@ -237,11 +254,6 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   // Use existing session ID or generate a new one
   const sessionId = existingSessionId ?? crypto.randomUUID()
 
-  const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
-When you need information, use your tools to list directories and read files.
-Prefer reading .md files over .pdf files when both exist for the same topic.
-Be concise but thorough in your answers. Do not generate files - only answer verbally.`
-
   const args = [
     '--print',
     '--dangerously-skip-permissions',
@@ -250,10 +262,17 @@ Be concise but thorough in your answers. Do not generate files - only answer ver
     '--setting-sources', 'user',
   ]
 
-  // For new sessions, use --session-id; for existing sessions, use --resume
+  // For new sessions, use --session-id with system prompt; for existing sessions, use --resume
   if (existingSessionId) {
     args.push('--resume', sessionId)
   } else {
+    const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
+    const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
+When you need information, use your tools to list directories and read files.
+Prefer reading .md files over .pdf files when both exist for the same topic.
+Be concise but thorough in your answers. Do not generate files - only answer verbally.
+
+${memoryContext}`
     args.push('--session-id', sessionId)
     args.push('--system-prompt', systemPrompt)
   }
