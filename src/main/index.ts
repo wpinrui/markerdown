@@ -129,7 +129,6 @@ app.whenReady().then(() => {
     const filePath = decodeURIComponent(url.pathname)
     // On Windows, pathname starts with / so we get /C:/... -> C:/...
     const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
-    console.log('Media request:', request.url, '-> path:', normalizedPath)
     callback(normalizedPath)
   })
 
