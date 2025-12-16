@@ -1,5 +1,6 @@
+import { useRef } from 'react'
 import { MarkdownViewer } from './MarkdownViewer'
-import { MarkdownEditor } from './MarkdownEditor'
+import { MarkdownEditor, MarkdownEditorRef } from './MarkdownEditor'
 import { PdfViewer } from './PdfViewer'
 import type { Entity, EntityMember, EditMode } from '@shared/types'
 
@@ -51,6 +52,8 @@ export function EntityViewer({
   onEditContentChange,
   isDirty,
 }: EntityViewerProps) {
+  const editorRef = useRef<MarkdownEditorRef>(null)
+
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
       return member.variant ? `${member.variant} (PDF)` : 'PDF'
@@ -67,28 +70,58 @@ export function EntityViewer({
   }
 
   const isMarkdownActive = activeMember.type === 'markdown'
+  const isEditing = editMode !== 'view'
 
   return (
     <div className="entity-viewer">
       <div className="entity-tabs">
-        {entity.members.map((member) => {
-          const isActive = member.path === activeMember.path
-          const colors = getTabColors(member)
-          return (
-            <button
-              key={member.path}
-              className={`entity-tab ${isActive ? 'active' : ''}`}
-              style={{
-                backgroundColor: colors.base,
-                borderColor: isActive ? colors.light : colors.base,
-                fontWeight: isActive ? 'bold' : 'normal',
-              }}
-              onClick={() => onTabChange(member)}
-            >
-              {getTabLabel(member)}
-            </button>
-          )
-        })}
+        {/* Show tabs only in view mode */}
+        {!isEditing &&
+          entity.members.map((member) => {
+            const isActive = member.path === activeMember.path
+            const colors = getTabColors(member)
+            return (
+              <button
+                key={member.path}
+                className={`entity-tab ${isActive ? 'active' : ''}`}
+                style={{
+                  backgroundColor: colors.base,
+                  borderColor: isActive ? colors.light : colors.base,
+                  fontWeight: isActive ? 'bold' : 'normal',
+                }}
+                onClick={() => onTabChange(member)}
+              >
+                {getTabLabel(member)}
+              </button>
+            )
+          })}
+
+        {/* Show formatting toolbar in edit mode */}
+        {isEditing && (
+          <div className="editor-format-toolbar">
+            <button onClick={() => editorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>
+            <button onClick={() => editorRef.current?.italic()} title="Italic (Ctrl+I)"><em>I</em></button>
+            <button onClick={() => editorRef.current?.strikethrough()} title="Strikethrough"><s>S</s></button>
+            <span className="toolbar-divider" />
+            <button onClick={() => editorRef.current?.heading(1)} title="Heading 1">H1</button>
+            <button onClick={() => editorRef.current?.heading(2)} title="Heading 2">H2</button>
+            <button onClick={() => editorRef.current?.heading(3)} title="Heading 3">H3</button>
+            <span className="toolbar-divider" />
+            <button onClick={() => editorRef.current?.bulletList()} title="Bullet List">•</button>
+            <button onClick={() => editorRef.current?.orderedList()} title="Numbered List">1.</button>
+            <button onClick={() => editorRef.current?.taskList()} title="Task List">☐</button>
+            <span className="toolbar-divider" />
+            <button onClick={() => editorRef.current?.insertLink()} title="Link">🔗</button>
+            <button onClick={() => editorRef.current?.insertImage()} title="Image">🖼</button>
+            <button onClick={() => editorRef.current?.insertCode()} title="Code">&lt;/&gt;</button>
+            <button onClick={() => editorRef.current?.insertCodeBlock()} title="Code Block">```</button>
+            <span className="toolbar-divider" />
+            <button onClick={() => editorRef.current?.blockquote()} title="Quote">"</button>
+            <button onClick={() => editorRef.current?.horizontalRule()} title="Horizontal Rule">―</button>
+            <button onClick={() => editorRef.current?.insertTable()} title="Table">⊞</button>
+          </div>
+        )}
+
         {isMarkdownActive && (
           <div className="editor-mode-toggle">
             <button
@@ -121,6 +154,7 @@ export function EntityViewer({
             <MarkdownViewer content={content} />
           ) : (
             <MarkdownEditor
+              ref={editorRef}
               content={editContent ?? content}
               filePath={activeMember.path}
               mode={editMode}

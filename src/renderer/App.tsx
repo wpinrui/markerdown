@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
-import { MarkdownEditor } from './components/MarkdownEditor'
+import { MarkdownEditor, MarkdownEditorRef } from './components/MarkdownEditor'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
@@ -36,6 +36,7 @@ function App() {
   const [editContent, setEditContent] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const saveInProgressRef = useRef<Set<string>>(new Set())
+  const standaloneEditorRef = useRef<MarkdownEditorRef>(null)
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -370,6 +371,31 @@ function App() {
           ) : fileContent !== null && selectedNode ? (
             <div className="standalone-markdown">
               <div className="standalone-markdown-toolbar">
+                {/* Show formatting toolbar in edit mode */}
+                {editMode !== 'view' && (
+                  <div className="editor-format-toolbar">
+                    <button onClick={() => standaloneEditorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>
+                    <button onClick={() => standaloneEditorRef.current?.italic()} title="Italic (Ctrl+I)"><em>I</em></button>
+                    <button onClick={() => standaloneEditorRef.current?.strikethrough()} title="Strikethrough"><s>S</s></button>
+                    <span className="toolbar-divider" />
+                    <button onClick={() => standaloneEditorRef.current?.heading(1)} title="Heading 1">H1</button>
+                    <button onClick={() => standaloneEditorRef.current?.heading(2)} title="Heading 2">H2</button>
+                    <button onClick={() => standaloneEditorRef.current?.heading(3)} title="Heading 3">H3</button>
+                    <span className="toolbar-divider" />
+                    <button onClick={() => standaloneEditorRef.current?.bulletList()} title="Bullet List">•</button>
+                    <button onClick={() => standaloneEditorRef.current?.orderedList()} title="Numbered List">1.</button>
+                    <button onClick={() => standaloneEditorRef.current?.taskList()} title="Task List">☐</button>
+                    <span className="toolbar-divider" />
+                    <button onClick={() => standaloneEditorRef.current?.insertLink()} title="Link">🔗</button>
+                    <button onClick={() => standaloneEditorRef.current?.insertImage()} title="Image">🖼</button>
+                    <button onClick={() => standaloneEditorRef.current?.insertCode()} title="Code">&lt;/&gt;</button>
+                    <button onClick={() => standaloneEditorRef.current?.insertCodeBlock()} title="Code Block">```</button>
+                    <span className="toolbar-divider" />
+                    <button onClick={() => standaloneEditorRef.current?.blockquote()} title="Quote">"</button>
+                    <button onClick={() => standaloneEditorRef.current?.horizontalRule()} title="Horizontal Rule">―</button>
+                    <button onClick={() => standaloneEditorRef.current?.insertTable()} title="Table">⊞</button>
+                  </div>
+                )}
                 <div className="editor-mode-toggle">
                   <button
                     className={editMode === 'view' ? 'active' : ''}
@@ -397,6 +423,7 @@ function App() {
                   <MarkdownViewer content={fileContent} />
                 ) : (
                   <MarkdownEditor
+                    ref={standaloneEditorRef}
                     content={editContent ?? fileContent}
                     filePath={selectedNode.path}
                     mode={editMode}
