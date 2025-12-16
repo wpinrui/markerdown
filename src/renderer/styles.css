@@ -101,6 +101,39 @@ body {
 
 .content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Top Toolbar - always visible at top of content */
+.top-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid #3c3c3c;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-height: 52px;
+}
+
+.top-toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Content body wrapper - holds content and agent sidebar */
+.content-body-wrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.content-body {
+  flex: 1;
   overflow-y: auto;
 }
 

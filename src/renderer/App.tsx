@@ -2,13 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
-import { FormatToolbar } from './components/FormatToolbar'
-import { ModeToggle } from './components/ModeToggle'
-import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
 import { OptionsModal } from './components/OptionsModal'
+import { TopToolbar } from './components/TopToolbar'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
@@ -327,6 +325,11 @@ function App() {
   const isEditing = editMode !== 'view'
   const toggleAgent = () => setShowAgent((prev) => !prev)
 
+  // Determine if mode toggle should show (markdown content is active)
+  const isMarkdownActive = activeMember?.type === 'markdown' ||
+    (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
+  const isStandalonePdfView = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
+
   return (
     <div className="app">
       <main className="main">
@@ -348,61 +351,38 @@ function App() {
           </button>
         </aside>
         <section className="content">
-            {error ? (
-              <p className="error-message">{error}</p>
-            ) : selectedNode?.entity && activeMember ? (
-              <EntityViewer
-                entity={selectedNode.entity}
-                activeMember={activeMember}
-                content={fileContent}
-                onTabChange={handleTabChange}
-                editMode={editMode}
-                onEditModeChange={setEditMode}
-                editContent={editContent}
-                onEditContentChange={handleEditContentChange}
-                isDirty={isDirty}
-                showAgent={showAgent}
-                onAgentToggle={toggleAgent}
-                canSummarize={!!canSummarize}
-                isSummarizing={summarizingPaths.size > 0}
-                onSummarizeClick={() => setShowSummarizeModal(true)}
-              />
-            ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
-              <PdfViewer filePath={selectedNode.path} />
-            ) : fileContent !== null && selectedNode ? (
-              <div className="standalone-markdown">
-                <div className="standalone-markdown-toolbar">
-                  {/* Show formatting toolbar in edit mode */}
-                  {isEditing && (
-                    <FormatToolbar
-                      editorRef={standaloneEditorRef}
-                      activeFormats={standaloneActiveFormats}
-                      showAgentButton
-                      isAgentActive={showAgent}
-                      onAgentToggle={toggleAgent}
-                    />
-                  )}
-                  {/* Right-aligned controls */}
-                  <div className="entity-tabs-actions">
-                    <ModeToggle mode={editMode} onModeChange={setEditMode} />
-                    {isDirty && <span className="save-indicator">Saving...</span>}
-                    <button
-                      className={`tab-action-btn ${showAgent ? 'active' : ''}`}
-                      onClick={toggleAgent}
-                      title="Toggle Agent (Ctrl+Shift+A)"
-                    >
-                      ✦
-                    </button>
-                  </div>
-                </div>
-                <div className="standalone-markdown-content">
-                  {editMode === 'view' ? (
+          <TopToolbar
+            entity={selectedNode?.entity}
+            activeMember={activeMember ?? undefined}
+            onTabChange={handleTabChange}
+            editMode={editMode}
+            onEditModeChange={setEditMode}
+            editorRef={standaloneEditorRef}
+            activeFormats={standaloneActiveFormats}
+            isDirty={isDirty}
+            showModeToggle={!!isMarkdownActive}
+            isEditing={isEditing}
+            showAgent={showAgent}
+            onAgentToggle={toggleAgent}
+            canSummarize={!!canSummarize}
+            isSummarizing={summarizingPaths.size > 0}
+            onSummarizeClick={() => setShowSummarizeModal(true)}
+          />
+          <div className="content-body-wrapper">
+            <div className="content-body">
+              {error ? (
+                <p className="error-message">{error}</p>
+              ) : selectedNode?.entity && activeMember ? (
+                activeMember.type === 'pdf' ? (
+                  <PdfViewer filePath={activeMember.path} />
+                ) : fileContent !== null ? (
+                  editMode === 'view' ? (
                     <MarkdownViewer content={fileContent} />
                   ) : (
                     <MarkdownEditor
                       ref={standaloneEditorRef}
                       content={editContent ?? fileContent}
-                      filePath={selectedNode.path}
+                      filePath={activeMember.path}
                       mode={editMode}
                       onModeChange={setEditMode}
                       onContentChange={handleEditContentChange}
@@ -410,21 +390,42 @@ function App() {
                       showToolbar={false}
                       onSelectionChange={handleStandaloneSelectionChange}
                     />
-                  )}
-                </div>
-              </div>
-            ) : null}
+                  )
+                ) : (
+                  <div className="placeholder">Loading...</div>
+                )
+              ) : isStandalonePdfView ? (
+                <PdfViewer filePath={selectedNode.path} />
+              ) : fileContent !== null && selectedNode ? (
+                editMode === 'view' ? (
+                  <MarkdownViewer content={fileContent} />
+                ) : (
+                  <MarkdownEditor
+                    ref={standaloneEditorRef}
+                    content={editContent ?? fileContent}
+                    filePath={selectedNode.path}
+                    mode={editMode}
+                    onModeChange={setEditMode}
+                    onContentChange={handleEditContentChange}
+                    isDirty={isDirty}
+                    showToolbar={false}
+                    onSelectionChange={handleStandaloneSelectionChange}
+                  />
+                )
+              ) : null}
+            </div>
+            <aside
+              className="agent-sidebar"
+              style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
+            >
+              <div
+                className="agent-sidebar-resize-handle"
+                onMouseDown={handleAgentPanelMouseDown}
+              />
+              <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
+            </aside>
+          </div>
         </section>
-        <aside
-          className="agent-sidebar"
-          style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
-        >
-          <div
-            className="agent-sidebar-resize-handle"
-            onMouseDown={handleAgentPanelMouseDown}
-          />
-          <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
-        </aside>
       </main>
       <SummarizeModal
         isOpen={showSummarizeModal}
