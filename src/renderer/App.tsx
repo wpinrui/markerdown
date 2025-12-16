@@ -428,8 +428,8 @@ function App() {
     setShowSummarizeModal(false)
 
     try {
-      const result = await window.electronAPI.summarizePdf({
-        pdfPath: sourcePath,
+      const result = await window.electronAPI.summarize({
+        sourcePath,
         outputPath,
         prompt,
         workingDir: folderPath!,

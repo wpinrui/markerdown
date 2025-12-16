@@ -34,7 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('fs:changed', listener)
     return () => ipcRenderer.removeListener('fs:changed', listener)
   },
-  summarizePdf: (request: SummarizeRequest): Promise<SummarizeResult> =>
+  summarize: (request: SummarizeRequest): Promise<SummarizeResult> =>
     ipcRenderer.invoke('claude:summarize', request),
   agentChat: (request: AgentChatRequest): Promise<AgentChatResponse> =>
     ipcRenderer.invoke('agent:chat', request),
