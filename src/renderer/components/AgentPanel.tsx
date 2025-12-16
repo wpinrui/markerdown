@@ -14,27 +14,18 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [streamingContent, setStreamingContent] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [sessions, setSessions] = useState<AgentSession[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const isCancelledRef = useRef(false)
   const historyRef = useRef<HTMLDivElement>(null)
-  const streamingContentRef = useRef('')
-  const workingDirRef = useRef(workingDir)
-  const sessionIdRef = useRef(sessionId)
-
-  // Keep refs in sync
-  workingDirRef.current = workingDir
-  sessionIdRef.current = sessionId
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+  }, [messages])
 
   // Focus input on mount
   useEffect(() => {
@@ -62,44 +53,20 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     loadMostRecent()
   }, [workingDir])
 
-  // Set up streaming listeners
+  // Listen for agent completion - just reload from file
   useEffect(() => {
-    const unsubChunk = window.electronAPI.onAgentChunk((chunk) => {
-      streamingContentRef.current += chunk
-      setStreamingContent(streamingContentRef.current)
+    const unsubComplete = window.electronAPI.onAgentComplete(() => {
+      // Ignored - we handle completion in handleSubmit
     })
+    return () => unsubComplete()
+  }, [])
 
-    const unsubComplete = window.electronAPI.onAgentComplete(async (error) => {
-      setIsLoading(false)
-      streamingContentRef.current = ''
-      setStreamingContent('')
-
-      if (isCancelledRef.current) {
-        isCancelledRef.current = false
-        return
-      }
-
-      if (error) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
-        return
-      }
-
-      // Reload messages from session file - it's the source of truth
-      const dir = workingDirRef.current
-      const sid = sessionIdRef.current
-      if (dir && sid) {
-        try {
-          const history = await window.electronAPI.loadAgentSession(dir, sid)
-          setMessages(history.messages)
-        } catch (err) {
-          console.error('Failed to reload session:', err)
-        }
-      }
-    })
-
-    return () => {
-      unsubChunk()
-      unsubComplete()
+  const reloadSession = useCallback(async (dir: string, sid: string) => {
+    try {
+      const history = await window.electronAPI.loadAgentSession(dir, sid)
+      setMessages(history.messages)
+    } catch (err) {
+      console.error('Failed to reload session:', err)
     }
   }, [])
 
@@ -110,8 +77,6 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
-    streamingContentRef.current = ''
-    setStreamingContent('')
 
     try {
       const response = await window.electronAPI.agentChat({
@@ -119,14 +84,23 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
         workingDir,
         sessionId: sessionId ?? undefined,
       })
-      // Store session ID for conversation continuity
-      sessionIdRef.current = response.sessionId
       setSessionId(response.sessionId)
+
+      // Wait for agent to finish, then reload from file
+      await new Promise<void>((resolve) => {
+        const unsub = window.electronAPI.onAgentComplete(() => {
+          unsub()
+          resolve()
+        })
+      })
+
+      await reloadSession(workingDir, response.sessionId)
     } catch (err) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Failed: ${err}` }])
+    } finally {
       setIsLoading(false)
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Failed to start agent: ${err}` }])
     }
-  }, [input, isLoading, workingDir, sessionId])
+  }, [input, isLoading, workingDir, sessionId, reloadSession])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -136,23 +110,14 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   }
 
   const handleCancel = () => {
-    isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setIsLoading(false)
-    if (streamingContentRef.current) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: streamingContentRef.current + '\n\n(cancelled)' }])
-    }
-    streamingContentRef.current = ''
-    setStreamingContent('')
   }
 
   const handleNewChat = () => {
-    isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setMessages([])
     setSessionId(null)
-    streamingContentRef.current = ''
-    setStreamingContent('')
     setIsLoading(false)
     setShowHistory(false)
   }
@@ -180,14 +145,9 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const handleLoadSession = async (session: AgentSession) => {
     if (!workingDir) return
 
-    // Cancel any in-progress agent request to prevent stale responses from corrupting new session
-    isCancelledRef.current = true
     window.electronAPI.agentCancel()
-
     setShowHistory(false)
     setIsLoading(true)
-    streamingContentRef.current = ''
-    setStreamingContent('')
 
     try {
       const history = await window.electronAPI.loadAgentSession(workingDir, session.sessionId)
@@ -295,14 +255,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
             </div>
           </div>
         ))}
-        {streamingContent && (
-          <div className="agent-message agent-message-assistant">
-            <div className="agent-message-content">
-              <StyledMarkdown content={streamingContent} />
-            </div>
-          </div>
-        )}
-        {isLoading && !streamingContent && (
+        {isLoading && (
           <div className="agent-message agent-message-assistant">
             <div className="agent-typing">Thinking...</div>
           </div>
