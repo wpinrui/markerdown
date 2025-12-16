@@ -31,6 +31,7 @@ interface TopToolbarProps {
   entity?: Entity
   activeMember?: EntityMember
   onTabChange?: (member: EntityMember) => void
+  onTabContextMenu?: (e: React.MouseEvent, member: EntityMember) => void
   // Editor props
   editMode: EditMode
   onEditModeChange: (mode: EditMode) => void
@@ -59,6 +60,7 @@ export function TopToolbar({
   entity,
   activeMember,
   onTabChange,
+  onTabContextMenu,
   editMode,
   onEditModeChange,
   editorRef,
@@ -118,6 +120,10 @@ export function TopToolbar({
                 fontWeight: isActive ? 'bold' : 'normal',
               }}
               onClick={() => onTabChange(member)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                onTabContextMenu?.(e, member)
+              }}
             >
               {getTabLabel(member)}
             </button>

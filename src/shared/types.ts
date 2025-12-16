@@ -125,6 +125,7 @@ export interface ElectronAPI {
   mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   move: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
+  deleteDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarize: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>
