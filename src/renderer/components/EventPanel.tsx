@@ -248,7 +248,7 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
             return (
               <div
                 key={event.id}
-                className={`event-item ${eventIsPast ? 'past' : ''} expanded`}
+                className={`event-item ${eventIsPast ? 'past' : ''}`}
               >
                 <div className="event-item-main">
                   {isEditing ? (

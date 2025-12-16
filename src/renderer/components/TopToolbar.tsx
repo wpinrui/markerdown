@@ -154,8 +154,8 @@ export function TopToolbar({
                 type="button"
                 className="entity-tab active"
                 style={{
-                  backgroundColor: 'hsl(210, 65%, 40%)',
-                  borderColor: 'hsl(210, 65%, 60%)',
+                  backgroundColor: stringToColors(selectedFileName).base,
+                  borderColor: stringToColors(selectedFileName).light,
                   fontWeight: 'bold',
                 }}
               >

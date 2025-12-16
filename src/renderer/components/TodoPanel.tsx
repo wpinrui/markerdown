@@ -246,7 +246,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
             return (
               <div
                 key={todo.id}
-                className={`todo-item ${todo.completed ? 'completed' : ''} expanded`}
+                className={`todo-item ${todo.completed ? 'completed' : ''}`}
               >
                 <div className="todo-item-main">
                   <input
