@@ -77,13 +77,7 @@ export function RenameModal({
   // Initialize input value when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (mode === 'member') {
-        setInputValue(currentInfo.suffix)
-      } else if (mode === 'entity') {
-        setInputValue(currentInfo.baseName)
-      } else {
-        setInputValue(currentInfo.baseName)
-      }
+      setInputValue(mode === 'member' ? currentInfo.suffix : currentInfo.baseName)
       // Focus input after dialog opens
       setTimeout(() => inputRef.current?.select(), 50)
     }

@@ -19,7 +19,7 @@ import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
-import { getBasename, getDirname } from '@shared/pathUtils'
+import { getBasename, getDirname, getExtension, stripExtension } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
@@ -476,10 +476,10 @@ function App() {
     `${getDirname(sourcePath)}/${outputFilename}`
 
   const stripPdfExtension = (filename: string) =>
-    filename.replace(/\.pdf$/i, '')
+    filename.toLowerCase().endsWith('.pdf') ? stripExtension(filename) : filename
 
   const stripMdExtension = (filename: string) =>
-    filename.replace(/\.md$/i, '')
+    filename.toLowerCase().endsWith('.md') ? stripExtension(filename) : filename
 
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
@@ -669,7 +669,7 @@ function App() {
         }
         // Regular file
         else {
-          const ext = node.name.includes('.') ? node.name.substring(node.name.lastIndexOf('.')) : ''
+          const ext = getExtension(node.name)
           const newFileName = `${newName}${ext}`
           const newPath = `${dir}/${newFileName}`
 
