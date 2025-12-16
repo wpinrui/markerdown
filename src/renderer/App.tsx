@@ -471,7 +471,6 @@ function App() {
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
   const isMdActive = activeMember?.type === 'markdown'
   const isStandaloneMd = selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity && !selectedNode.isSuggestion
-  const isMediaActive = activeMember?.type === 'video' || activeMember?.type === 'audio'
   const isStandaloneMedia = selectedNode && isMediaFile(selectedNode.name) && !selectedNode.entity
   const canSummarize = isPdfActive || isStandalonePdf || isMdActive || isStandaloneMd
 

@@ -1,4 +1,4 @@
-import { isVideoFile } from '../../shared/types'
+import { isVideoFile } from '@shared/types'
 
 interface MediaViewerProps {
   filePath: string
