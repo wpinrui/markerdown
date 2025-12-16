@@ -5,7 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
-import { getSummarizePrompt, getAgentSystemPrompt } from '../shared/prompts'
+import { getSummarizePrompt, getAgentSystemPrompt, AGENT_MARKERS } from '../shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -410,8 +410,8 @@ ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<
       const filePath = path.join(sessionsDir, file)
       const metadata = await parseSessionMetadata(filePath)
 
-      // Filter out summary task sessions (their prompts start with the summarize prefix)
-      if (metadata && !metadata.firstMessage.startsWith('Read the PDF at')) {
+      // Only show chat sessions (identified by marker)
+      if (metadata && metadata.firstMessage.startsWith(AGENT_MARKERS.CHAT)) {
         sessions.push({
           sessionId,
           timestamp: metadata.timestamp,
