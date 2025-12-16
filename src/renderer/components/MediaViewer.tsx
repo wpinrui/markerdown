@@ -4,7 +4,7 @@ interface MediaViewerProps {
   filePath: string
 }
 
-export default function MediaViewer({ filePath }: MediaViewerProps) {
+export function MediaViewer({ filePath }: MediaViewerProps) {
   const isVideo = isVideoFile(filePath)
   // Convert Windows path to file:// URL
   const fileUrl = `file:///${filePath.replace(/\\/g, '/')}`
