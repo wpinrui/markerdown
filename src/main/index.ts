@@ -6,6 +6,7 @@ import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
+import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -116,7 +117,7 @@ function createWindow() {
 app.whenReady().then(() => {
   // Register custom protocol to serve local images
   protocol.registerFileProtocol('local-image', (request, callback) => {
-    const url = request.url.replace('local-image://', '')
+    const url = request.url.replace(LOCAL_IMAGE_PROTOCOL, '')
     try {
       return callback(decodeURIComponent(url))
     } catch (error) {

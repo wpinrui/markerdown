@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import { LOCAL_IMAGE_PROTOCOL } from './utils/imageUtils'
 
 const REMARK_PLUGINS = [remarkGfm, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
@@ -13,7 +14,7 @@ interface StyledMarkdownProps {
 
 // Allow local-image: protocol (default urlTransform strips unknown protocols)
 function allowLocalImageProtocol(url: string): string {
-  if (url.startsWith('local-image://')) {
+  if (url.startsWith(LOCAL_IMAGE_PROTOCOL)) {
     return url
   }
   // Default behavior: allow http, https, mailto, tel

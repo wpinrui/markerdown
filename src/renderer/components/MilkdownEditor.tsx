@@ -10,6 +10,7 @@ import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
 import { ActiveFormats, defaultFormats } from './editorTypes'
 import { useImagePaste } from '../hooks/useImagePaste'
+import { buildLocalImageUrl } from '../utils/imageUtils'
 
 export type { ActiveFormats }
 
@@ -257,12 +258,7 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
         const editor = editorRef.current
         if (!editor) return
 
-        // Convert relative path to absolute path with custom protocol
-        // Use forward slashes to avoid markdown escape character issues
-        const markdownDir = filePath.substring(0, filePath.lastIndexOf('\\'))
-        const absolutePath = `${markdownDir}/${relativePath}`.replace(/\\/g, '/')
-        const imageUrl = `local-image://${absolutePath}`
-
+        const imageUrl = buildLocalImageUrl(filePath, relativePath)
         editor.action(callCommand(insertImageCommand.key, {
           src: imageUrl,
           alt: 'image'

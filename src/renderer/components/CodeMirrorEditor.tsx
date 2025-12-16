@@ -6,6 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { ActiveFormats, defaultFormats } from './editorTypes'
 import { useImagePaste } from '../hooks/useImagePaste'
+import { buildLocalImageUrl } from '../utils/imageUtils'
 
 export type { ActiveFormats }
 
@@ -277,12 +278,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         const view = viewRef.current
         if (!view) return
 
-        // Convert relative path to absolute path with custom protocol
-        // Use forward slashes to avoid markdown escape character issues
-        const markdownDir = filePath.substring(0, filePath.lastIndexOf('\\'))
-        const absolutePath = `${markdownDir}/${relativePath}`.replace(/\\/g, '/')
-        const imageUrl = `local-image://${absolutePath}`
-
+        const imageUrl = buildLocalImageUrl(filePath, relativePath)
         const { from } = view.state.selection.main
         const imgMd = `![image](${imageUrl})`
         view.dispatch({
