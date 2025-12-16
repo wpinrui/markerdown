@@ -16,6 +16,30 @@ import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
+
+// Extract filename from path (handles both / and \ separators)
+function getBasename(filePath: string): string {
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  return filePath.substring(lastSlash + 1)
+}
+
+// Extract directory from path (handles both / and \ separators)
+function getDirname(filePath: string): string {
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  return filePath.substring(0, lastSlash)
+}
+
+// Find a node by path in the tree
+function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
+  for (const node of nodes) {
+    if (node.path === targetPath) return node
+    if (node.children) {
+      const found = findNodeByPath(node.children, targetPath)
+      if (found) return found
+    }
+  }
+  return null
+}
 const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
@@ -342,28 +366,14 @@ function App() {
     let targetDir = folderPath
 
     if (parentPath) {
-      // Find the parent node to determine its actual directory
-      const findNode = (nodes: TreeNode[], path: string): TreeNode | null => {
-        for (const node of nodes) {
-          if (node.path === path) return node
-          if (node.children) {
-            const found = findNode(node.children, path)
-            if (found) return found
-          }
-        }
-        return null
-      }
-
-      const parentNode = findNode(treeNodes, parentPath)
+      const parentNode = findNodeByPath(treeNodes, parentPath)
       if (parentNode) {
         if (parentNode.isDirectory) {
           targetDir = parentNode.path
         } else if (parentNode.hasSidecar) {
           // For sidecar files, the children go in the folder with same base name
           const baseName = parentNode.name.replace(/\.md$/i, '')
-          const lastSlash = Math.max(parentNode.path.lastIndexOf('/'), parentNode.path.lastIndexOf('\\'))
-          const parentDir = parentNode.path.substring(0, lastSlash)
-          targetDir = `${parentDir}/${baseName}`
+          targetDir = `${getDirname(parentNode.path)}/${baseName}`
         }
       }
     }
@@ -389,18 +399,6 @@ function App() {
         return
       }
 
-      // Helper to find node by path
-      const findNodeByPath = (nodes: TreeNode[], targetPath: string): TreeNode | null => {
-        for (const node of nodes) {
-          if (node.path === targetPath) return node
-          if (node.children) {
-            const found = findNodeByPath(node.children, targetPath)
-            if (found) return found
-          }
-        }
-        return null
-      }
-
       // Move each selected child into the sidecar folder
       for (const childPath of childrenPaths) {
         const childNode = findNodeByPath(treeNodes, childPath)
@@ -408,7 +406,7 @@ function App() {
         if (childNode?.entity) {
           // Move all entity members
           for (const member of childNode.entity.members) {
-            const memberName = member.path.substring(Math.max(member.path.lastIndexOf('/'), member.path.lastIndexOf('\\')) + 1)
+            const memberName = getBasename(member.path)
             const destPath = `${sidecarDir}/${memberName}`
             const moveResult = await window.electronAPI.move(member.path, destPath)
             if (!moveResult.success) {
@@ -418,9 +416,7 @@ function App() {
           // Also move entity's sidecar folder if it has children
           if (childNode.hasSidecar && childNode.children) {
             const entityBaseName = childNode.entity.baseName
-            const lastSlash = Math.max(childNode.path.lastIndexOf('/'), childNode.path.lastIndexOf('\\'))
-            const entityDir = childNode.path.substring(0, lastSlash)
-            const entitySidecarPath = `${entityDir}/${entityBaseName}`
+            const entitySidecarPath = `${getDirname(childNode.path)}/${entityBaseName}`
             const destSidecarPath = `${sidecarDir}/${entityBaseName}`
             const moveResult = await window.electronAPI.move(entitySidecarPath, destSidecarPath)
             if (!moveResult.success) {
@@ -429,10 +425,9 @@ function App() {
           }
         } else if (childNode?.hasSidecar && childNode.children) {
           // Move markdown file with sidecar
-          const childName = childPath.substring(Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\')) + 1)
+          const childName = getBasename(childPath)
           const baseName = childName.replace(/\.md$/i, '')
-          const lastSlash = Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\'))
-          const childDir = childPath.substring(0, lastSlash)
+          const childDir = getDirname(childPath)
 
           // Move the markdown file
           const destPath = `${sidecarDir}/${childName}`
@@ -450,7 +445,7 @@ function App() {
           }
         } else if (childNode?.isDirectory) {
           // Move entire directory
-          const dirName = childPath.substring(Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\')) + 1)
+          const dirName = getBasename(childPath)
           const destPath = `${sidecarDir}/${dirName}`
           const moveResult = await window.electronAPI.move(childPath, destPath)
           if (!moveResult.success) {
@@ -458,7 +453,7 @@ function App() {
           }
         } else {
           // Simple file move
-          const childName = childPath.substring(Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\')) + 1)
+          const childName = getBasename(childPath)
           const destPath = `${sidecarDir}/${childName}`
           const moveResult = await window.electronAPI.move(childPath, destPath)
           if (!moveResult.success) {
@@ -474,23 +469,11 @@ function App() {
     // Select the new file and open in edit mode
     // We need to wait for the tree to refresh first
     setTimeout(async () => {
-      // Find the new node in the tree
-      const findNewNode = (nodes: TreeNode[]): TreeNode | null => {
-        for (const node of nodes) {
-          if (node.path === newFilePath || node.path.replace(/\\/g, '/') === newFilePath.replace(/\\/g, '/')) {
-            return node
-          }
-          if (node.children) {
-            const found = findNewNode(node.children)
-            if (found) return found
-          }
-        }
-        return null
-      }
-
-      // Re-fetch the tree and find the node
       const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
-      const newNode = findNewNode(newNodes)
+      // Try exact match first, then normalized (Windows vs Unix paths)
+      const newNode = findNodeByPath(newNodes, newFilePath) ??
+        findNodeByPath(newNodes, newFilePath.replace(/\//g, '\\'))
+
       if (newNode) {
         setSelectedNode(newNode)
         setActiveMember(null)
@@ -612,7 +595,6 @@ function App() {
         onClose={() => setShowNewNoteModal(false)}
         onSubmit={handleCreateNote}
         treeNodes={treeNodes}
-        folderPath={folderPath}
         selectedNode={selectedNode}
       />
     </div>

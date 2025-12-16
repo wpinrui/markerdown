@@ -7,7 +7,6 @@ interface NewNoteModalProps {
   onClose: () => void
   onSubmit: (name: string, parentPath: string | null, childrenPaths: string[]) => void
   treeNodes: TreeNode[]
-  folderPath: string | null
   selectedNode: TreeNode | null
 }
 
@@ -62,7 +61,8 @@ function getDirectChildren(nodes: TreeNode[], parentPath: string | null): TreeNo
 }
 
 // Find the parent path of the selected node
-function findParentPath(nodes: TreeNode[], targetPath: string, currentParent: string | null = null): string | null {
+// Returns the parent path if found, null if at root level, undefined if not found
+function findParentPath(nodes: TreeNode[], targetPath: string, currentParent: string | null = null): string | null | undefined {
   for (const node of nodes) {
     if (node.path === targetPath) {
       return currentParent
@@ -72,7 +72,7 @@ function findParentPath(nodes: TreeNode[], targetPath: string, currentParent: st
       if (found !== undefined) return found
     }
   }
-  return undefined as unknown as string | null
+  return undefined
 }
 
 // Get the containing folder path of a node
@@ -88,7 +88,7 @@ function getContainingFolder(node: TreeNode | null, nodes: TreeNode[]): string |
   return findParentPath(nodes, node.path) ?? null
 }
 
-export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, folderPath, selectedNode }: NewNoteModalProps) {
+export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNode }: NewNoteModalProps) {
   const [name, setName] = useState('')
   const [parentPath, setParentPath] = useState<string | null>(null)
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set())
