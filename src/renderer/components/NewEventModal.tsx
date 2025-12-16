@@ -1,26 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import type { EventItem } from '@shared/types'
+import { formatDateForInput, formatDateForStorage } from '../utils/dateUtils'
 
 interface NewEventModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (event: Omit<EventItem, 'id' | 'createdAt'>) => void
-}
-
-// Format date for datetime-local input (YYYY-MM-DDTHH:mm)
-function formatDateForInput(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-// Convert datetime-local value to our format (YYYY-MM-DD HH:mm)
-function formatDateForStorage(datetimeLocal: string): string {
-  if (!datetimeLocal) return ''
-  return datetimeLocal.replace('T', ' ')
 }
 
 export function NewEventModal({ isOpen, onClose, onSubmit }: NewEventModalProps) {
