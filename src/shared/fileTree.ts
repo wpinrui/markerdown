@@ -6,7 +6,7 @@ import {
   MARKDOWN_EXTENSION,
   PDF_EXTENSION,
 } from './types'
-import type { FileEntry, TreeNode, Entity, EntityMember } from './types'
+import type { FileEntry, TreeNode, Entity, EntityMember, EntityMemberType } from './types'
 
 /**
  * Parse entity info from a filename.
@@ -14,7 +14,7 @@ import type { FileEntry, TreeNode, Entity, EntityMember } from './types'
  */
 function parseFileInfo(
   filename: string
-): { fullBaseName: string; type: 'markdown' | 'pdf' | 'video' | 'audio' } | null {
+): { fullBaseName: string; type: EntityMemberType } | null {
   if (isPdfFile(filename)) {
     return { fullBaseName: filename.slice(0, -PDF_EXTENSION.length), type: 'pdf' }
   }
@@ -37,7 +37,7 @@ function parseFileInfo(
  * Files with same base name are grouped (e.g., physics.md, physics.summary.md, physics.pdf).
  */
 function groupFilesIntoEntities(
-  files: Array<{ name: string; path: string; fullBaseName: string; type: 'markdown' | 'pdf' | 'video' | 'audio' }>
+  files: Array<{ name: string; path: string; fullBaseName: string; type: EntityMemberType }>
 ): Map<string, Entity> {
   const fullBaseNames = new Set(files.map((f) => f.fullBaseName))
   const entityGroups = new Map<string, EntityMember[]>()
@@ -74,7 +74,7 @@ function groupFilesIntoEntities(
   for (const [baseName, members] of entityGroups) {
     if (members.length >= 2) {
       // Sort members: source files (pdf/video/audio) first, then default (null variant), then alphabetical
-      const isSourceType = (type: string) => type === 'pdf' || type === 'video' || type === 'audio'
+      const isSourceType = (type: EntityMemberType) => type === 'pdf' || type === 'video' || type === 'audio'
       members.sort((a, b) => {
         if (isSourceType(a.type) && !isSourceType(b.type)) return -1
         if (!isSourceType(a.type) && isSourceType(b.type)) return 1
@@ -122,7 +122,7 @@ export async function buildFileTree(
     name: string
     path: string
     fullBaseName: string
-    type: 'markdown' | 'pdf' | 'video' | 'audio'
+    type: EntityMemberType
   }> = []
   const otherFiles: FileEntry[] = []
 

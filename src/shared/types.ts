@@ -9,6 +9,21 @@ export const PDF_EXTENSION = '.pdf'
 export const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv']
 export const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
 
+export type EntityMemberType = 'markdown' | 'pdf' | 'video' | 'audio'
+
+const MIME_TYPES: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.avi': 'video/x-msvideo',
+  '.mkv': 'video/x-matroska',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.flac': 'audio/flac',
+}
+
 export function isMarkdownFile(name: string): boolean {
   return name.endsWith(MARKDOWN_EXTENSION)
 }
@@ -41,25 +56,13 @@ export function isMediaFile(name: string): boolean {
 
 export function getMediaMimeType(name: string): string {
   const ext = name.toLowerCase().match(/\.[^.]+$/)?.[0] || ''
-  const mimeTypes: Record<string, string> = {
-    '.mp4': 'video/mp4',
-    '.webm': 'video/webm',
-    '.mov': 'video/quicktime',
-    '.avi': 'video/x-msvideo',
-    '.mkv': 'video/x-matroska',
-    '.mp3': 'audio/mpeg',
-    '.wav': 'audio/wav',
-    '.ogg': 'audio/ogg',
-    '.m4a': 'audio/mp4',
-    '.flac': 'audio/flac',
-  }
-  return mimeTypes[ext] || 'application/octet-stream'
+  return MIME_TYPES[ext] || 'application/octet-stream'
 }
 
 export interface EntityMember {
   path: string
   variant: string | null // null = default (no suffix)
-  type: 'markdown' | 'pdf' | 'video' | 'audio'
+  type: EntityMemberType
 }
 
 export interface Entity {
