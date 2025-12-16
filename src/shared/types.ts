@@ -97,6 +97,9 @@ export interface ElectronAPI {
   setLastFolder: (folderPath: string | null) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
+  openInExplorer: (folderPath: string) => Promise<void>
+  mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
+  move: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>

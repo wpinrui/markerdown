@@ -7,6 +7,8 @@ import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
 import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar } from './components/TopToolbar'
+import { SidebarToolbar } from './components/SidebarToolbar'
+import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
@@ -14,9 +16,34 @@ import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
+
+// Extract filename from path (handles both / and \ separators)
+function getBasename(filePath: string): string {
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  return filePath.substring(lastSlash + 1)
+}
+
+// Extract directory from path (handles both / and \ separators)
+function getDirname(filePath: string): string {
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  return filePath.substring(0, lastSlash)
+}
+
+// Find a node by path in the tree
+function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
+  for (const node of nodes) {
+    if (node.path === targetPath) return node
+    if (node.children) {
+      const found = findNodeByPath(node.children, targetPath)
+      if (found) return found
+    }
+  }
+  return null
+}
 const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
+const TREE_REFRESH_DELAY_MS = 100
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -27,6 +54,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [showOptionsModal, setShowOptionsModal] = useState(false)
+  const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
   // Agent panel state
@@ -272,16 +300,14 @@ function App() {
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
   const canSummarize = isPdfActive || isStandalonePdf
 
-  const getOutputPath = (pdfPath: string, outputFilename: string) => {
-    const lastSlash = Math.max(pdfPath.lastIndexOf('/'), pdfPath.lastIndexOf('\\'))
-    const dir = pdfPath.substring(0, lastSlash)
-    return `${dir}/${outputFilename}`
-  }
+  const getOutputPath = (pdfPath: string, outputFilename: string) =>
+    `${getDirname(pdfPath)}/${outputFilename}`
 
-  const getBaseName = (filename: string) => {
-    // Remove .pdf extension to get base name
-    return filename.replace(/\.pdf$/i, '')
-  }
+  const stripPdfExtension = (filename: string) =>
+    filename.replace(/\.pdf$/i, '')
+
+  const stripMdExtension = (filename: string) =>
+    filename.replace(/\.md$/i, '')
 
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
@@ -319,10 +345,124 @@ function App() {
   // For entities, use entity members; for standalone PDFs, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
   // For entities, use baseName; for standalone PDFs, extract from filename
-  const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? getBaseName(selectedNode.name) : '')
+  const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? stripPdfExtension(selectedNode.name) : '')
 
   const isEditing = editMode !== 'view'
   const toggleAgent = () => setShowAgent((prev) => !prev)
+
+  // Open in file explorer handler (for sidebar toolbar)
+  const handleOpenInExplorer = async () => {
+    if (folderPath) {
+      await window.electronAPI.openInExplorer(folderPath)
+    }
+  }
+
+  // Create new note handler
+  const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
+    if (!folderPath) return
+
+    // Helper to move a file/folder and report errors
+    const moveItem = async (sourcePath: string, destPath: string, displayName: string) => {
+      const result = await window.electronAPI.move(sourcePath, destPath)
+      if (!result.success) {
+        setError(`Failed to move ${displayName}: ${result.error}`)
+      }
+    }
+
+    // Determine the directory where the file should be created
+    let targetDir = folderPath
+
+    if (parentPath) {
+      const parentNode = findNodeByPath(treeNodes, parentPath)
+      if (parentNode) {
+        if (parentNode.isDirectory) {
+          targetDir = parentNode.path
+        } else if (parentNode.hasSidecar) {
+          // For sidecar files, the children go in the folder with same base name
+          targetDir = `${getDirname(parentNode.path)}/${stripMdExtension(parentNode.name)}`
+        }
+      }
+    }
+
+    // Create the new file path
+    const newFilePath = `${targetDir}/${name}`
+
+    // Create empty markdown file
+    const result = await window.electronAPI.writeFile(newFilePath, `# ${stripMdExtension(name)}\n\n`)
+    if (!result.success) {
+      setError(`Failed to create note: ${result.error}`)
+      return
+    }
+
+    // Move selected children to become children of this new note
+    if (childrenPaths.length > 0) {
+      const sidecarDir = `${targetDir}/${stripMdExtension(name)}`
+
+      // Create the sidecar folder
+      const mkdirResult = await window.electronAPI.mkdir(sidecarDir)
+      if (!mkdirResult.success) {
+        setError(`Failed to create folder: ${mkdirResult.error}`)
+        return
+      }
+
+      // Move each selected child into the sidecar folder
+      for (const childPath of childrenPaths) {
+        const childNode = findNodeByPath(treeNodes, childPath)
+
+        if (childNode?.entity) {
+          // Move all entity members
+          for (const member of childNode.entity.members) {
+            const memberName = getBasename(member.path)
+            await moveItem(member.path, `${sidecarDir}/${memberName}`, memberName)
+          }
+          // Also move entity's sidecar folder if it has children
+          if (childNode.hasSidecar && childNode.children) {
+            const entityBaseName = childNode.entity.baseName
+            const entitySidecarPath = `${getDirname(childNode.path)}/${entityBaseName}`
+            await moveItem(entitySidecarPath, `${sidecarDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+          }
+        } else if (childNode?.hasSidecar && childNode.children) {
+          // Move markdown file with sidecar
+          const childName = getBasename(childPath)
+          const baseName = stripMdExtension(childName)
+          const childDir = getDirname(childPath)
+
+          await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
+          await moveItem(`${childDir}/${baseName}`, `${sidecarDir}/${baseName}`, `folder ${baseName}`)
+        } else if (childNode?.isDirectory) {
+          // Move entire directory
+          const dirName = getBasename(childPath)
+          await moveItem(childPath, `${sidecarDir}/${dirName}`, dirName)
+        } else {
+          // Simple file move
+          const childName = getBasename(childPath)
+          await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
+        }
+      }
+    }
+
+    // Refresh tree (watcher should handle this, but force refresh to be safe)
+    refreshTree()
+
+    // Select the new file and open in edit mode
+    // We need to wait for the tree to refresh first
+    setTimeout(async () => {
+      try {
+        const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+        // Try exact match first, then normalized (Windows vs Unix paths)
+        const newNode = findNodeByPath(newNodes, newFilePath) ??
+          findNodeByPath(newNodes, newFilePath.replace(/\//g, '\\'))
+
+        if (newNode) {
+          setSelectedNode(newNode)
+          setActiveMember(null)
+          setEditMode('visual')
+        }
+      } catch (err) {
+        console.error('Failed to refresh tree after note creation:', err)
+      }
+    }, TREE_REFRESH_DELAY_MS)
+  }
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
@@ -364,9 +504,11 @@ function App() {
               <p className="placeholder">No folder opened</p>
             )}
           </div>
-          <button className="sidebar-options-btn" onClick={() => setShowOptionsModal(true)}>
-            Options
-          </button>
+          <SidebarToolbar
+            onNewNote={() => setShowNewNoteModal(true)}
+            onOpenFolder={handleOpenInExplorer}
+            onOpenOptions={() => setShowOptionsModal(true)}
+          />
         </aside>
         <section className="content">
           <TopToolbar
@@ -429,6 +571,13 @@ function App() {
         onClose={() => setShowOptionsModal(false)}
         currentFolderPath={folderPath}
         onFolderChange={handleFolderChange}
+      />
+      <NewNoteModal
+        isOpen={showNewNoteModal}
+        onClose={() => setShowNewNoteModal(false)}
+        onSubmit={handleCreateNote}
+        treeNodes={treeNodes}
+        selectedNode={selectedNode}
       />
     </div>
   )

@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   watchFolder: (folderPath: string): Promise<void> =>
     ipcRenderer.invoke('fs:watchFolder', folderPath),
   unwatchFolder: (): Promise<void> => ipcRenderer.invoke('fs:unwatchFolder'),
+  openInExplorer: (folderPath: string): Promise<void> =>
+    ipcRenderer.invoke('shell:openInExplorer', folderPath),
+  mkdir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('fs:mkdir', dirPath),
+  move: (sourcePath: string, destPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('fs:move', sourcePath, destPath),
   onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, data: FileChangeEvent) => callback(data)
     ipcRenderer.on('fs:changed', listener)
