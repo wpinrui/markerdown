@@ -997,7 +997,7 @@ function App() {
 
     // Refresh tree
     refreshTree()
-  }, [folderPath, treeNodes, selectedNode, refreshTree, moveItem])
+  }, [folderPath, treeNodes, selectedNode, refreshTree, moveItem, moveEntityWithSidecar, moveFileWithSidecar])
 
   // Handle creating new entity member
   const handleCreateMember = async () => {
