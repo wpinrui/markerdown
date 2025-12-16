@@ -34,6 +34,7 @@ export interface TreeNode {
   hasSidecar: boolean // true if this .md file has a matching folder
   entity?: Entity // if this node represents an entity (grouped files)
   children?: TreeNode[]
+  isSuggestion?: 'todos' | 'events' // if this is a suggestion draft file
 }
 
 export type FileChangeEventType = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir'
@@ -86,6 +87,26 @@ export interface AgentSessionHistory {
 
 export type EditMode = 'view' | 'visual' | 'code'
 
+// Todo and Event types
+export interface TodoItem {
+  id: string
+  text: string
+  completed: boolean
+  dueDate?: string  // YYYY-MM-DD or YYYY-MM-DD HH:mm
+  notes?: string
+  createdAt: string
+}
+
+export interface EventItem {
+  id: string
+  text: string
+  startDate: string  // YYYY-MM-DD HH:mm
+  endDate?: string   // YYYY-MM-DD HH:mm
+  location?: string
+  notes?: string
+  createdAt: string
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
@@ -100,6 +121,7 @@ export interface ElectronAPI {
   openInExplorer: (folderPath: string) => Promise<void>
   mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   move: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>
+  deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>

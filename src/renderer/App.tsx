@@ -5,8 +5,10 @@ import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/M
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
+import { TodoPanel } from './components/TodoPanel'
+import { EventPanel } from './components/EventPanel'
 import { OptionsModal } from './components/OptionsModal'
-import { TopToolbar } from './components/TopToolbar'
+import { TopToolbar, PaneType } from './components/TopToolbar'
 import { SidebarToolbar } from './components/SidebarToolbar'
 import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -57,8 +59,8 @@ function App() {
   const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
-  // Agent panel state
-  const [showAgent, setShowAgent] = useState(false)
+  // Right pane state (agent/todos/events)
+  const [activePane, setActivePane] = useState<PaneType | null>(null)
   const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
   const isDraggingAgentPanel = useRef(false)
 
@@ -90,19 +92,24 @@ function App() {
     })
   }, [])
 
+  // Pane toggle helper
+  const handlePaneToggle = useCallback((pane: PaneType) => {
+    setActivePane((prev) => (prev === pane ? null : pane))
+  }, [])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Agent toggle: Ctrl+Shift+A
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault()
-        setShowAgent((prev) => !prev)
+        handlePaneToggle('agent')
       }
       // Edit mode toggle: Ctrl+E
       if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault()
         const activeFilePath = activeMember?.path ?? selectedNode?.path
-        const isMarkdown = activeMember?.type === 'markdown' || (selectedNode && isMarkdownFile(selectedNode.name))
+        const isMarkdown = activeMember?.type === 'markdown' || (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion))
         if (activeFilePath && isMarkdown) {
           setEditMode((prev) => (prev === 'view' ? 'visual' : 'view'))
         }
@@ -110,7 +117,7 @@ function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeMember, selectedNode])
+  }, [activeMember, selectedNode, handlePaneToggle])
 
   // Agent panel resize handler (drag from left edge)
   const handleAgentPanelMouseDown = useCallback((e: React.MouseEvent) => {
@@ -173,17 +180,49 @@ function App() {
     setActiveFormats(formats)
   }, [])
 
-  const refreshTree = useCallback(() => {
+  const refreshTree = useCallback(async () => {
     if (!folderPath) {
       setTreeNodes([])
       return
     }
-    buildFileTree(folderPath, window.electronAPI.readDirectory)
-      .then(setTreeNodes)
-      .catch((err) => {
-        console.error('Failed to build file tree:', err)
-        setError('Failed to load folder contents')
-      })
+    try {
+      const nodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+
+      // Check for suggestion draft files and inject them at the top
+      const suggestionNodes: TreeNode[] = []
+      const sep = folderPath.includes('\\') ? '\\' : '/'
+      const todosDraftPath = `${folderPath}${sep}.markerdown${sep}todos-draft.md`
+      const eventsDraftPath = `${folderPath}${sep}.markerdown${sep}events-draft.md`
+
+      const [todosDraftExists, eventsDraftExists] = await Promise.all([
+        window.electronAPI.exists(todosDraftPath),
+        window.electronAPI.exists(eventsDraftPath),
+      ])
+
+      if (todosDraftExists) {
+        suggestionNodes.push({
+          name: 'Task Suggestions',
+          path: todosDraftPath,
+          isDirectory: false,
+          hasSidecar: false,
+          isSuggestion: 'todos',
+        })
+      }
+      if (eventsDraftExists) {
+        suggestionNodes.push({
+          name: 'Event Suggestions',
+          path: eventsDraftPath,
+          isDirectory: false,
+          hasSidecar: false,
+          isSuggestion: 'events',
+        })
+      }
+
+      setTreeNodes([...suggestionNodes, ...nodes])
+    } catch (err) {
+      console.error('Failed to build file tree:', err)
+      setError('Failed to load folder contents')
+    }
   }, [folderPath])
 
   // Build tree when folder changes
@@ -203,7 +242,11 @@ function App() {
     })
 
     const unsubscribe = window.electronAPI.onFileChange((event: FileChangeEvent) => {
-      if (isStructureChange(event.event)) {
+      // Check if this is a draft file change (need to refresh tree for suggestion items)
+      const isDraftFile = event.path.includes('.markerdown') &&
+        (event.path.endsWith('todos-draft.md') || event.path.endsWith('events-draft.md'))
+
+      if (isStructureChange(event.event) || isDraftFile) {
         refreshTree()
       } else if (event.event === 'change' && activeFilePathRef.current === event.path) {
         // Skip reload if we just saved this file (avoid overwriting edits)
@@ -237,8 +280,8 @@ function App() {
         filePath = activeMember.path
       }
       // PDF doesn't load content this way
-    } else if (selectedNode && isMarkdownFile(selectedNode.name)) {
-      // Regular markdown file
+    } else if (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion)) {
+      // Regular markdown file or suggestion draft
       filePath = selectedNode.path
     }
 
@@ -296,6 +339,62 @@ function App() {
     setActiveMember(member)
   }
 
+  const handleAcceptSuggestion = async () => {
+    if (!selectedNode?.isSuggestion || !folderPath) return
+
+    const suggestionType = selectedNode.isSuggestion
+    const draftPath = selectedNode.path
+    const sep = folderPath.includes('\\') ? '\\' : '/'
+    const mainFilePath = `${folderPath}${sep}.markerdown${sep}${suggestionType}.md`
+
+    try {
+      // Read draft content
+      const draftContent = await window.electronAPI.readFile(draftPath)
+      if (!draftContent) return
+
+      // Read existing main file (or empty)
+      const existingContent = await window.electronAPI.readFile(mainFilePath) ?? ''
+
+      // Append draft content to main file
+      const newContent = existingContent
+        ? `${existingContent.trimEnd()}\n\n${draftContent.trim()}\n`
+        : `${draftContent.trim()}\n`
+
+      // Ensure .markerdown directory exists
+      const markerdownDir = `${folderPath}${sep}.markerdown`
+      await window.electronAPI.mkdir(markerdownDir)
+
+      // Write updated main file
+      await window.electronAPI.writeFile(mainFilePath, newContent)
+
+      // Delete draft file
+      await window.electronAPI.deleteFile(draftPath)
+
+      // Deselect and refresh
+      setSelectedNode(null)
+      setFileContent(null)
+      refreshTree()
+    } catch (err) {
+      console.error('Failed to accept suggestion:', err)
+    }
+  }
+
+  const handleDiscardSuggestion = async () => {
+    if (!selectedNode?.isSuggestion) return
+
+    try {
+      // Delete draft file
+      await window.electronAPI.deleteFile(selectedNode.path)
+
+      // Deselect and refresh
+      setSelectedNode(null)
+      setFileContent(null)
+      refreshTree()
+    } catch (err) {
+      console.error('Failed to discard suggestion:', err)
+    }
+  }
+
   const isPdfActive = activeMember?.type === 'pdf'
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
   const canSummarize = isPdfActive || isStandalonePdf
@@ -348,7 +447,6 @@ function App() {
   const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? stripPdfExtension(selectedNode.name) : '')
 
   const isEditing = editMode !== 'view'
-  const toggleAgent = () => setShowAgent((prev) => !prev)
 
   // Open in file explorer handler (for sidebar toolbar)
   const handleOpenInExplorer = async () => {
@@ -466,7 +564,7 @@ function App() {
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
-    (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
+    (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion) && !selectedNode.entity)
 
   // Render markdown content (viewer or editor) - shared between entity and standalone
   const renderMarkdownContent = (filePath: string) => {
@@ -522,11 +620,14 @@ function App() {
             isDirty={isDirty}
             showModeToggle={!!isMarkdownActive}
             isEditing={isEditing}
-            showAgent={showAgent}
-            onAgentToggle={toggleAgent}
             canSummarize={!!canSummarize}
             isSummarizing={summarizingPaths.size > 0}
             onSummarizeClick={() => setShowSummarizeModal(true)}
+            activePane={activePane}
+            onPaneToggle={handlePaneToggle}
+            suggestionType={selectedNode?.isSuggestion}
+            onAcceptSuggestion={handleAcceptSuggestion}
+            onDiscardSuggestion={handleDiscardSuggestion}
           />
           <div className="content-body-wrapper">
             <div className="content-body">
@@ -548,13 +649,25 @@ function App() {
             </div>
             <aside
               className="agent-sidebar"
-              style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
+              style={{ width: agentPanelWidth, display: activePane ? 'flex' : 'none' }}
             >
               <div
                 className="agent-sidebar-resize-handle"
                 onMouseDown={handleAgentPanelMouseDown}
               />
-              <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
+              <AgentPanel
+                workingDir={folderPath}
+                onClose={() => setActivePane(null)}
+                style={{ display: activePane === 'agent' ? 'flex' : 'none' }}
+              />
+              <TodoPanel
+                workingDir={folderPath}
+                style={{ display: activePane === 'todos' ? 'flex' : 'none' }}
+              />
+              <EventPanel
+                workingDir={folderPath}
+                style={{ display: activePane === 'events' ? 'flex' : 'none' }}
+              />
             </aside>
           </div>
         </section>

@@ -24,11 +24,23 @@ function closeWatcher() {
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
 const AGENT_MEMORY_FILE = 'Agent Memory.md'
+const MARKERDOWN_DIR = '.markerdown'
+const TODOS_FILE = 'todos.md'
+const EVENTS_FILE = 'events.md'
 
 async function readAgentMemory(workingDir: string): Promise<string | null> {
   try {
     const memoryPath = path.join(workingDir, AGENT_MEMORY_FILE)
     return await fs.promises.readFile(memoryPath, 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+async function readMarkerdownFile(workingDir: string, filename: string): Promise<string | null> {
+  try {
+    const filePath = path.join(workingDir, MARKERDOWN_DIR, filename)
+    return await fs.promises.readFile(filePath, 'utf-8')
   } catch {
     return null
   }
@@ -176,7 +188,11 @@ ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   closeWatcher()
 
   watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    ignored: (filePath: string) => {
+      // Allow .markerdown folder, ignore other dotfiles
+      if (filePath.includes('.markerdown')) return false
+      return /(^|[\/\\])\./.test(filePath)
+    },
     persistent: true,
     ignoreInitial: true,
   })
@@ -218,6 +234,16 @@ ipcMain.handle('fs:move', async (_event, sourcePath: string, destPath: string) =
   }
 })
 
+ipcMain.handle('fs:delete', async (_event, filePath: string) => {
+  try {
+    await fs.promises.unlink(filePath)
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {
   const { pdfPath, outputPath, prompt, workingDir } = request
 
@@ -230,9 +256,11 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   }
 
   const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
+  const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
+  const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
 
   return new Promise((resolve) => {
-    const fullPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, memoryContext)
+    const fullPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, memoryContext, todosContext ?? '', eventsContext ?? '')
 
     const args = [
       '--print',
@@ -290,7 +318,7 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   const args = [
     '--print',
     '--dangerously-skip-permissions',
-    '--allowed-tools', 'Read',
+    '--allowed-tools', 'Read,Write',
     '--model', 'sonnet',
     '--setting-sources', 'user',
   ]
@@ -300,7 +328,9 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     args.push('--resume', sessionId)
   } else {
     const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
-    const systemPrompt = getAgentSystemPrompt(memoryContext)
+    const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
+    const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
+    const systemPrompt = getAgentSystemPrompt(memoryContext, todosContext ?? '', eventsContext ?? '')
     args.push('--session-id', sessionId)
     args.push('--system-prompt', systemPrompt)
     // Track this as our chat session

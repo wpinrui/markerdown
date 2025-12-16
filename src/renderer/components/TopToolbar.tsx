@@ -2,6 +2,9 @@ import type { Entity, EntityMember, EditMode } from '@shared/types'
 import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
 import { ModeToggle } from './ModeToggle'
+import { MessageSquare, CheckSquare, Calendar, Check, X } from 'lucide-react'
+
+export type PaneType = 'agent' | 'todos' | 'events'
 
 /**
  * Simple string hash function (djb2 algorithm)
@@ -37,13 +40,17 @@ interface TopToolbarProps {
   // What type of content is shown
   showModeToggle: boolean
   isEditing: boolean
-  // Agent props
-  showAgent: boolean
-  onAgentToggle: () => void
   // Summarize props
   canSummarize: boolean
   isSummarizing: boolean
   onSummarizeClick: () => void
+  // Pane toggle props
+  activePane: PaneType | null
+  onPaneToggle: (pane: PaneType) => void
+  // Suggestion draft props
+  suggestionType?: 'todos' | 'events'
+  onAcceptSuggestion?: () => void
+  onDiscardSuggestion?: () => void
 }
 
 export function TopToolbar({
@@ -57,11 +64,14 @@ export function TopToolbar({
   isDirty,
   showModeToggle,
   isEditing,
-  showAgent,
-  onAgentToggle,
   canSummarize,
   isSummarizing,
   onSummarizeClick,
+  activePane,
+  onPaneToggle,
+  suggestionType,
+  onAcceptSuggestion,
+  onDiscardSuggestion,
 }: TopToolbarProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
@@ -109,6 +119,31 @@ export function TopToolbar({
         />
       )}
 
+      {/* Suggestion draft controls */}
+      {suggestionType && onAcceptSuggestion && onDiscardSuggestion && (
+        <div className="suggestion-actions">
+          <span className="suggestion-label">
+            {suggestionType === 'todos' ? 'Task' : 'Event'} Suggestions
+          </span>
+          <button
+            className="suggestion-btn accept"
+            onClick={onAcceptSuggestion}
+            title="Accept suggestions"
+          >
+            <Check size={16} strokeWidth={2} />
+            Accept
+          </button>
+          <button
+            className="suggestion-btn discard"
+            onClick={onDiscardSuggestion}
+            title="Discard suggestions"
+          >
+            <X size={16} strokeWidth={2} />
+            Discard
+          </button>
+        </div>
+      )}
+
       {/* Right-aligned controls */}
       <div className="top-toolbar-actions">
         {showModeToggle && (
@@ -125,12 +160,27 @@ export function TopToolbar({
             {isSummarizing ? <span className="btn-spinner" /> : '📋'}
           </button>
         )}
+        <div className="toolbar-separator" />
         <button
-          className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
-          onClick={onAgentToggle}
-          title="Toggle Agent (Ctrl+Shift+A)"
+          className={`toolbar-icon-btn ${activePane === 'agent' ? 'active' : ''}`}
+          onClick={() => onPaneToggle('agent')}
+          title="Agent (Ctrl+Shift+A)"
         >
-          ✦ Agent
+          <MessageSquare size={16} strokeWidth={1.5} />
+        </button>
+        <button
+          className={`toolbar-icon-btn ${activePane === 'todos' ? 'active' : ''}`}
+          onClick={() => onPaneToggle('todos')}
+          title="Todos"
+        >
+          <CheckSquare size={16} strokeWidth={1.5} />
+        </button>
+        <button
+          className={`toolbar-icon-btn ${activePane === 'events' ? 'active' : ''}`}
+          onClick={() => onPaneToggle('events')}
+          title="Events"
+        >
+          <Calendar size={16} strokeWidth={1.5} />
         </button>
       </div>
     </div>

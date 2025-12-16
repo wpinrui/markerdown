@@ -8,9 +8,10 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24
 interface AgentPanelProps {
   workingDir: string | null
   onClose: () => void
+  style?: React.CSSProperties
 }
 
-export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
+export function AgentPanel({ workingDir, onClose, style }: AgentPanelProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -210,14 +211,14 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
 
   if (!workingDir) {
     return (
-      <div className="agent-panel">
+      <div className="agent-panel" style={style}>
         <div className="agent-empty">Open a folder to use the agent</div>
       </div>
     )
   }
 
   return (
-    <div className="agent-panel">
+    <div className="agent-panel" style={style}>
       <div className="agent-header">
         <span className="agent-title">Agent</span>
         <div className="agent-header-actions">

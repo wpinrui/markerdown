@@ -86,9 +86,9 @@ export async function buildFileTree(
 ): Promise<TreeNode[]> {
   const entries = await readDirectory(dirPath)
 
-  // Separate files and directories
+  // Separate files and directories, filtering out .markerdown folder
   const files = entries.filter((e) => !e.isDirectory)
-  const dirs = entries.filter((e) => e.isDirectory)
+  const dirs = entries.filter((e) => e.isDirectory && e.name !== '.markerdown')
 
   // Parse entity info for markdown and PDF files
   const entityFiles: Array<{ name: string; path: string; fullBaseName: string; type: 'markdown' | 'pdf' }> = []
