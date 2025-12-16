@@ -23,6 +23,11 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const historyRef = useRef<HTMLDivElement>(null)
   const isCancelledRef = useRef(false)
 
+  const cancelCurrentRequest = useCallback(() => {
+    isCancelledRef.current = true
+    window.electronAPI.agentCancel()
+  }, [])
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -54,12 +59,14 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     loadMostRecent()
   }, [workingDir])
 
-  const reloadSession = useCallback(async (dir: string, sid: string) => {
+  const reloadSession = useCallback(async (dir: string, sid: string): Promise<boolean> => {
     try {
       const history = await window.electronAPI.loadAgentSession(dir, sid)
       setMessages(history.messages)
+      return true
     } catch (err) {
       console.error('Failed to reload session:', err)
+      return false
     }
   }, [])
 
@@ -98,7 +105,10 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       } else if (error) {
         setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
       } else {
-        await reloadSession(workingDir, response.sessionId)
+        const loaded = await reloadSession(workingDir, response.sessionId)
+        if (!loaded) {
+          setMessages((prev) => [...prev, { role: 'assistant', content: 'Failed to load response. Try refreshing the session.' }])
+        }
       }
     } catch (err) {
       cleanup?.() // Clean up listener on error
@@ -116,14 +126,12 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   }
 
   const handleCancel = () => {
-    isCancelledRef.current = true
-    window.electronAPI.agentCancel()
+    cancelCurrentRequest()
     setIsLoading(false)
   }
 
   const handleNewChat = () => {
-    isCancelledRef.current = true
-    window.electronAPI.agentCancel()
+    cancelCurrentRequest()
     setMessages([])
     setSessionId(null)
     setIsLoading(false)
@@ -153,8 +161,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const handleLoadSession = async (session: AgentSession) => {
     if (!workingDir) return
 
-    isCancelledRef.current = true
-    window.electronAPI.agentCancel()
+    cancelCurrentRequest()
     setShowHistory(false)
     setIsLoading(true)
 
@@ -164,6 +171,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       setSessionId(session.sessionId)
     } catch (err) {
       console.error('Failed to load session:', err)
+      setMessages([{ role: 'assistant', content: 'Failed to load session history.' }])
     } finally {
       setIsLoading(false)
     }
