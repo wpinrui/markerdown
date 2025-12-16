@@ -5,6 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
+import { getSummarizePrompt, getAgentSystemPrompt } from '@shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -197,9 +198,7 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
 
   return new Promise((resolve) => {
-    const fullPrompt = `${memoryContext}Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
-
-${prompt}`
+    const fullPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, memoryContext)
 
     const args = [
       '--print',
@@ -267,12 +266,7 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     args.push('--resume', sessionId)
   } else {
     const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
-    const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
-When you need information, use your tools to list directories and read files.
-Prefer reading .md files over .pdf files when both exist for the same topic.
-Be concise but thorough in your answers. Do not generate files - only answer verbally.
-
-${memoryContext}`
+    const systemPrompt = getAgentSystemPrompt(memoryContext)
     args.push('--session-id', sessionId)
     args.push('--system-prompt', systemPrompt)
   }
