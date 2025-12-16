@@ -141,6 +141,11 @@ function App() {
           setEditMode((prev) => (prev === 'view' ? 'visual' : 'view'))
         }
       }
+      // Sidebar toggle: Ctrl+B
+      if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setSidebarVisible((v) => !v)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
