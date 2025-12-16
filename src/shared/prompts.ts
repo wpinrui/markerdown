@@ -1,5 +1,25 @@
 // Agent and summarization prompts - edit these to customize behavior
 
+const TODO_FORMAT = `- [ ] Task description
+  Due: YYYY-MM-DD HH:mm
+  Notes: Any additional details`
+
+const EVENT_FORMAT = `- Event description
+  Start: YYYY-MM-DD HH:mm
+  End: YYYY-MM-DD HH:mm
+  Location: Where it happens
+  Notes: Any additional details`
+
+const DRAFT_FORMAT_INSTRUCTIONS = `**For todos:** Create .markerdown/todos-draft.md with this format:
+\`\`\`
+${TODO_FORMAT}
+\`\`\`
+
+**For events:** Create .markerdown/events-draft.md with this format:
+\`\`\`
+${EVENT_FORMAT}
+\`\`\``
+
 export function getSummarizePrompt(
   pdfPath: string,
   outputPath: string,
@@ -21,21 +41,7 @@ ${userPrompt}${contextSection}
 ## Task and Event Detection
 If you find tasks, assignments, deadlines, or events in the PDF that are not already in the tracked items above:
 
-**For todos:** Create .markerdown/todos-draft.md with this format:
-\`\`\`
-- [ ] Task description
-  Due: YYYY-MM-DD HH:mm
-  Notes: Any additional details
-\`\`\`
-
-**For events:** Create .markerdown/events-draft.md with this format:
-\`\`\`
-- Event description
-  Start: YYYY-MM-DD HH:mm
-  End: YYYY-MM-DD HH:mm
-  Location: Where it happens
-  Notes: Any additional details
-\`\`\`
+${DRAFT_FORMAT_INSTRUCTIONS}
 
 Only include fields that are known. After creating drafts, mention that you've added suggestions for the user to review.`
 }
@@ -62,21 +68,7 @@ ${eventsContext || '(No events yet)'}
 ### Adding New Todos or Events
 When the user mentions a task, deadline, assignment, or something they need to do - OR when you read content that contains tasks or events that are not already tracked - create a suggestion draft file.
 
-**For todos:** Create .markerdown/todos-draft.md with this exact format:
-\`\`\`
-- [ ] Task description
-  Due: YYYY-MM-DD HH:mm
-  Notes: Any additional details
-\`\`\`
-
-**For events:** Create .markerdown/events-draft.md with this exact format:
-\`\`\`
-- Event description
-  Start: YYYY-MM-DD HH:mm
-  End: YYYY-MM-DD HH:mm
-  Location: Where it happens
-  Notes: Any additional details
-\`\`\`
+${DRAFT_FORMAT_INSTRUCTIONS}
 
 Only include fields that are known. If no due date is mentioned, omit the Due line.
 Multiple items can be added to a single draft file.
