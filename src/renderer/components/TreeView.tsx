@@ -114,7 +114,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
         {!hasChildren && <span className="tree-chevron-placeholder" />}
         <span className="tree-icon">{getIcon()}</span>
         <span className="tree-name">{node.name}</span>
-        {node.entity && (
+        {getVariantCount() && (
           <span className="tree-variant-count">{getVariantCount()}</span>
         )}
         {isSummarizing && (

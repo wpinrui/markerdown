@@ -450,7 +450,7 @@ function App() {
     }
   }
 
-  // For entities, use entity members; for standalone PDFs, no existing variants
+  // For entities, use entity members; for standalone files, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
   // For entities, use baseName; for standalone files, extract from filename
   const getBaseName = () => {
