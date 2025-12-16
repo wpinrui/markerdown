@@ -79,17 +79,38 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
       try {
         const view = editor.ctx.get(editorViewCtx)
         const { state } = view
-        const { from, $from } = state.selection
+        const { from, to, $from } = state.selection
         const formats: ActiveFormats = { ...defaultFormats }
 
-        // Check marks at cursor position
-        const marks = state.storedMarks || $from.marks()
-        for (const mark of marks) {
-          if (mark.type.name === 'strong') formats.bold = true
-          if (mark.type.name === 'emphasis') formats.italic = true
-          if (mark.type.name === 'strikethrough') formats.strikethrough = true
-          if (mark.type.name === 'inlineCode') formats.code = true
-          if (mark.type.name === 'link') formats.link = true
+        // Check marks - use rangeHasMark for selections, storedMarks/cursor marks for collapsed cursor
+        const schema = state.schema
+        const isCollapsed = from === to
+
+        if (isCollapsed) {
+          // Cursor position - check stored marks or marks at position
+          const marks = state.storedMarks || $from.marks()
+          for (const mark of marks) {
+            if (mark.type.name === 'strong') formats.bold = true
+            if (mark.type.name === 'emphasis') formats.italic = true
+            if (mark.type.name === 'strikethrough') formats.strikethrough = true
+            if (mark.type.name === 'inlineCode') formats.code = true
+            if (mark.type.name === 'link') formats.link = true
+          }
+        } else {
+          // Selection - check if mark spans the entire selection
+          const markChecks = [
+            { name: 'strong', format: 'bold' },
+            { name: 'emphasis', format: 'italic' },
+            { name: 'strikethrough', format: 'strikethrough' },
+            { name: 'inlineCode', format: 'code' },
+            { name: 'link', format: 'link' },
+          ] as const
+          for (const { name, format } of markChecks) {
+            const markType = schema.marks[name]
+            if (markType && state.doc.rangeHasMark(from, to, markType)) {
+              formats[format] = true
+            }
+          }
         }
 
         // Check parent nodes for block-level formatting
