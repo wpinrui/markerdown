@@ -17,14 +17,22 @@ export function isPdfFile(name: string): boolean {
   return name.endsWith(PDF_EXTENSION)
 }
 
-export function isVideoFile(name: string): boolean {
+export function getVideoExtension(name: string): string | null {
   const lower = name.toLowerCase()
-  return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext))
+  return VIDEO_EXTENSIONS.find(ext => lower.endsWith(ext)) ?? null
+}
+
+export function getAudioExtension(name: string): string | null {
+  const lower = name.toLowerCase()
+  return AUDIO_EXTENSIONS.find(ext => lower.endsWith(ext)) ?? null
+}
+
+export function isVideoFile(name: string): boolean {
+  return getVideoExtension(name) !== null
 }
 
 export function isAudioFile(name: string): boolean {
-  const lower = name.toLowerCase()
-  return AUDIO_EXTENSIONS.some(ext => lower.endsWith(ext))
+  return getAudioExtension(name) !== null
 }
 
 export function isMediaFile(name: string): boolean {

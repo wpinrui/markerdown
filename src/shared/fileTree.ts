@@ -1,12 +1,10 @@
 import {
   isMarkdownFile,
   isPdfFile,
-  isVideoFile,
-  isAudioFile,
+  getVideoExtension,
+  getAudioExtension,
   MARKDOWN_EXTENSION,
   PDF_EXTENSION,
-  VIDEO_EXTENSIONS,
-  AUDIO_EXTENSIONS,
 } from './types'
 import type { FileEntry, TreeNode, Entity, EntityMember } from './types'
 
@@ -23,15 +21,13 @@ function parseFileInfo(
   if (isMarkdownFile(filename)) {
     return { fullBaseName: filename.slice(0, -MARKDOWN_EXTENSION.length), type: 'markdown' }
   }
-  if (isVideoFile(filename)) {
-    const lower = filename.toLowerCase()
-    const ext = VIDEO_EXTENSIONS.find((e) => lower.endsWith(e))!
-    return { fullBaseName: filename.slice(0, -ext.length), type: 'video' }
+  const videoExt = getVideoExtension(filename)
+  if (videoExt) {
+    return { fullBaseName: filename.slice(0, -videoExt.length), type: 'video' }
   }
-  if (isAudioFile(filename)) {
-    const lower = filename.toLowerCase()
-    const ext = AUDIO_EXTENSIONS.find((e) => lower.endsWith(e))!
-    return { fullBaseName: filename.slice(0, -ext.length), type: 'audio' }
+  const audioExt = getAudioExtension(filename)
+  if (audioExt) {
+    return { fullBaseName: filename.slice(0, -audioExt.length), type: 'audio' }
   }
   return null
 }
