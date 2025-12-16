@@ -28,6 +28,7 @@ const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
 const CLAUDE_MD_FILE = 'claude.md'
+const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it. Then respond to: '
 
 async function readAgentMemory(workingDir: string): Promise<string | null> {
   try {
@@ -366,7 +367,7 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   }
 
   // Prefix message with instruction to read claude.md for project-specific instructions
-  const prefixedMessage = `First read claude.md in this directory for project-specific instructions. Then respond to: ${message}`
+  const prefixedMessage = `${CLAUDE_MD_PREFIX}${message}`
   args.push(prefixedMessage)
 
   agentProcess = spawn('claude', args, {
@@ -493,7 +494,11 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 
         // Get first user message
         if (data.type === 'user' && data.message?.role === 'user') {
-          const text = extractTextFromContent(data.message.content)
+          let text = extractTextFromContent(data.message.content)
+          // Strip the claude.md prefix we add to messages
+          if (text?.startsWith(CLAUDE_MD_PREFIX)) {
+            text = text.slice(CLAUDE_MD_PREFIX.length)
+          }
           if (text) {
             firstMessage = text.slice(0, MESSAGE_PREVIEW_LENGTH)
             rl.close()
@@ -567,7 +572,11 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
         const entry: SessionJsonLine = JSON.parse(line)
 
         if (entry.type === 'user' && entry.message?.role === 'user') {
-          const text = extractTextFromContent(entry.message.content)
+          let text = extractTextFromContent(entry.message.content)
+          // Strip the claude.md prefix we add to messages
+          if (text?.startsWith(CLAUDE_MD_PREFIX)) {
+            text = text.slice(CLAUDE_MD_PREFIX.length)
+          }
           if (text) {
             messages.push({ role: 'user', content: text })
           }

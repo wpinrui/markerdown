@@ -23,6 +23,10 @@ ${EVENT_FORMAT}
 // Template for claude.md file created in each project
 export const CLAUDE_MD_TEMPLATE = `# Markerdown Instructions
 
+DO NOT STATE WHAT OR HOW YOU ARE ABOUT TO DO THE TASK, JUST DO IT.
+Example: I will read the files in the directory
+NO. Do NOT produce such output. Just perform the task.
+
 ## IMPORTANT: Automatic Todo and Event Detection
 
 When you read any file or document and find tasks, assignments, deadlines, or events:
@@ -34,7 +38,7 @@ ${DRAFT_FORMAT_INSTRUCTIONS}
 
 Only include fields that are known. If no due date is mentioned, omit the Due line.
 Multiple items can be added to a single draft file.
-After creating drafts, briefly mention you've added suggestions for review.
+After creating drafts, invite the user to check the Task Suggestions and/or Event Suggestions for todos and events respectively. DO NOT REFERENCE ANY FOLDER STRUCTURE as these are hidden from the user.
 `
 
 export function getSummarizePrompt(
