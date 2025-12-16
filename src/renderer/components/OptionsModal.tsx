@@ -5,6 +5,8 @@ interface OptionsModalProps {
   onClose: () => void
   currentFolderPath: string | null
   onFolderChange: (path: string) => void
+  showClaudeMd: boolean
+  onShowClaudeMdChange: (show: boolean) => void
 }
 
 export function OptionsModal({
@@ -12,9 +14,12 @@ export function OptionsModal({
   onClose,
   currentFolderPath,
   onFolderChange,
+  showClaudeMd,
+  onShowClaudeMdChange,
 }: OptionsModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [pendingFolderPath, setPendingFolderPath] = useState<string | null>(currentFolderPath)
+  const [pendingShowClaudeMd, setPendingShowClaudeMd] = useState(showClaudeMd)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -22,11 +27,12 @@ export function OptionsModal({
 
     if (isOpen) {
       setPendingFolderPath(currentFolderPath)
+      setPendingShowClaudeMd(showClaudeMd)
       dialog.showModal()
     } else {
       dialog.close()
     }
-  }, [isOpen, currentFolderPath])
+  }, [isOpen, currentFolderPath, showClaudeMd])
 
   const handleBrowse = async () => {
     try {
@@ -43,11 +49,15 @@ export function OptionsModal({
     if (pendingFolderPath && pendingFolderPath !== currentFolderPath) {
       onFolderChange(pendingFolderPath)
     }
+    if (pendingShowClaudeMd !== showClaudeMd) {
+      onShowClaudeMdChange(pendingShowClaudeMd)
+    }
     onClose()
   }
 
   const handleCancel = () => {
     setPendingFolderPath(currentFolderPath)
+    setPendingShowClaudeMd(showClaudeMd)
     onClose()
   }
 
@@ -80,6 +90,17 @@ export function OptionsModal({
               Browse
             </button>
           </div>
+        </div>
+        <div className="options-group options-advanced">
+          <label className="options-label">Advanced</label>
+          <label className="options-checkbox-row">
+            <input
+              type="checkbox"
+              checked={pendingShowClaudeMd}
+              onChange={(e) => setPendingShowClaudeMd(e.target.checked)}
+            />
+            <span>Show claude.md in sidebar</span>
+          </label>
         </div>
       </div>
       <div className="options-modal-footer">

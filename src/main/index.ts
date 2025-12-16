@@ -5,7 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
-import { getSummarizePrompt, getAgentSystemPrompt } from '../shared/prompts'
+import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -23,18 +23,22 @@ function closeWatcher() {
 
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
-const AGENT_MEMORY_FILE = 'Agent Memory.md'
 const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
+const CLAUDE_MD_FILE = 'claude.md'
+const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it.'
+const CLAUDE_MD_RESPOND_MARKER = 'USER_MESSAGE:'
 
-async function readAgentMemory(workingDir: string): Promise<string | null> {
-  try {
-    const memoryPath = path.join(workingDir, AGENT_MEMORY_FILE)
-    return await fs.promises.readFile(memoryPath, 'utf-8')
-  } catch {
-    return null
+// Strip our internal prefix from user messages for display
+function stripMessagePrefix(text: string | undefined): string | undefined {
+  if (!text) return text
+  // Match our prefix pattern: CLAUDE_MD_PREFIX + optional file context + USER_MESSAGE: + actual message
+  const markerIndex = text.indexOf(CLAUDE_MD_RESPOND_MARKER)
+  if (markerIndex !== -1) {
+    return text.slice(markerIndex + CLAUDE_MD_RESPOND_MARKER.length).trimStart()
   }
+  return text
 }
 
 async function readMarkerdownFile(workingDir: string, filename: string): Promise<string | null> {
@@ -46,13 +50,19 @@ async function readMarkerdownFile(workingDir: string, filename: string): Promise
   }
 }
 
-function formatMemoryContext(agentMemory: string | null): string {
-  if (!agentMemory) return ''
-  return `User context:\n${agentMemory}\n\n`
+async function ensureClaudeMd(workingDir: string): Promise<void> {
+  const claudeMdPath = path.join(workingDir, CLAUDE_MD_FILE)
+  try {
+    await fs.promises.access(claudeMdPath)
+  } catch {
+    // File doesn't exist, create it
+    await fs.promises.writeFile(claudeMdPath, CLAUDE_MD_TEMPLATE)
+  }
 }
 
 interface Settings {
   lastFolder?: string
+  showClaudeMd?: boolean
 }
 
 function loadSettings(): Settings {
@@ -185,6 +195,16 @@ ipcMain.handle('settings:setLastFolder', (_event, folderPath: string | null) => 
   saveSettings(settings)
 })
 
+ipcMain.handle('settings:getShowClaudeMd', () => {
+  return loadSettings().showClaudeMd ?? false
+})
+
+ipcMain.handle('settings:setShowClaudeMd', (_event, show: boolean) => {
+  const settings = loadSettings()
+  settings.showClaudeMd = show
+  saveSettings(settings)
+})
+
 ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   closeWatcher()
 
@@ -256,12 +276,15 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
     // File doesn't exist, good to proceed
   }
 
-  const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
+  // Ensure claude.md exists for Claude Code integration
+  await ensureClaudeMd(workingDir)
+
   const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
   const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
 
   return new Promise((resolve) => {
-    const fullPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, memoryContext, todosContext ?? '', eventsContext ?? '')
+    const taskPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, todosContext ?? '', eventsContext ?? '')
+    const fullPrompt = `${CLAUDE_MD_PREFIX} ${taskPrompt}`
 
     const args = [
       '--print',
@@ -308,10 +331,13 @@ function cancelAgent() {
 }
 
 ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<AgentChatResponse> => {
-  const { message, workingDir, sessionId: existingSessionId } = request
+  const { message, workingDir, sessionId: existingSessionId, currentFilePath } = request
 
   // Cancel any existing agent process
   cancelAgent()
+
+  // Ensure claude.md exists for Claude Code integration
+  await ensureClaudeMd(workingDir)
 
   // Use existing session ID or generate a new one
   const sessionId = existingSessionId ?? crypto.randomUUID()
@@ -324,21 +350,19 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     '--setting-sources', 'user',
   ]
 
-  // For new sessions, use --session-id with system prompt; for existing sessions, use --resume
+  // For new sessions, use --session-id; for existing sessions, use --resume
   if (existingSessionId) {
     args.push('--resume', sessionId)
   } else {
-    const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
-    const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
-    const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
-    const systemPrompt = getAgentSystemPrompt(memoryContext, todosContext ?? '', eventsContext ?? '')
     args.push('--session-id', sessionId)
-    args.push('--system-prompt', systemPrompt)
     // Track this as our chat session
     await addChatSessionId(workingDir, sessionId)
   }
 
-  args.push(message)
+  // Prefix message with instruction to read claude.md and context about current file
+  const currentFileContext = currentFilePath ? ` The user currently has "${currentFilePath}" open.` : ''
+  const prefixedMessage = `${CLAUDE_MD_PREFIX}${currentFileContext} ${CLAUDE_MD_RESPOND_MARKER} ${message}`
+  args.push(prefixedMessage)
 
   agentProcess = spawn('claude', args, {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -464,7 +488,8 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 
         // Get first user message
         if (data.type === 'user' && data.message?.role === 'user') {
-          const text = extractTextFromContent(data.message.content)
+          const rawText = extractTextFromContent(data.message.content)
+          const text = stripMessagePrefix(rawText)
           if (text) {
             firstMessage = text.slice(0, MESSAGE_PREVIEW_LENGTH)
             rl.close()
@@ -538,7 +563,8 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
         const entry: SessionJsonLine = JSON.parse(line)
 
         if (entry.type === 'user' && entry.message?.role === 'user') {
-          const text = extractTextFromContent(entry.message.content)
+          const rawText = extractTextFromContent(entry.message.content)
+          const text = stripMessagePrefix(rawText)
           if (text) {
             messages.push({ role: 'user', content: text })
           }

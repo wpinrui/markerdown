@@ -69,6 +69,7 @@ export interface AgentChatRequest {
   message: string
   workingDir: string
   sessionId?: string // If provided, resumes this session; if not, starts new session
+  currentFilePath?: string // Currently opened file in the viewer
 }
 
 export interface AgentChatResponse {
@@ -116,6 +117,8 @@ export interface ElectronAPI {
   exists: (filePath: string) => Promise<boolean>
   getLastFolder: () => Promise<string | null>
   setLastFolder: (folderPath: string | null) => Promise<void>
+  getShowClaudeMd: () => Promise<boolean>
+  setShowClaudeMd: (show: boolean) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
   openInExplorer: (folderPath: string) => Promise<void>
