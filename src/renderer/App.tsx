@@ -7,6 +7,8 @@ import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
 import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar } from './components/TopToolbar'
+import { SidebarToolbar } from './components/SidebarToolbar'
+import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
@@ -27,6 +29,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [showOptionsModal, setShowOptionsModal] = useState(false)
+  const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
   // Agent panel state
@@ -324,6 +327,99 @@ function App() {
   const isEditing = editMode !== 'view'
   const toggleAgent = () => setShowAgent((prev) => !prev)
 
+  // Open folder handler (for sidebar toolbar)
+  const handleOpenFolder = async () => {
+    const path = await window.electronAPI.openFolder()
+    if (path) {
+      handleFolderChange(path)
+    }
+  }
+
+  // Create new note handler
+  const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
+    if (!folderPath) return
+
+    // Determine the directory where the file should be created
+    let targetDir = folderPath
+
+    if (parentPath) {
+      // Find the parent node to determine its actual directory
+      const findNode = (nodes: TreeNode[], path: string): TreeNode | null => {
+        for (const node of nodes) {
+          if (node.path === path) return node
+          if (node.children) {
+            const found = findNode(node.children, path)
+            if (found) return found
+          }
+        }
+        return null
+      }
+
+      const parentNode = findNode(treeNodes, parentPath)
+      if (parentNode) {
+        if (parentNode.isDirectory) {
+          targetDir = parentNode.path
+        } else if (parentNode.hasSidecar) {
+          // For sidecar files, the children go in the folder with same base name
+          const baseName = parentNode.name.replace(/\.md$/i, '')
+          const lastSlash = Math.max(parentNode.path.lastIndexOf('/'), parentNode.path.lastIndexOf('\\'))
+          const parentDir = parentNode.path.substring(0, lastSlash)
+          targetDir = `${parentDir}/${baseName}`
+        }
+      }
+    }
+
+    // Create the new file path
+    const newFilePath = `${targetDir}/${name}`
+
+    // Create empty markdown file
+    const result = await window.electronAPI.writeFile(newFilePath, `# ${name.replace(/\.md$/i, '')}\n\n`)
+    if (!result.success) {
+      setError(`Failed to create note: ${result.error}`)
+      return
+    }
+
+    // Move selected children to become children of this new note
+    // This requires creating a sidecar folder and moving files
+    if (childrenPaths.length > 0) {
+      const sidecarDir = `${targetDir}/${name.replace(/\.md$/i, '')}`
+      // The file watcher will handle the tree refresh after moves
+      // For now, we'll let the user know this is a future feature
+      console.log('Moving children to sidecar folder:', sidecarDir, childrenPaths)
+      // TODO: Implement file moving in Electron main process
+    }
+
+    // Refresh tree (watcher should handle this, but force refresh to be safe)
+    refreshTree()
+
+    // Select the new file and open in edit mode
+    // We need to wait for the tree to refresh first
+    setTimeout(async () => {
+      // Find the new node in the tree
+      const findNewNode = (nodes: TreeNode[]): TreeNode | null => {
+        for (const node of nodes) {
+          if (node.path === newFilePath || node.path.replace(/\\/g, '/') === newFilePath.replace(/\\/g, '/')) {
+            return node
+          }
+          if (node.children) {
+            const found = findNewNode(node.children)
+            if (found) return found
+          }
+        }
+        return null
+      }
+
+      // Re-fetch the tree and find the node
+      const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+      const newNode = findNewNode(newNodes)
+      if (newNode) {
+        setSelectedNode(newNode)
+        setActiveMember(null)
+        setEditMode('visual')
+      }
+    }, 100)
+  }
+
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
     (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
@@ -364,9 +460,11 @@ function App() {
               <p className="placeholder">No folder opened</p>
             )}
           </div>
-          <button className="sidebar-options-btn" onClick={() => setShowOptionsModal(true)}>
-            Options
-          </button>
+          <SidebarToolbar
+            onNewNote={() => setShowNewNoteModal(true)}
+            onOpenFolder={handleOpenFolder}
+            onOpenOptions={() => setShowOptionsModal(true)}
+          />
         </aside>
         <section className="content">
           <TopToolbar
@@ -429,6 +527,14 @@ function App() {
         onClose={() => setShowOptionsModal(false)}
         currentFolderPath={folderPath}
         onFolderChange={handleFolderChange}
+      />
+      <NewNoteModal
+        isOpen={showNewNoteModal}
+        onClose={() => setShowNewNoteModal(false)}
+        onSubmit={handleCreateNote}
+        treeNodes={treeNodes}
+        folderPath={folderPath}
+        selectedNode={selectedNode}
       />
     </div>
   )
