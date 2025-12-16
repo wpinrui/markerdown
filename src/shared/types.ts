@@ -98,7 +98,6 @@ export interface ElectronAPI {
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>
   agentCancel: () => Promise<void>
-  onAgentChunk: (callback: (chunk: string) => void) => () => void
   onAgentComplete: (callback: (error?: string) => void) => () => void
   getAgentSessions: (workingDir: string) => Promise<AgentSession[]>
   loadAgentSession: (workingDir: string, sessionId: string) => Promise<AgentSessionHistory>

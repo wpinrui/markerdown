@@ -5,6 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
+import { getSummarizePrompt, getAgentSystemPrompt } from '../shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -197,9 +198,7 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
 
   return new Promise((resolve) => {
-    const fullPrompt = `${memoryContext}Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
-
-${prompt}`
+    const fullPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, memoryContext)
 
     const args = [
       '--print',
@@ -267,14 +266,11 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     args.push('--resume', sessionId)
   } else {
     const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
-    const systemPrompt = `You are a helpful assistant that answers questions about the files in this directory.
-When you need information, use your tools to list directories and read files.
-Prefer reading .md files over .pdf files when both exist for the same topic.
-Be concise but thorough in your answers. Do not generate files - only answer verbally.
-
-${memoryContext}`
+    const systemPrompt = getAgentSystemPrompt(memoryContext)
     args.push('--session-id', sessionId)
     args.push('--system-prompt', systemPrompt)
+    // Track this as our chat session
+    await addChatSessionId(workingDir, sessionId)
   }
 
   args.push(message)
@@ -282,10 +278,6 @@ ${memoryContext}`
   agentProcess = spawn('claude', args, {
     stdio: ['ignore', 'pipe', 'pipe'],
     cwd: workingDir,
-  })
-
-  agentProcess.stdout?.on('data', (data: Buffer) => {
-    mainWindow?.webContents.send('agent:chunk', data.toString())
   })
 
   agentProcess.stderr?.on('data', (data: Buffer) => {
@@ -327,6 +319,35 @@ function getSessionsDir(workingDir: string): string {
   const claudeDir = path.join(os.homedir(), '.claude', 'projects')
   const encodedPath = encodeProjectPath(workingDir)
   return path.join(claudeDir, encodedPath)
+}
+
+// Track our chat session IDs (separate from Claude CLI's session management)
+function getChatSessionsMetadataPath(workingDir: string): string {
+  const sessionsDir = getSessionsDir(workingDir)
+  return path.join(sessionsDir, 'markerdown-chat-sessions.json')
+}
+
+async function getChatSessionIds(workingDir: string): Promise<Set<string>> {
+  try {
+    const metadataPath = getChatSessionsMetadataPath(workingDir)
+    const content = await fs.promises.readFile(metadataPath, 'utf-8')
+    const parsed: unknown = JSON.parse(content)
+    if (!Array.isArray(parsed)) {
+      return new Set()
+    }
+    return new Set(parsed.filter((id): id is string => typeof id === 'string'))
+  } catch {
+    return new Set()
+  }
+}
+
+async function addChatSessionId(workingDir: string, sessionId: string): Promise<void> {
+  const ids = await getChatSessionIds(workingDir)
+  ids.add(sessionId)
+  const metadataPath = getChatSessionsMetadataPath(workingDir)
+  const sessionsDir = getSessionsDir(workingDir)
+  await fs.promises.mkdir(sessionsDir, { recursive: true })
+  await fs.promises.writeFile(metadataPath, JSON.stringify([...ids], null, 2))
 }
 
 const MESSAGE_PREVIEW_LENGTH = 100
@@ -406,14 +427,16 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<AgentSession[]> => {
   try {
     const sessionsDir = getSessionsDir(workingDir)
-    const files = await fs.promises.readdir(sessionsDir)
-    const jsonlFiles = files.filter((f) => f.endsWith('.jsonl') && !f.startsWith('agent-'))
+    const chatSessionIds = await getChatSessionIds(workingDir)
+
+    if (chatSessionIds.size === 0) {
+      return []
+    }
 
     const sessions: AgentSession[] = []
 
-    for (const file of jsonlFiles) {
-      const sessionId = file.replace('.jsonl', '')
-      const filePath = path.join(sessionsDir, file)
+    for (const sessionId of chatSessionIds) {
+      const filePath = path.join(sessionsDir, `${sessionId}.jsonl`)
       const metadata = await parseSessionMetadata(filePath)
 
       if (metadata) {
