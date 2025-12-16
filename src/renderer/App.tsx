@@ -43,6 +43,7 @@ function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null 
 const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
+const TREE_REFRESH_DELAY_MS = 100
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -360,6 +361,14 @@ function App() {
   const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
     if (!folderPath) return
 
+    // Helper to move a file/folder and report errors
+    const moveItem = async (sourcePath: string, destPath: string, displayName: string) => {
+      const result = await window.electronAPI.move(sourcePath, destPath)
+      if (!result.success) {
+        setError(`Failed to move ${displayName}: ${result.error}`)
+      }
+    }
+
     // Determine the directory where the file should be created
     let targetDir = folderPath
 
@@ -404,21 +413,13 @@ function App() {
           // Move all entity members
           for (const member of childNode.entity.members) {
             const memberName = getBasename(member.path)
-            const destPath = `${sidecarDir}/${memberName}`
-            const moveResult = await window.electronAPI.move(member.path, destPath)
-            if (!moveResult.success) {
-              setError(`Failed to move ${memberName}: ${moveResult.error}`)
-            }
+            await moveItem(member.path, `${sidecarDir}/${memberName}`, memberName)
           }
           // Also move entity's sidecar folder if it has children
           if (childNode.hasSidecar && childNode.children) {
             const entityBaseName = childNode.entity.baseName
             const entitySidecarPath = `${getDirname(childNode.path)}/${entityBaseName}`
-            const destSidecarPath = `${sidecarDir}/${entityBaseName}`
-            const moveResult = await window.electronAPI.move(entitySidecarPath, destSidecarPath)
-            if (!moveResult.success) {
-              setError(`Failed to move folder ${entityBaseName}: ${moveResult.error}`)
-            }
+            await moveItem(entitySidecarPath, `${sidecarDir}/${entityBaseName}`, `folder ${entityBaseName}`)
           }
         } else if (childNode?.hasSidecar && childNode.children) {
           // Move markdown file with sidecar
@@ -426,36 +427,16 @@ function App() {
           const baseName = stripMdExtension(childName)
           const childDir = getDirname(childPath)
 
-          // Move the markdown file
-          const destPath = `${sidecarDir}/${childName}`
-          let moveResult = await window.electronAPI.move(childPath, destPath)
-          if (!moveResult.success) {
-            setError(`Failed to move ${childName}: ${moveResult.error}`)
-          }
-
-          // Move the sidecar folder
-          const sidecarPath = `${childDir}/${baseName}`
-          const destSidecarPath = `${sidecarDir}/${baseName}`
-          moveResult = await window.electronAPI.move(sidecarPath, destSidecarPath)
-          if (!moveResult.success) {
-            setError(`Failed to move folder ${baseName}: ${moveResult.error}`)
-          }
+          await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
+          await moveItem(`${childDir}/${baseName}`, `${sidecarDir}/${baseName}`, `folder ${baseName}`)
         } else if (childNode?.isDirectory) {
           // Move entire directory
           const dirName = getBasename(childPath)
-          const destPath = `${sidecarDir}/${dirName}`
-          const moveResult = await window.electronAPI.move(childPath, destPath)
-          if (!moveResult.success) {
-            setError(`Failed to move ${dirName}: ${moveResult.error}`)
-          }
+          await moveItem(childPath, `${sidecarDir}/${dirName}`, dirName)
         } else {
           // Simple file move
           const childName = getBasename(childPath)
-          const destPath = `${sidecarDir}/${childName}`
-          const moveResult = await window.electronAPI.move(childPath, destPath)
-          if (!moveResult.success) {
-            setError(`Failed to move ${childName}: ${moveResult.error}`)
-          }
+          await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
         }
       }
     }
@@ -476,7 +457,7 @@ function App() {
         setActiveMember(null)
         setEditMode('visual')
       }
-    }, 100)
+    }, TREE_REFRESH_DELAY_MS)
   }
 
   // Determine if mode toggle should show (markdown content is active)
