@@ -2,7 +2,7 @@ import type { Entity, EntityMember, EditMode } from '@shared/types'
 import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
 import { ModeToggle } from './ModeToggle'
-import { MessageSquare, CheckSquare, Calendar, Check, X, Sparkles, PanelLeft } from 'lucide-react'
+import { MessageSquare, CheckSquare, Calendar, Check, X, Sparkles, PanelLeft, Plus } from 'lucide-react'
 
 export type PaneType = 'agent' | 'todos' | 'events'
 
@@ -31,6 +31,9 @@ interface TopToolbarProps {
   entity?: Entity
   activeMember?: EntityMember
   onTabChange?: (member: EntityMember) => void
+  // Standalone file props (for showing single tab)
+  selectedFileName?: string
+  selectedFileType?: string
   // Editor props
   editMode: EditMode
   onEditModeChange: (mode: EditMode) => void
@@ -53,12 +56,16 @@ interface TopToolbarProps {
   // Sidebar toggle props
   sidebarVisible: boolean
   onSidebarToggle: () => void
+  // Create new entity member
+  onCreateMember?: () => void
 }
 
 export function TopToolbar({
   entity,
   activeMember,
   onTabChange,
+  selectedFileName,
+  selectedFileType,
   editMode,
   onEditModeChange,
   editorRef,
@@ -75,6 +82,7 @@ export function TopToolbar({
   onDiscardSuggestion,
   sidebarVisible,
   onSidebarToggle,
+  onCreateMember,
 }: TopToolbarProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
@@ -103,26 +111,70 @@ export function TopToolbar({
       </button>
       <div className="toolbar-separator" />
 
-      {/* Show entity tabs only in view mode when viewing an entity */}
-      {entity && activeMember && !isEditing && onTabChange &&
-        entity.members.map((member) => {
-          const isActive = member.path === activeMember.path
-          const colors = getTabColors(member)
-          return (
-            <button
-              key={member.path}
-              className={`entity-tab ${isActive ? 'active' : ''}`}
-              style={{
-                backgroundColor: colors.base,
-                borderColor: isActive ? colors.light : colors.base,
-                fontWeight: isActive ? 'bold' : 'normal',
-              }}
-              onClick={() => onTabChange(member)}
-            >
-              {getTabLabel(member)}
-            </button>
-          )
-        })}
+      {/* Show tabs for entity or standalone file */}
+      {!isEditing && (
+        <>
+          {entity && activeMember && onTabChange ? (
+            // Entity with multiple members
+            <>
+              {entity.members.map((member) => {
+                const isActive = member.path === activeMember.path
+                const colors = getTabColors(member)
+                return (
+                  <button
+                    key={member.path}
+                    type="button"
+                    className={`entity-tab ${isActive ? 'active' : ''}`}
+                    style={{
+                      backgroundColor: colors.base,
+                      borderColor: isActive ? colors.light : colors.base,
+                      fontWeight: isActive ? 'bold' : 'normal',
+                    }}
+                    onClick={() => onTabChange(member)}
+                  >
+                    {getTabLabel(member)}
+                  </button>
+                )
+              })}
+              {onCreateMember && (
+                <button
+                  type="button"
+                  className="entity-tab-add"
+                  onClick={onCreateMember}
+                  title="Add new variant"
+                >
+                  <Plus size={14} />
+                </button>
+              )}
+            </>
+          ) : selectedFileName ? (
+            // Standalone file - show single tab
+            <>
+              <button
+                type="button"
+                className="entity-tab active"
+                style={{
+                  backgroundColor: 'hsl(210, 65%, 40%)',
+                  borderColor: 'hsl(210, 65%, 60%)',
+                  fontWeight: 'bold',
+                }}
+              >
+                {selectedFileType === 'markdown' ? selectedFileName : selectedFileType?.toUpperCase()}
+              </button>
+              {onCreateMember && selectedFileType === 'markdown' && (
+                <button
+                  type="button"
+                  className="entity-tab-add"
+                  onClick={onCreateMember}
+                  title="Add new variant"
+                >
+                  <Plus size={14} />
+                </button>
+              )}
+            </>
+          ) : null}
+        </>
+      )}
 
       {/* Show formatting toolbar in edit mode */}
       {isEditing && (

@@ -206,6 +206,12 @@ ipcMain.handle('settings:setShowClaudeMd', (_event, show: boolean) => {
   saveSettings(settings)
 })
 
+ipcMain.handle('window:setTitle', (_event, title: string) => {
+  if (mainWindow) {
+    mainWindow.setTitle(title)
+  }
+})
+
 ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   closeWatcher()
 

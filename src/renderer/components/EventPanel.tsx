@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronRight, MapPin } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Trash2, Edit2, Check, X, MapPin } from 'lucide-react'
 import type { EventItem } from '@shared/types'
 import { NewEventModal } from './NewEventModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
@@ -102,9 +102,11 @@ function isPast(event: EventItem): boolean {
 export function EventPanel({ workingDir, style }: EventPanelProps) {
   const [events, setEvents] = useState<EventItem[]>([])
   const [filter, setFilter] = useState<FilterMode>('all')
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showNewModal, setShowNewModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   // Load events from file
   const loadEvents = useCallback(async () => {
@@ -172,17 +174,35 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
     setShowNewModal(false)
   }
 
-  const toggleExpanded = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+  const handleStartEdit = (event: EventItem) => {
+    setEditingId(event.id)
+    setEditText(event.text)
   }
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editText.trim()) return
+
+    const newEvents = events.map((e) =>
+      e.id === editingId ? { ...e, text: editText.trim() } : e
+    )
+    setEvents(newEvents)
+    await saveEvents(newEvents)
+    setEditingId(null)
+    setEditText('')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditText('')
+  }
+
+  // Focus input when starting edit
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [editingId])
 
   // Filter events
   const filteredEvents = events.filter((event) => {
@@ -242,45 +262,80 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
           </div>
         ) : (
           sortedEvents.map((event) => {
-            const isExpanded = expandedIds.has(event.id)
-            const hasDetails = event.location || event.notes
             const eventIsPast = isPast(event)
+            const isEditing = editingId === event.id
 
             return (
               <div
                 key={event.id}
-                className={`event-item ${eventIsPast ? 'past' : ''}`}
+                className={`event-item ${eventIsPast ? 'past' : ''} expanded`}
               >
                 <div className="event-item-main">
-                  {hasDetails && (
-                    <button
-                      className="event-expand-btn"
-                      onClick={() => toggleExpanded(event.id)}
-                    >
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                  )}
-                  <span className="event-text">{event.text}</span>
-                  <span className="event-datetime">{formatDateForDisplay(event.startDate)}</span>
-                  {event.endDate && (
-                    <span className="event-datetime-end">→ {formatDateForDisplay(event.endDate)}</span>
-                  )}
-                  {deleteConfirmId === event.id ? (
-                    <div className="event-delete-confirm">
-                      <button onClick={() => handleDelete(event.id)}>Yes</button>
-                      <button onClick={() => setDeleteConfirmId(null)}>No</button>
-                    </div>
+                  {isEditing ? (
+                    <>
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit()
+                          if (e.key === 'Escape') handleCancelEdit()
+                        }}
+                        className="event-edit-input"
+                        placeholder="Event name"
+                      />
+                      <button
+                        type="button"
+                        className="event-edit-btn save"
+                        onClick={handleSaveEdit}
+                        title="Save"
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="event-edit-btn cancel"
+                        onClick={handleCancelEdit}
+                        title="Cancel"
+                      >
+                        <X size={14} />
+                      </button>
+                    </>
                   ) : (
-                    <button
-                      className="event-delete-btn"
-                      onClick={() => setDeleteConfirmId(event.id)}
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <>
+                      <span className="event-text">{event.text}</span>
+                      <span className="event-datetime">{formatDateForDisplay(event.startDate)}</span>
+                      {event.endDate && (
+                        <span className="event-datetime-end">→ {formatDateForDisplay(event.endDate)}</span>
+                      )}
+                      <button
+                        type="button"
+                        className="event-edit-btn"
+                        onClick={() => handleStartEdit(event)}
+                        title="Edit"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      {deleteConfirmId === event.id ? (
+                        <div className="event-delete-confirm">
+                          <button type="button" onClick={() => handleDelete(event.id)}>Yes</button>
+                          <button type="button" onClick={() => setDeleteConfirmId(null)}>No</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="event-delete-btn"
+                          onClick={() => setDeleteConfirmId(event.id)}
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
-                {isExpanded && (
+                {!isEditing && (event.location || event.notes) && (
                   <div className="event-details">
                     {event.location && (
                       <div className="event-location">
