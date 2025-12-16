@@ -35,34 +35,6 @@ body {
   height: 100vh;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background-color: #252526;
-  border-bottom: 1px solid #3c3c3c;
-}
-
-.header h1 {
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.header button {
-  padding: 6px 12px;
-  background-color: #0e639c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.header button:hover {
-  background-color: #1177bb;
-}
-
 .main {
   display: flex;
   flex: 1;
@@ -200,13 +172,6 @@ body {
   font-style: italic;
   color: #808080;
   font-size: 12px;
-}
-
-/* Entity Viewer */
-.entity-viewer {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 .entity-tab {
@@ -521,12 +486,6 @@ body {
 
 .markdown-viewer img {
   max-width: 100%;
-}
-
-/* Header actions */
-.header-actions {
-  display: flex;
-  gap: 8px;
 }
 
 /* Tree loading spinner */
@@ -1138,27 +1097,6 @@ body {
   max-width: 100%;
 }
 
-/* Standalone Markdown Viewer */
-.standalone-markdown {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.standalone-markdown-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-bottom: 1px solid #3c3c3c;
-  flex-shrink: 0;
-}
-
-.standalone-markdown-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
 /* Markdown Editor */
 .markdown-editor {
   display: flex;
@@ -1405,16 +1343,6 @@ body {
 
 .milkdown-editor .milkdown img {
   max-width: 100%;
-}
-
-/* Agent Sparkle Button */
-.agent-sparkle-btn {
-  font-size: 16px;
-  color: white;
-}
-
-.agent-sparkle-btn.active {
-  background-color: #0e639c;
 }
 
 /* Options Modal */
