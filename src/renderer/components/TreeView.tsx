@@ -13,56 +13,71 @@ interface TreeViewProps {
   summarizingPaths?: Set<string>
   onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
   onReorder?: (parentPath: string, newOrder: string[]) => void
+  onMove?: (node: TreeNode, targetPath: string) => void
   folderPath?: string
 }
 
-export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onContextMenu, onReorder, folderPath }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onContextMenu, onReorder, onMove, folderPath }: TreeViewProps) {
   const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null)
-  const [dropTarget, setDropTarget] = useState<{ node: TreeNode; position: 'before' | 'after'; parentPath: string } | null>(null)
+  const [dropTarget, setDropTarget] = useState<{
+    node: TreeNode
+    position: 'before' | 'after' | 'into'
+    parentPath: string
+  } | null>(null)
 
   const handleDragStart = (node: TreeNode) => {
     setDraggedNode(node)
   }
 
   const handleDragEnd = () => {
-    if (draggedNode && dropTarget && onReorder) {
-      const draggedParent = getDirname(draggedNode.path)
+    if (!draggedNode || !dropTarget) {
+      setDraggedNode(null)
+      setDropTarget(null)
+      return
+    }
 
-      // Only allow reordering within same parent
-      if (draggedParent === dropTarget.parentPath) {
-        // Get siblings by filtering nodes that share the same parent
-        const findSiblings = (nodeList: TreeNode[], parentDir: string): TreeNode[] => {
-          const result: TreeNode[] = []
-          for (const n of nodeList) {
-            if (getDirname(n.path) === parentDir) {
-              result.push(n)
-            }
-            if (n.children) {
-              result.push(...findSiblings(n.children, parentDir))
-            }
+    const draggedParent = getDirname(draggedNode.path)
+
+    // Handle moving into a directory/entity
+    if (dropTarget.position === 'into') {
+      if (onMove) {
+        onMove(draggedNode, dropTarget.node.path)
+      }
+    }
+    // Handle reordering within same parent
+    else if (draggedParent === dropTarget.parentPath && onReorder) {
+      // Get siblings by filtering nodes that share the same parent
+      const findSiblings = (nodeList: TreeNode[], parentDir: string): TreeNode[] => {
+        const result: TreeNode[] = []
+        for (const n of nodeList) {
+          if (getDirname(n.path) === parentDir) {
+            result.push(n)
           }
-          return result
-        }
-
-        const siblings = findSiblings(nodes, draggedParent)
-        const newOrder = [...siblings.map((n) => n.name)]
-
-        // Remove dragged item
-        const draggedIndex = newOrder.indexOf(draggedNode.name)
-        if (draggedIndex !== -1) {
-          newOrder.splice(draggedIndex, 1)
-        }
-
-        // Insert at new position
-        let targetIndex = newOrder.indexOf(dropTarget.node.name)
-        if (targetIndex !== -1) {
-          if (dropTarget.position === 'after') {
-            targetIndex++
+          if (n.children) {
+            result.push(...findSiblings(n.children, parentDir))
           }
-          newOrder.splice(targetIndex, 0, draggedNode.name)
-
-          onReorder(dropTarget.parentPath, newOrder)
         }
+        return result
+      }
+
+      const siblings = findSiblings(nodes, draggedParent)
+      const newOrder = [...siblings.map((n) => n.name)]
+
+      // Remove dragged item
+      const draggedIndex = newOrder.indexOf(draggedNode.name)
+      if (draggedIndex !== -1) {
+        newOrder.splice(draggedIndex, 1)
+      }
+
+      // Insert at new position
+      let targetIndex = newOrder.indexOf(dropTarget.node.name)
+      if (targetIndex !== -1) {
+        if (dropTarget.position === 'after') {
+          targetIndex++
+        }
+        newOrder.splice(targetIndex, 0, draggedNode.name)
+
+        onReorder(dropTarget.parentPath, newOrder)
       }
     }
 
@@ -70,7 +85,7 @@ export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onCo
     setDropTarget(null)
   }
 
-  const handleDragOver = (node: TreeNode, position: 'before' | 'after', parentPath: string) => {
+  const handleDragOver = (node: TreeNode, position: 'before' | 'after' | 'into', parentPath: string) => {
     if (!draggedNode || draggedNode.path === node.path) return
     setDropTarget({ node, position, parentPath })
   }
@@ -95,6 +110,7 @@ export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onCo
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
+          allNodes={nodes}
         />
       ))}
     </div>
@@ -110,10 +126,11 @@ interface TreeItemProps {
   summarizingPaths?: Set<string>
   onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
   draggedNode: TreeNode | null
-  dropTarget: { node: TreeNode; position: 'before' | 'after'; parentPath: string } | null
+  dropTarget: { node: TreeNode; position: 'before' | 'after' | 'into'; parentPath: string } | null
   onDragStart: (node: TreeNode) => void
   onDragEnd: () => void
-  onDragOver: (node: TreeNode, position: 'before' | 'after', parentPath: string) => void
+  onDragOver: (node: TreeNode, position: 'before' | 'after' | 'into', parentPath: string) => void
+  allNodes: TreeNode[]
 }
 
 function TreeItem({
@@ -129,6 +146,7 @@ function TreeItem({
   onDragStart,
   onDragEnd,
   onDragOver,
+  allNodes,
 }: TreeItemProps) {
   const [expanded, setExpanded] = useState(false)
   const hasChildren = node.children && node.children.length > 0
@@ -176,12 +194,27 @@ function TreeItem({
 
     if (!draggedNode || draggedNode.path === node.path) return
 
-    // Determine if cursor is in top or bottom half
-    const rect = e.currentTarget.getBoundingClientRect()
-    const midpoint = rect.top + rect.height / 2
-    const position = e.clientY < midpoint ? 'before' : 'after'
+    // Check if this node is a descendant of the dragged node
+    const isDescendant = (ancestorPath: string, descendantPath: string): boolean => {
+      return descendantPath.startsWith(ancestorPath + '/') || descendantPath.startsWith(ancestorPath + '\\')
+    }
 
-    onDragOver(node, position, parentPath)
+    // Can't drop into itself or its descendants
+    if (isDescendant(draggedNode.path, node.path)) return
+
+    // Directories and entities with sidecars can accept drops "into" them
+    const canAcceptInto = node.isDirectory || node.hasSidecar
+
+    if (canAcceptInto) {
+      // For containers, drop "into" them (move inside)
+      onDragOver(node, 'into', node.path)
+    } else {
+      // For regular files, determine position for reordering
+      const rect = e.currentTarget.getBoundingClientRect()
+      const midpoint = rect.top + rect.height / 2
+      const position = e.clientY < midpoint ? 'before' : 'after'
+      onDragOver(node, position, parentPath)
+    }
   }
 
   const handleDragEnd = (e: React.DragEvent) => {
@@ -192,6 +225,7 @@ function TreeItem({
   const isDragging = draggedNode?.path === node.path
   const isDropBefore = dropTarget?.node.path === node.path && dropTarget.position === 'before' && dropTarget.parentPath === parentPath
   const isDropAfter = dropTarget?.node.path === node.path && dropTarget.position === 'after' && dropTarget.parentPath === parentPath
+  const isDropInto = dropTarget?.node.path === node.path && dropTarget.position === 'into'
 
   const getIcon = () => {
     if (node.isSuggestion === 'todos') {
@@ -223,7 +257,7 @@ function TreeItem({
   return (
     <div className="tree-item">
       <div
-        className={`tree-item-row ${isSelected ? 'selected' : ''} ${isSuggestion ? 'suggestion' : ''} ${isDragging ? 'dragging' : ''} ${isDropBefore ? 'drop-before' : ''} ${isDropAfter ? 'drop-after' : ''}`}
+        className={`tree-item-row ${isSelected ? 'selected' : ''} ${isSuggestion ? 'suggestion' : ''} ${isDragging ? 'dragging' : ''} ${isDropBefore ? 'drop-before' : ''} ${isDropAfter ? 'drop-after' : ''} ${isDropInto ? 'drop-into' : ''}`}
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         draggable={!node.isSuggestion}
         onClick={handleRowClick}
@@ -270,6 +304,7 @@ function TreeItem({
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onDragOver={onDragOver}
+              allNodes={allNodes}
             />
           ))}
         </div>

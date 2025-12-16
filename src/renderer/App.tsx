@@ -942,6 +942,89 @@ function App() {
     refreshTree()
   }, [folderPath, refreshTree])
 
+  // Handle tree node move (cross-directory)
+  const handleTreeMove = useCallback(async (node: TreeNode, targetPath: string) => {
+    if (!folderPath) return
+
+    // Helper to move a file/folder
+    const moveItem = async (sourcePath: string, destPath: string, displayName: string) => {
+      const result = await window.electronAPI.move(sourcePath, destPath)
+      if (!result.success) {
+        setError(`Failed to move ${displayName}: ${result.error}`)
+        return false
+      }
+      return true
+    }
+
+    // Determine target directory
+    let targetDir = targetPath
+    const targetNode = findNodeByPath(treeNodes, targetPath)
+
+    if (targetNode) {
+      if (targetNode.isDirectory) {
+        // Target is a directory - use it directly
+        targetDir = targetNode.path
+      } else if (targetNode.hasSidecar) {
+        // Target is a file with sidecar - use the sidecar directory
+        const baseName = stripMdExtension(targetNode.name)
+        targetDir = `${getDirname(targetNode.path)}/${baseName}`
+      } else {
+        // Invalid target
+        setError('Invalid drop target')
+        return
+      }
+    }
+
+    // Move entity (all members + sidecar)
+    if (node.entity) {
+      // Move all entity members
+      for (const member of node.entity.members) {
+        const memberName = getBasename(member.path)
+        const success = await moveItem(member.path, `${targetDir}/${memberName}`, memberName)
+        if (!success) return
+      }
+
+      // Move sidecar folder if it exists
+      if (node.hasSidecar && node.children) {
+        const entityBaseName = node.entity.baseName
+        const sidecarPath = `${getDirname(node.path)}/${entityBaseName}`
+        await moveItem(sidecarPath, `${targetDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+      }
+    }
+    // Move file with sidecar
+    else if (node.hasSidecar && node.children) {
+      const nodeName = getBasename(node.path)
+      const baseName = stripMdExtension(nodeName)
+      const nodeDir = getDirname(node.path)
+
+      const success = await moveItem(node.path, `${targetDir}/${nodeName}`, nodeName)
+      if (!success) return
+      await moveItem(`${nodeDir}/${baseName}`, `${targetDir}/${baseName}`, `folder ${baseName}`)
+    }
+    // Move directory
+    else if (node.isDirectory) {
+      const dirName = getBasename(node.path)
+      const success = await moveItem(node.path, `${targetDir}/${dirName}`, dirName)
+      if (!success) return
+    }
+    // Move simple file
+    else {
+      const fileName = getBasename(node.path)
+      const success = await moveItem(node.path, `${targetDir}/${fileName}`, fileName)
+      if (!success) return
+    }
+
+    // Clear selection if moved node was selected
+    if (selectedNode?.path === node.path) {
+      setSelectedNode(null)
+      setActiveMember(null)
+      setFileContent(null)
+    }
+
+    // Refresh tree
+    refreshTree()
+  }, [folderPath, treeNodes, selectedNode, refreshTree])
+
   // Handle creating new entity member
   const handleCreateMember = async () => {
     if (!selectedNode || !folderPath) return
@@ -1006,6 +1089,7 @@ function App() {
                   summarizingPaths={summarizingPaths}
                   onContextMenu={handleTreeContextMenu}
                   onReorder={handleTreeReorder}
+                  onMove={handleTreeMove}
                   folderPath={folderPath}
                 />
               ) : (

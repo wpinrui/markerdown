@@ -244,6 +244,12 @@ body {
   border-bottom: 2px solid #4a9eff;
 }
 
+.tree-item-row.drop-into {
+  background-color: rgba(74, 158, 255, 0.2);
+  border: 2px solid #4a9eff;
+  border-radius: 4px;
+}
+
 .tree-item-row[draggable="true"] {
   cursor: grab;
 }
