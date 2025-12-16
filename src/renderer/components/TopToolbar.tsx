@@ -106,9 +106,6 @@ export function TopToolbar({
         <FormatToolbar
           editorRef={editorRef}
           activeFormats={activeFormats}
-          showAgentButton
-          isAgentActive={showAgent}
-          onAgentToggle={onAgentToggle}
         />
       )}
 
@@ -128,15 +125,13 @@ export function TopToolbar({
             {isSummarizing ? <span className="btn-spinner" /> : '📋'}
           </button>
         )}
-        {!isEditing && (
-          <button
-            className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
-            onClick={onAgentToggle}
-            title="Toggle Agent (Ctrl+Shift+A)"
-          >
-            ✦ Agent
-          </button>
-        )}
+        <button
+          className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
+          onClick={onAgentToggle}
+          title="Toggle Agent (Ctrl+Shift+A)"
+        >
+          ✦ Agent
+        </button>
       </div>
     </div>
   )

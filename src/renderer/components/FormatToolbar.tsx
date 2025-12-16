@@ -3,17 +3,11 @@ import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 interface FormatToolbarProps {
   editorRef: React.RefObject<MarkdownEditorRef | null>
   activeFormats: ActiveFormats
-  showAgentButton?: boolean
-  isAgentActive?: boolean
-  onAgentToggle?: () => void
 }
 
 export function FormatToolbar({
   editorRef,
   activeFormats,
-  showAgentButton,
-  isAgentActive,
-  onAgentToggle,
 }: FormatToolbarProps) {
   return (
     <div className="editor-format-toolbar" onMouseDown={(e) => e.preventDefault()}>
@@ -37,18 +31,6 @@ export function FormatToolbar({
       <button className={activeFormats.blockquote ? 'active' : ''} onClick={() => editorRef.current?.blockquote()} title="Quote">"</button>
       <button onClick={() => editorRef.current?.horizontalRule()} title="Horizontal Rule">―</button>
       <button onClick={() => editorRef.current?.insertTable()} title="Table">⊞</button>
-      {showAgentButton && (
-        <>
-          <span className="toolbar-divider" />
-          <button
-            className={`agent-sparkle-btn ${isAgentActive ? 'active' : ''}`}
-            onClick={onAgentToggle}
-            title="Toggle Agent (Ctrl+Shift+A)"
-          >
-            ✦
-          </button>
-        </>
-      )}
     </div>
   )
 }
