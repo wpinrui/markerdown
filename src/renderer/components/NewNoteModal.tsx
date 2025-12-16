@@ -10,13 +10,13 @@ interface NewNoteModalProps {
   selectedNode: TreeNode | null
 }
 
-// Flatten tree to get all nodes with their paths for validation
-function flattenTree(nodes: TreeNode[], parentPath: string | null = null): Array<{ node: TreeNode; parentPath: string | null }> {
-  const result: Array<{ node: TreeNode; parentPath: string | null }> = []
+// Flatten tree to get all node names for validation
+function getAllNodeNames(nodes: TreeNode[]): string[] {
+  const result: string[] = []
   for (const node of nodes) {
-    result.push({ node, parentPath })
+    result.push(node.name.toLowerCase())
     if (node.children) {
-      result.push(...flattenTree(node.children, node.path))
+      result.push(...getAllNodeNames(node.children))
     }
   }
   return result
@@ -120,11 +120,10 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
       setSelectedChildren(new Set())
 
       // Generate default name
-      const allNodes = flattenTree(treeNodes)
       let counter = 1
       let defaultName = `Untitled${counter}.md`
 
-      const existingNames = new Set(allNodes.map(({ node }) => node.name.toLowerCase()))
+      const existingNames = new Set(getAllNodeNames(treeNodes))
       while (existingNames.has(defaultName.toLowerCase())) {
         counter++
         defaultName = `Untitled${counter}.md`
@@ -140,20 +139,19 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
       return { type: 'error' as const, message: 'Name is required' }
     }
 
-    const normalizedName = ensureMdExtension(name)
-    const allNodes = flattenTree(treeNodes)
+    const normalizedName = ensureMdExtension(name).toLowerCase()
 
     // Check for duplicate at same parent level
     const siblings = getDirectChildren(treeNodes, parentPath)
     const siblingNames = siblings.map(n => n.name.toLowerCase())
 
-    if (siblingNames.includes(normalizedName.toLowerCase())) {
+    if (siblingNames.includes(normalizedName)) {
       return { type: 'error' as const, message: 'A file with this name already exists here' }
     }
 
     // Check for duplicate elsewhere
-    const allNames = allNodes.map(({ node }) => node.name.toLowerCase())
-    if (allNames.includes(normalizedName.toLowerCase())) {
+    const allNames = getAllNodeNames(treeNodes)
+    if (allNames.includes(normalizedName)) {
       return { type: 'warning' as const, message: 'A file with this name exists in another location' }
     }
 
@@ -184,11 +182,11 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
   const availableChildren = useMemo(() => getDirectChildren(treeNodes, parentPath), [treeNodes, parentPath])
 
   // Get display name for parent
-  const getParentDisplayName = () => {
+  const parentDisplayName = useMemo(() => {
     if (parentPath === null) return '(Root)'
     const parent = selectableParents.find(p => p.node.path === parentPath)
     return parent?.node.name ?? '(Root)'
-  }
+  }, [parentPath, selectableParents])
 
   return (
     <dialog ref={dialogRef} className="new-note-modal">
@@ -224,7 +222,7 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
               className="new-note-dropdown-btn"
               onClick={() => setShowParentDropdown(!showParentDropdown)}
             >
-              <span>{getParentDisplayName()}</span>
+              <span>{parentDisplayName}</span>
               {showParentDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </button>
             {showParentDropdown && (
