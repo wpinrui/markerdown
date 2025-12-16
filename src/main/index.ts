@@ -5,7 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
-import { getSummarizePrompt, getAgentSystemPrompt, AGENT_MARKERS } from '../shared/prompts'
+import { getSummarizePrompt, getAgentSystemPrompt } from '../shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -269,6 +269,8 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     const systemPrompt = getAgentSystemPrompt(memoryContext)
     args.push('--session-id', sessionId)
     args.push('--system-prompt', systemPrompt)
+    // Track this as our chat session
+    await addChatSessionId(workingDir, sessionId)
   }
 
   args.push(message)
@@ -321,6 +323,30 @@ function getSessionsDir(workingDir: string): string {
   const claudeDir = path.join(os.homedir(), '.claude', 'projects')
   const encodedPath = encodeProjectPath(workingDir)
   return path.join(claudeDir, encodedPath)
+}
+
+// Track our chat session IDs (separate from Claude CLI's session management)
+function getChatSessionsMetadataPath(workingDir: string): string {
+  const sessionsDir = getSessionsDir(workingDir)
+  return path.join(sessionsDir, 'markerdown-chat-sessions.json')
+}
+
+async function getChatSessionIds(workingDir: string): Promise<Set<string>> {
+  try {
+    const metadataPath = getChatSessionsMetadataPath(workingDir)
+    const content = await fs.promises.readFile(metadataPath, 'utf-8')
+    const ids: string[] = JSON.parse(content)
+    return new Set(ids)
+  } catch {
+    return new Set()
+  }
+}
+
+async function addChatSessionId(workingDir: string, sessionId: string): Promise<void> {
+  const ids = await getChatSessionIds(workingDir)
+  ids.add(sessionId)
+  const metadataPath = getChatSessionsMetadataPath(workingDir)
+  await fs.promises.writeFile(metadataPath, JSON.stringify([...ids], null, 2))
 }
 
 const MESSAGE_PREVIEW_LENGTH = 100
@@ -400,18 +426,19 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<AgentSession[]> => {
   try {
     const sessionsDir = getSessionsDir(workingDir)
-    const files = await fs.promises.readdir(sessionsDir)
-    const jsonlFiles = files.filter((f) => f.endsWith('.jsonl') && !f.startsWith('agent-'))
+    const chatSessionIds = await getChatSessionIds(workingDir)
+
+    if (chatSessionIds.size === 0) {
+      return []
+    }
 
     const sessions: AgentSession[] = []
 
-    for (const file of jsonlFiles) {
-      const sessionId = file.replace('.jsonl', '')
-      const filePath = path.join(sessionsDir, file)
+    for (const sessionId of chatSessionIds) {
+      const filePath = path.join(sessionsDir, `${sessionId}.jsonl`)
       const metadata = await parseSessionMetadata(filePath)
 
-      // Only show chat sessions (identified by marker)
-      if (metadata && metadata.firstMessage.startsWith(AGENT_MARKERS.CHAT)) {
+      if (metadata) {
         sessions.push({
           sessionId,
           timestamp: metadata.timestamp,
