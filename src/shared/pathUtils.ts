@@ -3,6 +3,9 @@
  * Handles both forward slashes (/) and backslashes (\).
  */
 
+export const PATH_SEPARATOR_FORWARD = '/'
+export const PATH_SEPARATOR_BACKWARD = '\\'
+
 export function getBasename(filePath: string): string {
   const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
   return filePath.substring(lastSlash + 1)
@@ -36,13 +39,15 @@ export function stripMultipleExtensions(filename: string, ...extensions: string[
 /**
  * Try finding a path with both forward and backslash separators.
  * Useful for cross-platform path handling when paths may use either separator.
- * Returns [original, alternate] where alternate uses the opposite separator.
+ * Returns [originalPath, alternatePath] where alternatePath uses the opposite separator.
  */
-export function normalizePath(path: string): string[] {
+export function normalizePath(path: string): [string, string] {
   // If path uses backslashes, also try forward slashes (and vice versa)
-  const hasBackslash = path.includes('\\')
-  const alternate = hasBackslash ? path.replace(/\\/g, '/') : path.replace(/\//g, '\\')
-  return [path, alternate]
+  const hasBackslash = path.includes(PATH_SEPARATOR_BACKWARD)
+  const alternatePath = hasBackslash
+    ? path.replace(/\\/g, PATH_SEPARATOR_FORWARD)
+    : path.replace(/\//g, PATH_SEPARATOR_BACKWARD)
+  return [path, alternatePath]
 }
 
 /**
@@ -51,8 +56,8 @@ export function normalizePath(path: string): string[] {
  */
 export function isDescendantPath(ancestorPath: string, descendantPath: string): boolean {
   return (
-    descendantPath.startsWith(ancestorPath + '/') ||
-    descendantPath.startsWith(ancestorPath + '\\')
+    descendantPath.startsWith(ancestorPath + PATH_SEPARATOR_FORWARD) ||
+    descendantPath.startsWith(ancestorPath + PATH_SEPARATOR_BACKWARD)
   )
 }
 
@@ -90,4 +95,26 @@ export function findSiblings<T extends { path: string; children?: T[] }>(
     }
   }
   return result
+}
+
+/**
+ * Flatten a tree structure into a flat array of nodes.
+ */
+export function flattenTree<T extends { children?: T[] }>(nodes: T[]): T[] {
+  const result: T[] = []
+  for (const node of nodes) {
+    result.push(node)
+    if (node.children) {
+      result.push(...flattenTree(node.children))
+    }
+  }
+  return result
+}
+
+/**
+ * Detect the path separator used in a path.
+ * Returns the separator character, defaulting to forward slash if ambiguous.
+ */
+export function detectPathSeparator(path: string): string {
+  return path.includes(PATH_SEPARATOR_BACKWARD) ? PATH_SEPARATOR_BACKWARD : PATH_SEPARATOR_FORWARD
 }

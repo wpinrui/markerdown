@@ -19,7 +19,7 @@ import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
-import { getBasename, getDirname, getExtension, stripExtension, stripMultipleExtensions, normalizePath, findNodeByPath } from '@shared/pathUtils'
+import { getBasename, getDirname, getExtension, stripExtension, stripMultipleExtensions, normalizePath, findNodeByPath, flattenTree, detectPathSeparator, PATH_SEPARATOR_FORWARD, PATH_SEPARATOR_BACKWARD } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
@@ -227,7 +227,7 @@ function App() {
 
       // Check for suggestion draft files and inject them at the top
       const suggestionNodes: TreeNode[] = []
-      const sep = folderPath.includes('\\') ? '\\' : '/'
+      const sep = detectPathSeparator(folderPath)
       const todosDraftPath = `${folderPath}${sep}.markerdown${sep}todos-draft.md`
       const eventsDraftPath = `${folderPath}${sep}.markerdown${sep}events-draft.md`
 
@@ -415,7 +415,7 @@ function App() {
 
     const suggestionType = selectedNode.isSuggestion
     const draftPath = selectedNode.path
-    const sep = folderPath.includes('\\') ? '\\' : '/'
+    const sep = detectPathSeparator(folderPath)
     const mainFilePath = `${folderPath}${sep}.markerdown${sep}${suggestionType}.md`
 
     try {
@@ -691,10 +691,13 @@ function App() {
           if (node.hasSidecar) {
             const oldSidecarPath = `${dir}/${node.entity.baseName}`
             const newSidecarPath = `${dir}/${newName}`
-            const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
-            if (!result.success) {
-              // Sidecar folder might not exist, ignore error
-              console.warn('Failed to rename sidecar folder:', result.error)
+            // Only attempt rename if sidecar folder actually exists
+            const sidecarExists = await window.electronAPI.exists(oldSidecarPath)
+            if (sidecarExists) {
+              const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
+              if (!result.success) {
+                setError(`Failed to rename sidecar folder: ${result.error}`)
+              }
             }
           }
 
@@ -736,20 +739,8 @@ function App() {
   const getSiblingNames = useCallback((node: TreeNode): string[] => {
     const dir = getDirname(node.path)
 
-    // Flatten all nodes in tree
-    const flattenNodes = (nodes: TreeNode[]): TreeNode[] => {
-      const result: TreeNode[] = []
-      for (const n of nodes) {
-        result.push(n)
-        if (n.children) {
-          result.push(...flattenNodes(n.children))
-        }
-      }
-      return result
-    }
-
     // Find all nodes in the same directory (excluding the target node)
-    return flattenNodes(treeNodes)
+    return flattenTree(treeNodes)
       .filter((n) => getDirname(n.path) === dir && n.path !== node.path)
       .map((n) => n.name)
   }, [treeNodes])
