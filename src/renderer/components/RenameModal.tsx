@@ -140,7 +140,8 @@ export function RenameModal({
     return null
   }, [inputValue, mode, entity, member, existingNames, currentInfo])
 
-  const canSubmit = validation?.type !== 'error' && inputValue.trim() !== ''
+  // In member mode, empty suffix is valid (becomes default member)
+  const canSubmit = validation?.type !== 'error' && (mode === 'member' || inputValue.trim() !== '')
   const hasChanged = inputValue.trim() !== (mode === 'member' ? currentInfo.suffix : currentInfo.baseName)
 
   const handleSubmit = () => {
