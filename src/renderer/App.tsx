@@ -39,8 +39,8 @@ function App() {
   const [editContent, setEditContent] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const saveInProgressRef = useRef<Set<string>>(new Set())
-  const standaloneEditorRef = useRef<MarkdownEditorRef>(null)
-  const [standaloneActiveFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
+  const editorRef = useRef<MarkdownEditorRef>(null)
+  const [activeFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleFolderChange = (path: string) => {
     setFolderPath(path)
@@ -142,7 +142,7 @@ function App() {
   }, [])
 
   // Handle selection change for standalone editor
-  const handleStandaloneSelectionChange = useCallback((formats: ActiveFormats) => {
+  const handleEditorSelectionChange = useCallback((formats: ActiveFormats) => {
     setStandaloneActiveFormats(formats)
   }, [])
 
@@ -337,7 +337,7 @@ function App() {
     }
     return (
       <MarkdownEditor
-        ref={standaloneEditorRef}
+        ref={editorRef}
         content={editContent ?? fileContent!}
         filePath={filePath}
         mode={editMode}
@@ -345,7 +345,7 @@ function App() {
         onContentChange={handleEditContentChange}
         isDirty={isDirty}
         showToolbar={false}
-        onSelectionChange={handleStandaloneSelectionChange}
+        onSelectionChange={handleEditorSelectionChange}
       />
     )
   }
@@ -377,8 +377,8 @@ function App() {
             onTabChange={handleTabChange}
             editMode={editMode}
             onEditModeChange={setEditMode}
-            editorRef={standaloneEditorRef}
-            activeFormats={standaloneActiveFormats}
+            editorRef={editorRef}
+            activeFormats={activeFormats}
             isDirty={isDirty}
             showModeToggle={!!isMarkdownActive}
             isEditing={isEditing}
