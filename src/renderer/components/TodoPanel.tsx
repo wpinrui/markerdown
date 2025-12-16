@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Edit2 } from 'lucide-react'
 import type { TodoItem } from '@shared/types'
 import { NewTodoModal } from './NewTodoModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
+import { InlineEditInput } from './InlineEditInput'
+import { useInlineEdit } from '../hooks/useInlineEdit'
 
 type FilterMode = 'all' | 'incomplete' | 'completed'
 
@@ -93,7 +95,6 @@ function sortTodos(todos: TodoItem[]): TodoItem[] {
 export function TodoPanel({ workingDir, style }: TodoPanelProps) {
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [filter, setFilter] = useState<FilterMode>('all')
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showNewModal, setShowNewModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
@@ -171,17 +172,16 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
     setShowNewModal(false)
   }
 
-  const toggleExpanded = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
+  // Inline edit state
+  const handleEditSave = useCallback(async (id: string, newText: string) => {
+    const newTodos = todos.map((t) =>
+      t.id === id ? { ...t, text: newText } : t
+    )
+    setTodos(newTodos)
+    await saveTodos(newTodos)
+  }, [todos, saveTodos])
+
+  const { editingId, editText, setEditText, startEdit, saveEdit, cancelEdit } = useInlineEdit(handleEditSave)
 
   // Filter todos
   const filteredTodos = todos.filter((todo) => {
@@ -241,8 +241,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
           </div>
         ) : (
           sortedTodos.map((todo) => {
-            const isExpanded = expandedIds.has(todo.id)
-            const hasDetails = todo.dueDate || todo.notes
+            const isEditing = editingId === todo.id
 
             return (
               <div
@@ -256,34 +255,48 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
                     onChange={() => handleToggleComplete(todo.id)}
                     className="todo-checkbox"
                   />
-                  {hasDetails && (
-                    <button
-                      className="todo-expand-btn"
-                      onClick={() => toggleExpanded(todo.id)}
-                    >
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                  )}
-                  <span className="todo-text">{todo.text}</span>
-                  {todo.dueDate && (
-                    <span className="todo-due">{formatDateForDisplay(todo.dueDate)}</span>
-                  )}
-                  {deleteConfirmId === todo.id ? (
-                    <div className="todo-delete-confirm">
-                      <button onClick={() => handleDelete(todo.id)}>Yes</button>
-                      <button onClick={() => setDeleteConfirmId(null)}>No</button>
-                    </div>
+                  {isEditing ? (
+                    <InlineEditInput
+                      value={editText}
+                      onChange={setEditText}
+                      onSave={saveEdit}
+                      onCancel={cancelEdit}
+                      placeholder="Todo text"
+                      className="todo-edit-input"
+                    />
                   ) : (
-                    <button
-                      className="todo-delete-btn"
-                      onClick={() => setDeleteConfirmId(todo.id)}
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <>
+                      <span className="todo-text">{todo.text}</span>
+                      {todo.dueDate && (
+                        <span className="todo-due">{formatDateForDisplay(todo.dueDate)}</span>
+                      )}
+                      <button
+                        type="button"
+                        className="todo-edit-btn"
+                        onClick={() => startEdit(todo.id, todo.text)}
+                        title="Edit"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      {deleteConfirmId === todo.id ? (
+                        <div className="todo-delete-confirm">
+                          <button type="button" onClick={() => handleDelete(todo.id)}>Yes</button>
+                          <button type="button" onClick={() => setDeleteConfirmId(null)}>No</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="todo-delete-btn"
+                          onClick={() => setDeleteConfirmId(todo.id)}
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
-                {isExpanded && todo.notes && (
+                {!isEditing && todo.notes && (
                   <div className="todo-notes">{todo.notes}</div>
                 )}
               </div>

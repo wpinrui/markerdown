@@ -135,6 +135,9 @@ function App() {
     window.electronAPI.setLastFolder(path).catch((err) => {
       console.error('Failed to save last folder:', err)
     })
+    window.electronAPI.setWindowTitle('Markerdown').catch((err: unknown) => {
+      console.error('Failed to set window title:', err)
+    })
   }
 
   // Load settings on startup
@@ -403,6 +406,11 @@ function App() {
     } else {
       setActiveMember(null)
     }
+    // Update window title
+    const filename = node.entity?.baseName || getBasename(node.path)
+    window.electronAPI.setWindowTitle(`${filename} - Markerdown`).catch((err: unknown) => {
+      console.error('Failed to set window title:', err)
+    })
   }
 
   const handleTabChange = (member: EntityMember) => {
@@ -900,6 +908,46 @@ function App() {
   const isMarkdownActive = activeMember?.type === 'markdown' ||
     (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion) && !selectedNode.entity)
 
+  // Get file info for standalone files
+  const getSelectedFileInfo = () => {
+    if (!selectedNode || selectedNode.entity) return { fileName: undefined, fileType: undefined }
+
+    if (isMarkdownFile(selectedNode.name)) {
+      return { fileName: stripMdExtension(selectedNode.name), fileType: 'markdown' }
+    }
+    if (isPdfFile(selectedNode.name)) {
+      return { fileName: stripPdfExtension(selectedNode.name), fileType: 'pdf' }
+    }
+    return { fileName: selectedNode.name, fileType: 'other' }
+  }
+
+  const { fileName: selectedFileName, fileType: selectedFileType } = getSelectedFileInfo()
+
+  // Handle creating new entity member
+  const handleCreateMember = async () => {
+    if (!selectedNode || !folderPath) return
+
+    // Prompt for variant name
+    const variantName = prompt('Enter variant name (e.g., "summary", "notes"):')
+    if (!variantName) return
+
+    const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(selectedNode.name))
+    const dirPath = getDirname(selectedNode.path)
+    const newFilePath = `${dirPath}/${baseName}.${variantName}.md`
+
+    // Create the new file
+    const result = await window.electronAPI.writeFile(newFilePath, `# ${baseName} - ${variantName}\n\n`)
+    if (!result.success) {
+      setError(`Failed to create variant: ${result.error}`)
+      return
+    }
+
+    // Refresh tree and select the new file
+    setTimeout(() => {
+      refreshTree()
+    }, TREE_REFRESH_DELAY_MS)
+  }
+
   // Render markdown content (viewer or editor) - shared between entity and standalone
   const renderMarkdownContent = (filePath: string) => {
     if (editMode === 'view') {
@@ -959,6 +1007,8 @@ function App() {
             entity={selectedNode?.entity}
             activeMember={activeMember ?? undefined}
             onTabChange={handleTabChange}
+            selectedFileName={selectedFileName}
+            selectedFileType={selectedFileType}
             onTabContextMenu={handleTabContextMenu}
             editMode={editMode}
             onEditModeChange={setEditMode}
@@ -976,6 +1026,7 @@ function App() {
             onDiscardSuggestion={handleDiscardSuggestion}
             sidebarVisible={sidebarVisible}
             onSidebarToggle={() => setSidebarVisible((v) => !v)}
+            onCreateMember={handleCreateMember}
           />
           <div className="content-body-wrapper">
             <div className="content-body">

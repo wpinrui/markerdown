@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getShowClaudeMd: (): Promise<boolean> => ipcRenderer.invoke('settings:getShowClaudeMd'),
   setShowClaudeMd: (show: boolean): Promise<void> =>
     ipcRenderer.invoke('settings:setShowClaudeMd', show),
+  setWindowTitle: (title: string): Promise<void> =>
+    ipcRenderer.invoke('window:setTitle', title),
   watchFolder: (folderPath: string): Promise<void> =>
     ipcRenderer.invoke('fs:watchFolder', folderPath),
   unwatchFolder: (): Promise<void> => ipcRenderer.invoke('fs:unwatchFolder'),
