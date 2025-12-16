@@ -6,8 +6,12 @@ interface MediaViewerProps {
 
 export function MediaViewer({ filePath }: MediaViewerProps) {
   const isVideo = isVideoFile(filePath)
-  // Convert Windows path to file:// URL
-  const fileUrl = `file:///${filePath.replace(/\\/g, '/')}`
+  // Convert Windows path to file:// URL with proper encoding for special characters
+  const fileUrl = `file:///${filePath
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')}`
 
   return (
     <div className="media-viewer">
