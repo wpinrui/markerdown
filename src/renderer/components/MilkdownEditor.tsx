@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react'
 import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx, editorViewCtx } from '@milkdown/core'
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, insertImageCommand, toggleInlineCodeCommand } from '@milkdown/preset-commonmark'
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/preset-gfm'
@@ -9,6 +9,7 @@ import { callCommand } from '@milkdown/utils'
 import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
 import { ActiveFormats, defaultFormats } from './editorTypes'
+import { useImagePaste } from '../hooks/useImagePaste'
 
 export type { ActiveFormats }
 
@@ -248,55 +249,20 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
       contentRef.current = content
     }, [content])
 
-    // Handle paste events for image pasting
-    useEffect(() => {
-      const container = containerRef.current
-      if (!container) return
+    // Handle image pasting
+    useImagePaste({
+      containerRef,
+      filePath,
+      onImageSaved: useCallback((relativePath: string) => {
+        const editor = editorRef.current
+        if (!editor) return
 
-      const handlePaste = async (e: ClipboardEvent) => {
-        const items = e.clipboardData?.items
-        if (!items) return
-
-        for (const item of Array.from(items)) {
-          if (item.type.startsWith('image/')) {
-            e.preventDefault()
-
-            const file = item.getAsFile()
-            if (!file) continue
-
-            // Convert to data URL
-            const reader = new FileReader()
-            reader.onload = async () => {
-              const dataUrl = reader.result as string
-
-              // Determine extension from MIME type
-              const extension = item.type.split('/')[1] === 'jpeg' ? '.jpg' : `.${item.type.split('/')[1]}`
-
-              // Save image via IPC
-              const result = await window.electronAPI.saveImage(filePath, dataUrl, extension)
-
-              if (result.success && result.relativePath) {
-                // Insert image using Milkdown command
-                const editor = editorRef.current
-                if (!editor) return
-
-                editor.action(callCommand(insertImageCommand.key, {
-                  src: result.relativePath,
-                  alt: 'image'
-                }))
-              } else {
-                console.error('Failed to save image:', result.error)
-              }
-            }
-            reader.readAsDataURL(file)
-            break
-          }
-        }
-      }
-
-      container.addEventListener('paste', handlePaste)
-      return () => container.removeEventListener('paste', handlePaste)
-    }, [filePath])
+        editor.action(callCommand(insertImageCommand.key, {
+          src: relativePath,
+          alt: 'image'
+        }))
+      }, []),
+    })
 
     return <div ref={containerRef} className="milkdown-editor" />
   }
