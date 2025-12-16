@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { isMarkdownFile, isPdfFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
-import { getDirname } from '@shared/pathUtils'
+import { getDirname, findSiblings, isDescendantPath } from '@shared/pathUtils'
 
 const INDENT_PX = 16
 const BASE_PADDING_PX = 8
@@ -46,20 +46,6 @@ export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onCo
     }
     // Handle reordering within same parent
     else if (draggedParent === dropTarget.parentPath && onReorder) {
-      // Get siblings by filtering nodes that share the same parent
-      const findSiblings = (nodeList: TreeNode[], parentDir: string): TreeNode[] => {
-        const result: TreeNode[] = []
-        for (const n of nodeList) {
-          if (getDirname(n.path) === parentDir) {
-            result.push(n)
-          }
-          if (n.children) {
-            result.push(...findSiblings(n.children, parentDir))
-          }
-        }
-        return result
-      }
-
       const siblings = findSiblings(nodes, draggedParent)
       const newOrder = [...siblings.map((n) => n.name)]
 
@@ -90,8 +76,8 @@ export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onCo
     setDropTarget({ node, position, parentPath })
   }
 
-  // For root nodes, parent path is the folder path
-  const rootParentPath = folderPath || getDirname(nodes[0]?.path || '')
+  // For root nodes, parent path is the folder path or the first node's parent
+  const rootParentPath = folderPath || (nodes.length > 0 ? getDirname(nodes[0].path) : '')
 
   return (
     <div className="tree-view">
@@ -194,13 +180,8 @@ function TreeItem({
 
     if (!draggedNode || draggedNode.path === node.path) return
 
-    // Check if this node is a descendant of the dragged node
-    const isDescendant = (ancestorPath: string, descendantPath: string): boolean => {
-      return descendantPath.startsWith(ancestorPath + '/') || descendantPath.startsWith(ancestorPath + '\\')
-    }
-
     // Can't drop into itself or its descendants
-    if (isDescendant(draggedNode.path, node.path)) return
+    if (isDescendantPath(draggedNode.path, node.path)) return
 
     // Directories and entities with sidecars can accept drops "into" them
     const canAcceptInto = node.isDirectory || node.hasSidecar

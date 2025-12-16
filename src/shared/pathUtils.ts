@@ -40,3 +40,50 @@ export function stripMultipleExtensions(filename: string, ...extensions: string[
 export function normalizePath(path: string): string[] {
   return [path, path.replace(/\//g, '\\')]
 }
+
+/**
+ * Check if a path is a descendant of an ancestor path.
+ * Handles both forward and backslash separators.
+ */
+export function isDescendantPath(ancestorPath: string, descendantPath: string): boolean {
+  return (
+    descendantPath.startsWith(ancestorPath + '/') ||
+    descendantPath.startsWith(ancestorPath + '\\')
+  )
+}
+
+/**
+ * Find node by path in a tree structure.
+ */
+export function findNodeByPath<T extends { path: string; children?: T[] }>(
+  nodes: T[],
+  targetPath: string
+): T | null {
+  for (const node of nodes) {
+    if (node.path === targetPath) return node
+    if (node.children) {
+      const found = findNodeByPath(node.children, targetPath)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/**
+ * Find all sibling nodes in a tree that share the same parent directory.
+ */
+export function findSiblings<T extends { path: string; children?: T[] }>(
+  nodes: T[],
+  parentDir: string
+): T[] {
+  const result: T[] = []
+  for (const node of nodes) {
+    if (getDirname(node.path) === parentDir) {
+      result.push(node)
+    }
+    if (node.children) {
+      result.push(...findSiblings(node.children, parentDir))
+    }
+  }
+  return result
+}
