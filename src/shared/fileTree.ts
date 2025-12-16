@@ -5,6 +5,9 @@ import {
   getAudioExtension,
   MARKDOWN_EXTENSION,
   PDF_EXTENSION,
+  IMAGES_DIR,
+  CLAUDE_DIR,
+  MARKERDOWN_DIR,
 } from './types'
 import type { FileEntry, TreeNode, Entity, EntityMember, EntityMemberType } from './types'
 
@@ -117,8 +120,8 @@ export async function buildFileTree(
   })
   const dirs = entries.filter((e) => {
     if (!e.isDirectory) return false
-    // Hide internal folders: .markerdown, .images, .claude
-    if (e.name === '.markerdown' || e.name === '.images' || e.name === '.claude') return false
+    // Hide internal folders
+    if (e.name === MARKERDOWN_DIR || e.name === IMAGES_DIR || e.name === CLAUDE_DIR) return false
     return true
   })
 
