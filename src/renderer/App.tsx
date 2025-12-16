@@ -19,6 +19,7 @@ import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
+import { getBasename, getDirname } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
@@ -27,18 +28,6 @@ const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 500
-
-// Extract filename from path (handles both / and \ separators)
-function getBasename(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  return filePath.substring(lastSlash + 1)
-}
-
-// Extract directory from path (handles both / and \ separators)
-function getDirname(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  return filePath.substring(0, lastSlash)
-}
 
 // Find a node by path in the tree
 function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { getBasename, getExtension, stripExtension } from '@shared/pathUtils'
 import type { TreeNode, EntityMember, Entity } from '@shared/types'
 
 type RenameMode = 'entity' | 'file' | 'member'
@@ -14,21 +15,6 @@ interface RenameModalProps {
   entity?: Entity
   // All existing names at the same level (for conflict detection)
   existingNames?: string[]
-}
-
-function getBasename(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  return filePath.substring(lastSlash + 1)
-}
-
-function getExtension(filename: string): string {
-  const lastDot = filename.lastIndexOf('.')
-  return lastDot !== -1 ? filename.substring(lastDot) : ''
-}
-
-function stripExtension(filename: string): string {
-  const lastDot = filename.lastIndexOf('.')
-  return lastDot !== -1 ? filename.substring(0, lastDot) : filename
 }
 
 export function RenameModal({

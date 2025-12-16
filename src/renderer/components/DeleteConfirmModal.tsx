@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { getBasename } from '@shared/pathUtils'
 import type { TreeNode, EntityMember } from '@shared/types'
 
 interface DeleteConfirmModalProps {
@@ -10,12 +11,6 @@ interface DeleteConfirmModalProps {
   node?: TreeNode
   // For deleting a specific entity member (from tab context menu)
   member?: EntityMember
-  entityBaseName?: string
-}
-
-function getBasename(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  return filePath.substring(lastSlash + 1)
 }
 
 export function DeleteConfirmModal({
@@ -24,7 +19,6 @@ export function DeleteConfirmModal({
   onConfirm,
   node,
   member,
-  entityBaseName,
 }: DeleteConfirmModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
