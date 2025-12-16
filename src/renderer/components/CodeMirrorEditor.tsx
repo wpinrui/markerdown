@@ -5,6 +5,34 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 
+export interface ActiveFormats {
+  bold: boolean
+  italic: boolean
+  strikethrough: boolean
+  code: boolean
+  link: boolean
+  headingLevel: number | null
+  bulletList: boolean
+  orderedList: boolean
+  taskList: boolean
+  blockquote: boolean
+  codeBlock: boolean
+}
+
+const defaultFormats: ActiveFormats = {
+  bold: false,
+  italic: false,
+  strikethrough: false,
+  code: false,
+  link: false,
+  headingLevel: null,
+  bulletList: false,
+  orderedList: false,
+  taskList: false,
+  blockquote: false,
+  codeBlock: false,
+}
+
 export interface CodeMirrorEditorRef {
   bold: () => void
   italic: () => void
@@ -20,22 +48,99 @@ export interface CodeMirrorEditorRef {
   insertCode: () => void
   insertCodeBlock: () => void
   insertTable: () => void
+  getActiveFormats: () => ActiveFormats
 }
 
 interface CodeMirrorEditorProps {
   content: string
   onChange: (content: string) => void
+  onSelectionChange?: (formats: ActiveFormats) => void
 }
 
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditorProps>(
-  function CodeMirrorEditor({ content, onChange }, ref) {
+  function CodeMirrorEditor({ content, onChange, onSelectionChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const onChangeRef = useRef(onChange)
+    const onSelectionChangeRef = useRef(onSelectionChange)
     onChangeRef.current = onChange
+    onSelectionChangeRef.current = onSelectionChange
 
     // Track if we're programmatically updating content
     const isUpdatingRef = useRef(false)
+
+    // Helper to detect active formats from markdown at cursor
+    const getActiveFormats = useCallback((): ActiveFormats => {
+      const view = viewRef.current
+      if (!view) return defaultFormats
+
+      const { from } = view.state.selection.main
+      const doc = view.state.doc
+      const line = doc.lineAt(from)
+      const lineText = line.text
+      const formats: ActiveFormats = { ...defaultFormats }
+
+      // Check line-level formatting
+      const headingMatch = lineText.match(/^(#{1,6})\s/)
+      if (headingMatch) {
+        formats.headingLevel = headingMatch[1].length
+      }
+
+      if (/^\s*[-*+]\s(?!\[)/.test(lineText)) formats.bulletList = true
+      if (/^\s*\d+\.\s/.test(lineText)) formats.orderedList = true
+      if (/^\s*[-*+]\s\[[ x]\]/.test(lineText)) formats.taskList = true
+      if (/^\s*>\s/.test(lineText)) formats.blockquote = true
+
+      // Check if inside code block by scanning up/down for ```
+      let inCodeBlock = false
+      let fenceCount = 0
+      for (let i = 1; i <= line.number; i++) {
+        const l = doc.line(i).text
+        if (/^```/.test(l)) fenceCount++
+      }
+      if (fenceCount % 2 === 1) {
+        inCodeBlock = true
+        formats.codeBlock = true
+      }
+
+      // Check inline formatting around cursor (simplified check)
+      if (!inCodeBlock) {
+        // Get text around cursor (before and after on current line)
+        const cursorCol = from - line.from
+        const beforeCursor = lineText.slice(0, cursorCol)
+        const afterCursor = lineText.slice(cursorCol)
+
+        // Count opening/closing markers before cursor to determine if we're "inside"
+        const countBefore = (pattern: RegExp) => (beforeCursor.match(pattern) || []).length
+        const countAfter = (pattern: RegExp) => (afterCursor.match(pattern) || []).length
+
+        // Bold: ** or __
+        const boldOpenBefore = countBefore(/\*\*(?!\s)/g)
+        const boldCloseBefore = countBefore(/(?<!\s)\*\*/g)
+        if (boldOpenBefore > boldCloseBefore) formats.bold = true
+
+        // Italic: * or _ (not ** or __)
+        const italicOpenBefore = countBefore(/(?<!\*)\*(?!\*|\s)/g)
+        const italicCloseBefore = countBefore(/(?<!\s|\*)\*(?!\*)/g)
+        if (italicOpenBefore > italicCloseBefore) formats.italic = true
+
+        // Strikethrough: ~~
+        const strikeOpenBefore = countBefore(/~~(?!\s)/g)
+        const strikeCloseBefore = countBefore(/(?<!\s)~~/g)
+        if (strikeOpenBefore > strikeCloseBefore) formats.strikethrough = true
+
+        // Inline code: `
+        const codeCount = countBefore(/`/g)
+        if (codeCount % 2 === 1) formats.code = true
+
+        // Link: check if cursor is inside [text](url)
+        if (/\[[^\]]*$/.test(beforeCursor) && /^[^\]]*\]\([^)]*\)/.test(afterCursor)) {
+          formats.link = true
+        }
+      }
+
+      return formats
+    }, [])
 
     // Helper to wrap selection or insert at cursor
     const wrapSelection = useCallback((before: string, after: string) => {
@@ -111,13 +216,17 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       insertCode: () => wrapSelection('`', '`'),
       insertCodeBlock: () => insertAtCursor('\n```\n\n```\n'),
       insertTable: () => insertAtCursor('\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell 1   | Cell 2   | Cell 3   |\n'),
+      getActiveFormats,
     }))
 
-    const handleChange = useCallback((update: { docChanged: boolean; state: EditorState }) => {
+    const handleChange = useCallback((update: { docChanged: boolean; selectionSet: boolean; state: EditorState }) => {
       if (update.docChanged && !isUpdatingRef.current) {
         onChangeRef.current(update.state.doc.toString())
       }
-    }, [])
+      if (update.selectionSet || update.docChanged) {
+        onSelectionChangeRef.current?.(getActiveFormats())
+      }
+    }, [getActiveFormats])
 
     useEffect(() => {
       if (!containerRef.current) return

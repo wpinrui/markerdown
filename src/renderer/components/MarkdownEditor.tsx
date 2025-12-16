@@ -1,9 +1,24 @@
 import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import type { EditMode } from '@shared/types'
 import { EditorToolbar } from './EditorToolbar'
-import { MilkdownEditor, MilkdownEditorRef } from './MilkdownEditor'
-import { CodeMirrorEditor, CodeMirrorEditorRef } from './CodeMirrorEditor'
+import { MilkdownEditor, MilkdownEditorRef, ActiveFormats as MilkdownActiveFormats } from './MilkdownEditor'
+import { CodeMirrorEditor, CodeMirrorEditorRef, ActiveFormats as CodeMirrorActiveFormats } from './CodeMirrorEditor'
 import { StyledMarkdown } from '../markdownConfig'
+
+// Combined ActiveFormats type
+export interface ActiveFormats {
+  bold: boolean
+  italic: boolean
+  strikethrough: boolean
+  code: boolean
+  link: boolean
+  headingLevel: number | null
+  bulletList: boolean
+  orderedList: boolean
+  taskList: boolean
+  blockquote: boolean
+  codeBlock: boolean
+}
 
 export interface MarkdownEditorRef {
   bold: () => void
@@ -20,6 +35,7 @@ export interface MarkdownEditorRef {
   insertCode: () => void
   insertCodeBlock: () => void
   insertTable: () => void
+  getActiveFormats: () => ActiveFormats
 }
 
 interface MarkdownEditorProps {
@@ -30,16 +46,46 @@ interface MarkdownEditorProps {
   onContentChange: (content: string) => void
   isDirty: boolean
   showToolbar?: boolean
+  onSelectionChange?: (formats: ActiveFormats) => void
+}
+
+const defaultFormats: ActiveFormats = {
+  bold: false,
+  italic: false,
+  strikethrough: false,
+  code: false,
+  link: false,
+  headingLevel: null,
+  bulletList: false,
+  orderedList: false,
+  taskList: false,
+  blockquote: false,
+  codeBlock: false,
 }
 
 export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
   function MarkdownEditor(
-    { content, filePath, mode, onModeChange, onContentChange, isDirty, showToolbar = true },
+    { content, filePath, mode, onModeChange, onContentChange, isDirty, showToolbar = true, onSelectionChange },
     ref
   ) {
     const milkdownRef = useRef<MilkdownEditorRef>(null)
     const codemirrorRef = useRef<CodeMirrorEditorRef>(null)
     const currentContentRef = useRef(content)
+
+    // Helper to get active formats from current editor
+    const getActiveFormats = useCallback((): ActiveFormats => {
+      if (mode === 'visual') {
+        return milkdownRef.current?.getActiveFormats() ?? defaultFormats
+      } else if (mode === 'code') {
+        return codemirrorRef.current?.getActiveFormats() ?? defaultFormats
+      }
+      return defaultFormats
+    }, [mode])
+
+    // Handle selection change from child editors
+    const handleSelectionChange = useCallback((formats: MilkdownActiveFormats | CodeMirrorActiveFormats) => {
+      onSelectionChange?.(formats as ActiveFormats)
+    }, [onSelectionChange])
 
     // Expose formatting commands - delegate to active editor
     useImperativeHandle(ref, () => ({
@@ -99,6 +145,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
         if (mode === 'visual') milkdownRef.current?.insertTable()
         else if (mode === 'code') codemirrorRef.current?.insertTable()
       },
+      getActiveFormats,
     }))
 
     // Track content changes
@@ -138,6 +185,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
               ref={milkdownRef}
               content={currentContentRef.current}
               onChange={handleContentChange}
+              onSelectionChange={handleSelectionChange}
             />
           )}
 
@@ -146,6 +194,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
               ref={codemirrorRef}
               content={currentContentRef.current}
               onChange={handleContentChange}
+              onSelectionChange={handleSelectionChange}
             />
           )}
         </div>

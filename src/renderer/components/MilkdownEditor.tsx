@@ -1,5 +1,5 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/core'
+import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx, editorViewCtx } from '@milkdown/core'
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, insertImageCommand } from '@milkdown/preset-commonmark'
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/preset-gfm'
 import { history } from '@milkdown/plugin-history'
@@ -9,8 +9,23 @@ import { callCommand } from '@milkdown/utils'
 import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
 
+export interface ActiveFormats {
+  bold: boolean
+  italic: boolean
+  strikethrough: boolean
+  code: boolean
+  link: boolean
+  headingLevel: number | null // 1-6 or null
+  bulletList: boolean
+  orderedList: boolean
+  taskList: boolean
+  blockquote: boolean
+  codeBlock: boolean
+}
+
 export interface MilkdownEditorRef {
   getMarkdown: () => string
+  getActiveFormats: () => ActiveFormats
   bold: () => void
   italic: () => void
   strikethrough: () => void
@@ -29,19 +44,79 @@ export interface MilkdownEditorRef {
 interface MilkdownEditorProps {
   content: string
   onChange: (content: string) => void
+  onSelectionChange?: (formats: ActiveFormats) => void
+}
+
+const defaultFormats: ActiveFormats = {
+  bold: false,
+  italic: false,
+  strikethrough: false,
+  code: false,
+  link: false,
+  headingLevel: null,
+  bulletList: false,
+  orderedList: false,
+  taskList: false,
+  blockquote: false,
+  codeBlock: false,
 }
 
 export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>(
-  function MilkdownEditor({ content, onChange }, ref) {
+  function MilkdownEditor({ content, onChange, onSelectionChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const editorRef = useRef<Editor | null>(null)
     const contentRef = useRef(content)
     const onChangeRef = useRef(onChange)
+    const onSelectionChangeRef = useRef(onSelectionChange)
     onChangeRef.current = onChange
+    onSelectionChangeRef.current = onSelectionChange
+
+    // Helper to detect active formats from ProseMirror state
+    const getActiveFormats = (): ActiveFormats => {
+      const editor = editorRef.current
+      if (!editor) return defaultFormats
+
+      try {
+        const view = editor.ctx.get(editorViewCtx)
+        const { state } = view
+        const { from, $from } = state.selection
+        const formats: ActiveFormats = { ...defaultFormats }
+
+        // Check marks at cursor position
+        const marks = state.storedMarks || $from.marks()
+        for (const mark of marks) {
+          if (mark.type.name === 'strong') formats.bold = true
+          if (mark.type.name === 'emphasis') formats.italic = true
+          if (mark.type.name === 'strikethrough') formats.strikethrough = true
+          if (mark.type.name === 'inlineCode') formats.code = true
+          if (mark.type.name === 'link') formats.link = true
+        }
+
+        // Check parent nodes for block-level formatting
+        for (let depth = $from.depth; depth >= 0; depth--) {
+          const node = $from.node(depth)
+          if (node.type.name === 'heading') {
+            formats.headingLevel = node.attrs.level as number
+          }
+          if (node.type.name === 'bullet_list') formats.bulletList = true
+          if (node.type.name === 'ordered_list') formats.orderedList = true
+          if (node.type.name === 'list_item' && node.attrs.checked !== undefined) {
+            formats.taskList = true
+          }
+          if (node.type.name === 'blockquote') formats.blockquote = true
+          if (node.type.name === 'code_block') formats.codeBlock = true
+        }
+
+        return formats
+      } catch {
+        return defaultFormats
+      }
+    }
 
     // Expose getMarkdown method and formatting commands
     useImperativeHandle(ref, () => ({
       getMarkdown: () => contentRef.current,
+      getActiveFormats,
       bold: () => {
         editorRef.current?.action(callCommand(toggleStrongCommand.key))
       },
@@ -124,6 +199,16 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
         }
 
         editorRef.current = editor
+
+        // Set up selection change tracking
+        const view = editor.ctx.get(editorViewCtx)
+        const originalDispatch = view.dispatch.bind(view)
+        view.dispatch = (tr) => {
+          originalDispatch(tr)
+          if (tr.selectionSet || tr.docChanged) {
+            onSelectionChangeRef.current?.(getActiveFormats())
+          }
+        }
       }
 
       initEditor()
@@ -134,6 +219,26 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
         editorRef.current = null
       }
     }, []) // Only run on mount
+
+    // Track clicks and keyboard navigation for selection changes
+    useEffect(() => {
+      const container = containerRef.current
+      if (!container) return
+
+      const handleSelectionChange = () => {
+        if (editorRef.current) {
+          onSelectionChangeRef.current?.(getActiveFormats())
+        }
+      }
+
+      container.addEventListener('click', handleSelectionChange)
+      container.addEventListener('keyup', handleSelectionChange)
+
+      return () => {
+        container.removeEventListener('click', handleSelectionChange)
+        container.removeEventListener('keyup', handleSelectionChange)
+      }
+    }, [])
 
     // Update content when prop changes (e.g., switching files)
     useEffect(() => {
