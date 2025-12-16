@@ -1,5 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron'
-import { pathToFileURL } from 'url'
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
@@ -125,14 +124,53 @@ function createWindow() {
 
 app.whenReady().then(() => {
   // Handle media:// protocol for local video/audio files
-  protocol.handle('media', (request) => {
-    // URL format: media://C%3A/Users/... (encoded Windows path)
+  protocol.handle('media', async (request) => {
     const url = new URL(request.url)
-    // Reconstruct the file path from the URL
     const filePath = decodeURIComponent(url.pathname)
     // On Windows, pathname starts with / so we get /C:/... -> C:/...
     const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
-    return net.fetch(pathToFileURL(normalizedPath).toString())
+    console.log('Media request:', request.url, '-> path:', normalizedPath)
+
+    try {
+      const stat = await fs.promises.stat(normalizedPath)
+      const fileStream = fs.createReadStream(normalizedPath)
+
+      // Determine MIME type
+      const ext = path.extname(normalizedPath).toLowerCase()
+      const mimeTypes: Record<string, string> = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.ogg': 'audio/ogg',
+        '.m4a': 'audio/mp4',
+        '.flac': 'audio/flac',
+      }
+      const contentType = mimeTypes[ext] || 'application/octet-stream'
+
+      // Convert Node stream to Web ReadableStream
+      const webStream = new ReadableStream({
+        start(controller) {
+          fileStream.on('data', (chunk) => controller.enqueue(chunk))
+          fileStream.on('end', () => controller.close())
+          fileStream.on('error', (err) => controller.error(err))
+        },
+      })
+
+      return new Response(webStream, {
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': stat.size.toString(),
+          'Accept-Ranges': 'bytes',
+        },
+      })
+    } catch (err) {
+      console.error('Media protocol error:', err)
+      return new Response('File not found', { status: 404 })
+    }
   })
 
   createWindow()
