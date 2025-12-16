@@ -17,9 +17,9 @@ function parseEvents(content: string): EventItem[] {
   let currentEvent: Partial<EventItem> | null = null
 
   for (const line of lines) {
-    // Match event line: - Event text
+    // Match event line: - Event text (must start with hyphen, not indented)
     const eventMatch = line.match(/^- (.+)$/)
-    if (eventMatch && !line.match(/^\s/)) {
+    if (eventMatch) {
       // Save previous event if exists
       if (currentEvent && currentEvent.id && currentEvent.text && currentEvent.startDate) {
         events.push(currentEvent as EventItem)
