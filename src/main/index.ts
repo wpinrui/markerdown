@@ -265,8 +265,36 @@ ipcMain.handle('fs:delete', async (_event, filePath: string) => {
   }
 })
 
+async function getSessionFiles(sessionsDir: string): Promise<Set<string>> {
+  try {
+    const files = await fs.promises.readdir(sessionsDir)
+    return new Set(files.filter((f) => f.endsWith('.jsonl')))
+  } catch {
+    return new Set()
+  }
+}
+
+async function cleanupSummarizeSession(sessionsDir: string, beforeFiles: Set<string>, chatSessionIds: Set<string>): Promise<void> {
+  try {
+    const afterFiles = await getSessionFiles(sessionsDir)
+    for (const file of afterFiles) {
+      const sessionId = file.replace('.jsonl', '')
+      const isChatSession = chatSessionIds.has(sessionId)
+      const isAgentFile = file.startsWith('agent-')
+      const isNewFile = !beforeFiles.has(file)
+
+      // Only delete new files that aren't chat sessions or agent files
+      if (isNewFile && !isChatSession && !isAgentFile) {
+        await fs.promises.unlink(path.join(sessionsDir, file))
+      }
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
 ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {
-  const { pdfPath, outputPath, prompt, workingDir } = request
+  const { sourcePath, outputPath, prompt, workingDir } = request
 
   // Check if output already exists
   try {
@@ -282,8 +310,13 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
   const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
 
+  // Snapshot existing session files and chat sessions before running Claude CLI
+  const sessionsDir = getSessionsDir(workingDir)
+  const beforeFiles = await getSessionFiles(sessionsDir)
+  const chatSessionIds = await getChatSessionIds(workingDir)
+
   return new Promise((resolve) => {
-    const taskPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, todosContext ?? '', eventsContext ?? '')
+    const taskPrompt = getSummarizePrompt(sourcePath, outputPath, prompt, todosContext ?? '', eventsContext ?? '')
     const fullPrompt = `${CLAUDE_MD_PREFIX} ${taskPrompt}`
 
     const args = [
@@ -310,6 +343,9 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
     })
 
     child.on('close', async (code) => {
+      // Clean up session files created by this summarization
+      await cleanupSummarizeSession(sessionsDir, beforeFiles, chatSessionIds)
+
       if (code === 0) {
         resolve({ success: true })
       } else {

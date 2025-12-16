@@ -48,7 +48,7 @@ When you learn user info, append/update agent-memory.md.
 `
 
 export function getSummarizePrompt(
-  pdfPath: string,
+  sourcePath: string,
   outputPath: string,
   userPrompt: string,
   todosContext: string,
@@ -60,7 +60,7 @@ export function getSummarizePrompt(
     ? `\n\n## Existing Tracked Items${todoSection}${eventSection}`
     : ''
 
-  return `Read the file at "${pdfPath}". THIS IS A [T1] TASK. Create a markdown summary at "${outputPath}" with the following:
+  return `Read the file at "${sourcePath}". THIS IS A [T1] TASK. Create a markdown summary at "${outputPath}" with the following:
 
 ${userPrompt}${contextSection}`
 }
