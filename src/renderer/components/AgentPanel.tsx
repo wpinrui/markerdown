@@ -53,13 +53,6 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     loadMostRecent()
   }, [workingDir])
 
-  // Listen for agent completion - just reload from file
-  useEffect(() => {
-    const unsubComplete = window.electronAPI.onAgentComplete(() => {
-      // Ignored - we handle completion in handleSubmit
-    })
-    return () => unsubComplete()
-  }, [])
 
   const reloadSession = useCallback(async (dir: string, sid: string) => {
     try {
@@ -78,6 +71,16 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
 
+    // Set up completion listener BEFORE starting agent to avoid race condition
+    let cleanup: (() => void) | undefined
+    const completionPromise = new Promise<void>((resolve) => {
+      const unsub = window.electronAPI.onAgentComplete(() => {
+        unsub()
+        resolve()
+      })
+      cleanup = unsub
+    })
+
     try {
       const response = await window.electronAPI.agentChat({
         message: userMessage,
@@ -87,15 +90,10 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       setSessionId(response.sessionId)
 
       // Wait for agent to finish, then reload from file
-      await new Promise<void>((resolve) => {
-        const unsub = window.electronAPI.onAgentComplete(() => {
-          unsub()
-          resolve()
-        })
-      })
-
+      await completionPromise
       await reloadSession(workingDir, response.sessionId)
     } catch (err) {
+      cleanup?.() // Clean up listener on error
       setMessages((prev) => [...prev, { role: 'assistant', content: `Failed: ${err}` }])
     } finally {
       setIsLoading(false)

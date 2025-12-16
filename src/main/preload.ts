@@ -26,11 +26,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   agentChat: (request: AgentChatRequest): Promise<AgentChatResponse> =>
     ipcRenderer.invoke('agent:chat', request),
   agentCancel: (): Promise<void> => ipcRenderer.invoke('agent:cancel'),
-  onAgentChunk: (callback: (chunk: string) => void): (() => void) => {
-    const listener = (_event: IpcRendererEvent, chunk: string) => callback(chunk)
-    ipcRenderer.on('agent:chunk', listener)
-    return () => ipcRenderer.removeListener('agent:chunk', listener)
-  },
   onAgentComplete: (callback: (error?: string) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, error?: string) => callback(error)
     ipcRenderer.on('agent:complete', listener)

@@ -280,10 +280,6 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     cwd: workingDir,
   })
 
-  agentProcess.stdout?.on('data', (data: Buffer) => {
-    mainWindow?.webContents.send('agent:chunk', data.toString())
-  })
-
   agentProcess.stderr?.on('data', (data: Buffer) => {
     // Log stderr but don't send to renderer (usually just progress info)
     console.error('Agent stderr:', data.toString())
