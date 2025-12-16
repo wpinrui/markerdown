@@ -36,9 +36,13 @@ export function stripMultipleExtensions(filename: string, ...extensions: string[
 /**
  * Try finding a path with both forward and backslash separators.
  * Useful for cross-platform path handling when paths may use either separator.
+ * Returns [original, alternate] where alternate uses the opposite separator.
  */
 export function normalizePath(path: string): string[] {
-  return [path, path.replace(/\//g, '\\')]
+  // If path uses backslashes, also try forward slashes (and vice versa)
+  const hasBackslash = path.includes('\\')
+  const alternate = hasBackslash ? path.replace(/\\/g, '/') : path.replace(/\//g, '\\')
+  return [path, alternate]
 }
 
 /**
