@@ -193,10 +193,11 @@ body {
 }
 
 .tree-variant-count {
-  margin-left: 8px;
-  font-style: italic;
+  margin-left: auto;
+  padding-left: 8px;
   color: #808080;
-  font-size: 12px;
+  font-size: 11px;
+  flex-shrink: 0;
 }
 
 .entity-tab {
@@ -986,7 +987,8 @@ body {
 }
 
 /* Agent Toggle Button */
-.agent-toggle-btn {
+.agent-toggle-btn,
+.summarize-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -999,13 +1001,23 @@ body {
   font-size: 13px;
 }
 
-.agent-toggle-btn:hover {
+.agent-toggle-btn:hover,
+.summarize-btn:hover {
   background-color: #4a4a4a;
 }
 
 .agent-toggle-btn.active {
   background-color: #0e639c;
   color: white;
+}
+
+.summarize-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.summarize-btn.loading {
+  background-color: #3c3c3c;
 }
 
 /* Agent History Dropdown */

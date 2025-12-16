@@ -98,7 +98,7 @@ export function SummarizeModal({
       onClose={onClose}
     >
       <div className="summarize-modal-header">
-        Summarize PDF
+        Summarize with Claude
       </div>
       <div className="summarize-modal-body">
         <div className="summarize-mode-buttons">

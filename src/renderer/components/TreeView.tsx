@@ -57,15 +57,12 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
     if (isSelectable) {
       onSelect(node)
     }
+    // Single click only selects - doesn't expand/collapse
+  }
+
+  const handleRowDoubleClick = () => {
     if (hasChildren) {
-      if (isSelected) {
-        // Only toggle collapse if already viewing this item
-        setExpanded(!expanded)
-      } else if (!expanded) {
-        // Expand when navigating to a collapsed item
-        setExpanded(true)
-      }
-      // Don't collapse when navigating to an already-expanded item
+      setExpanded(!expanded)
     }
   }
 
@@ -94,7 +91,8 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
   const getVariantCount = () => {
     if (!node.entity) return null
     const count = node.entity.members.length
-    return count > 1 ? `${count} variants` : '1 variant'
+    // Only show count if there are multiple variants
+    return count > 1 ? count : null
   }
 
   return (
@@ -103,6 +101,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
         className={`tree-item-row ${isSelected ? 'selected' : ''} ${isSuggestion ? 'suggestion' : ''}`}
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         onClick={handleRowClick}
+        onDoubleClick={handleRowDoubleClick}
       >
         {hasChildren && (
           <span

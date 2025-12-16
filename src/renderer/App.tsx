@@ -404,10 +404,12 @@ function App() {
 
   const isPdfActive = activeMember?.type === 'pdf'
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
-  const canSummarize = isPdfActive || isStandalonePdf
+  const isMdActive = activeMember?.type === 'markdown'
+  const isStandaloneMd = selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity && !selectedNode.isSuggestion
+  const canSummarize = isPdfActive || isStandalonePdf || isMdActive || isStandaloneMd
 
-  const getOutputPath = (pdfPath: string, outputFilename: string) =>
-    `${getDirname(pdfPath)}/${outputFilename}`
+  const getOutputPath = (sourcePath: string, outputFilename: string) =>
+    `${getDirname(sourcePath)}/${outputFilename}`
 
   const stripPdfExtension = (filename: string) =>
     filename.replace(/\.pdf$/i, '')
@@ -418,16 +420,16 @@ function App() {
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
 
-    // Get PDF path - either from active member (entity) or selected node (standalone)
-    const pdfPath = activeMember?.path ?? selectedNode.path
-    const outputPath = getOutputPath(pdfPath, outputFilename)
+    // Get source path - either from active member (entity) or selected node (standalone)
+    const sourcePath = activeMember?.path ?? selectedNode.path
+    const outputPath = getOutputPath(sourcePath, outputFilename)
 
     setSummarizingPaths((prev) => new Set(prev).add(selectedNode.path))
     setShowSummarizeModal(false)
 
     try {
       const result = await window.electronAPI.summarizePdf({
-        pdfPath,
+        pdfPath: sourcePath,
         outputPath,
         prompt,
         workingDir: folderPath!,
@@ -450,8 +452,14 @@ function App() {
 
   // For entities, use entity members; for standalone PDFs, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
-  // For entities, use baseName; for standalone PDFs, extract from filename
-  const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? stripPdfExtension(selectedNode.name) : '')
+  // For entities, use baseName; for standalone files, extract from filename
+  const getBaseName = () => {
+    if (selectedNode?.entity?.baseName) return selectedNode.entity.baseName
+    if (!selectedNode) return ''
+    // Strip both .pdf and .md extensions
+    return stripMdExtension(stripPdfExtension(selectedNode.name))
+  }
+  const summarizeBaseName = getBaseName()
 
   const isEditing = editMode !== 'view'
 
@@ -586,7 +594,6 @@ function App() {
         mode={editMode}
         onModeChange={setEditMode}
         onContentChange={handleEditContentChange}
-        isDirty={isDirty}
         showToolbar={false}
         onSelectionChange={handleEditorSelectionChange}
       />
@@ -624,7 +631,6 @@ function App() {
             onEditModeChange={setEditMode}
             editorRef={editorRef}
             activeFormats={activeFormats}
-            isDirty={isDirty}
             showModeToggle={!!isMarkdownActive}
             isEditing={isEditing}
             canSummarize={!!canSummarize}
