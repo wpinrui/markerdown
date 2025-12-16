@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron'
+import { pathToFileURL } from 'url'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
@@ -22,6 +23,20 @@ function closeWatcher() {
 }
 
 const isDev = process.env.NODE_ENV !== 'production'
+
+// Register custom protocol for serving local media files
+// Must be called before app.whenReady()
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
+  },
+])
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
 const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
@@ -108,7 +123,20 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  // Handle media:// protocol for local video/audio files
+  protocol.handle('media', (request) => {
+    // URL format: media://C%3A/Users/... (encoded Windows path)
+    const url = new URL(request.url)
+    // Reconstruct the file path from the URL
+    const filePath = decodeURIComponent(url.pathname)
+    // On Windows, pathname starts with / so we get /C:/... -> C:/...
+    const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
+    return net.fetch(pathToFileURL(normalizedPath).toString())
+  })
+
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
