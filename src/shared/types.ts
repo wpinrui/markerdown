@@ -84,10 +84,13 @@ export interface AgentSessionHistory {
   messages: AgentMessage[]
 }
 
+export type EditMode = 'view' | 'visual' | 'code'
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
   readFile: (filePath: string) => Promise<string | null>
+  writeFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>
   readPdfAsDataUrl: (filePath: string) => Promise<string | null>
   exists: (filePath: string) => Promise<boolean>
   getLastFolder: () => Promise<string | null>

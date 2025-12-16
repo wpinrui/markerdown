@@ -1,18 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
+import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
+import { FormatToolbar } from './components/FormatToolbar'
+import { ModeToggle } from './components/ModeToggle'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { SummarizeButton } from './components/SummarizeButton'
 import { AgentPanel } from './components/AgentPanel'
+import { useAutoSave } from './hooks/useAutoSave'
+import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
-import type { TreeNode, FileChangeEvent, EntityMember } from '@shared/types'
+import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
+const SAVE_IN_PROGRESS_DELAY_MS = 500
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -28,6 +34,14 @@ function App() {
   const [showAgent, setShowAgent] = useState(false)
   const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
   const isDraggingAgentPanel = useRef(false)
+
+  // Editor state
+  const [editMode, setEditMode] = useState<EditMode>('view')
+  const [editContent, setEditContent] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
+  const saveInProgressRef = useRef<Set<string>>(new Set())
+  const standaloneEditorRef = useRef<MarkdownEditorRef>(null)
+  const [standaloneActiveFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleOpenFolder = async () => {
     const path = await window.electronAPI.openFolder()
@@ -52,17 +66,27 @@ function App() {
     })
   }, [])
 
-  // Keyboard shortcut for agent toggle (Ctrl+Shift+A)
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Agent toggle: Ctrl+Shift+A
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault()
         setShowAgent((prev) => !prev)
       }
+      // Edit mode toggle: Ctrl+E
+      if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault()
+        const activeFilePath = activeMember?.path ?? selectedNode?.path
+        const isMarkdown = activeMember?.type === 'markdown' || (selectedNode && isMarkdownFile(selectedNode.name))
+        if (activeFilePath && isMarkdown) {
+          setEditMode((prev) => (prev === 'view' ? 'visual' : 'view'))
+        }
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [activeMember, selectedNode])
 
   // Agent panel resize handler (drag from left edge)
   const handleAgentPanelMouseDown = useCallback((e: React.MouseEvent) => {
@@ -90,6 +114,40 @@ function App() {
 
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
+  }, [])
+
+  // Save handler for editor
+  const handleSaveFile = useCallback(async (content: string, filePath: string) => {
+    saveInProgressRef.current.add(filePath)
+    const result = await window.electronAPI.writeFile(filePath, content)
+    if (result.success) {
+      setFileContent(content) // Sync the source of truth
+    } else {
+      setError(`Failed to save: ${result.error}`)
+    }
+    // Remove from set after a delay (in case watcher fires late)
+    setTimeout(() => saveInProgressRef.current.delete(filePath), SAVE_IN_PROGRESS_DELAY_MS)
+  }, [])
+
+  // Auto-save hook
+  const activeFilePath = activeMember?.path ?? selectedNode?.path ?? null
+  useAutoSave({
+    content: editContent,
+    filePath: activeFilePath,
+    isDirty,
+    onSave: handleSaveFile,
+    onSaveComplete: () => setIsDirty(false),
+  })
+
+  // Handle edit content changes
+  const handleEditContentChange = useCallback((content: string) => {
+    setEditContent(content)
+    setIsDirty(true)
+  }, [])
+
+  // Handle selection change for standalone editor
+  const handleStandaloneSelectionChange = useCallback((formats: ActiveFormats) => {
+    setStandaloneActiveFormats(formats)
   }, [])
 
   const refreshTree = useCallback(() => {
@@ -125,6 +183,10 @@ function App() {
       if (isStructureChange(event.event)) {
         refreshTree()
       } else if (event.event === 'change' && activeFilePathRef.current === event.path) {
+        // Skip reload if we just saved this file (avoid overwriting edits)
+        if (saveInProgressRef.current.has(event.path)) {
+          return
+        }
         window.electronAPI.readFile(event.path).then((content) => {
           if (content !== null) {
             setFileContent(content)
@@ -187,7 +249,15 @@ function App() {
     }
   }, [selectedNode, activeMember])
 
+  // Reset edit state helper
+  const resetEditState = useCallback(() => {
+    setEditMode('view')
+    setEditContent(null)
+    setIsDirty(false)
+  }, [])
+
   const handleSelectNode = (node: TreeNode) => {
+    resetEditState()
     setSelectedNode(node)
     // If node has an entity, set the default member as active
     if (node.entity) {
@@ -199,6 +269,7 @@ function App() {
   }
 
   const handleTabChange = (member: EntityMember) => {
+    resetEditState()
     setActiveMember(member)
   }
 
@@ -299,11 +370,42 @@ function App() {
               activeMember={activeMember}
               content={fileContent}
               onTabChange={handleTabChange}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+              editContent={editContent}
+              onEditContentChange={handleEditContentChange}
+              isDirty={isDirty}
             />
           ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
             <PdfViewer filePath={selectedNode.path} />
-          ) : fileContent !== null ? (
-            <MarkdownViewer content={fileContent} />
+          ) : fileContent !== null && selectedNode ? (
+            <div className="standalone-markdown">
+              <div className="standalone-markdown-toolbar">
+                {/* Show formatting toolbar in edit mode */}
+                {editMode !== 'view' && (
+                  <FormatToolbar editorRef={standaloneEditorRef} activeFormats={standaloneActiveFormats} />
+                )}
+                <ModeToggle mode={editMode} onModeChange={setEditMode} />
+                {isDirty && <span className="save-indicator">Saving...</span>}
+              </div>
+              <div className="standalone-markdown-content">
+                {editMode === 'view' ? (
+                  <MarkdownViewer content={fileContent} />
+                ) : (
+                  <MarkdownEditor
+                    ref={standaloneEditorRef}
+                    content={editContent ?? fileContent}
+                    filePath={selectedNode.path}
+                    mode={editMode}
+                    onModeChange={setEditMode}
+                    onContentChange={handleEditContentChange}
+                    isDirty={isDirty}
+                    showToolbar={false}
+                    onSelectionChange={handleStandaloneSelectionChange}
+                  />
+                )}
+              </div>
+            </div>
           ) : null}
         </section>
         <aside

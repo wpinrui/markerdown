@@ -132,6 +132,16 @@ ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
   }
 })
 
+ipcMain.handle('fs:writeFile', async (_event, filePath: string, content: string) => {
+  try {
+    await fs.promises.writeFile(filePath, content, 'utf-8')
+    return { success: true }
+  } catch (error) {
+    console.error('Error writing file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 ipcMain.handle('fs:readPdfAsDataUrl', async (_event, filePath: string) => {
   try {
     const buffer = await fs.promises.readFile(filePath)

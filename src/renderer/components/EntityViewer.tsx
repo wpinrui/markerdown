@@ -1,6 +1,11 @@
+import { useRef, useState, useCallback } from 'react'
 import { MarkdownViewer } from './MarkdownViewer'
+import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './MarkdownEditor'
+import { FormatToolbar } from './FormatToolbar'
+import { ModeToggle } from './ModeToggle'
 import { PdfViewer } from './PdfViewer'
-import type { Entity, EntityMember } from '@shared/types'
+import { defaultFormats } from './editorTypes'
+import type { Entity, EntityMember, EditMode } from '@shared/types'
 
 /**
  * Simple string hash function (djb2 algorithm)
@@ -31,9 +36,32 @@ interface EntityViewerProps {
   activeMember: EntityMember
   content: string | null
   onTabChange: (member: EntityMember) => void
+  // Editor props
+  editMode: EditMode
+  onEditModeChange: (mode: EditMode) => void
+  editContent: string | null
+  onEditContentChange: (content: string) => void
+  isDirty: boolean
 }
 
-export function EntityViewer({ entity, activeMember, content, onTabChange }: EntityViewerProps) {
+export function EntityViewer({
+  entity,
+  activeMember,
+  content,
+  onTabChange,
+  editMode,
+  onEditModeChange,
+  editContent,
+  onEditContentChange,
+  isDirty,
+}: EntityViewerProps) {
+  const editorRef = useRef<MarkdownEditorRef>(null)
+  const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
+
+  const handleSelectionChange = useCallback((formats: ActiveFormats) => {
+    setActiveFormats(formats)
+  }, [])
+
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
       return member.variant ? `${member.variant} (PDF)` : 'PDF'
@@ -49,33 +77,60 @@ export function EntityViewer({ entity, activeMember, content, onTabChange }: Ent
     return stringToColors(label)
   }
 
+  const isMarkdownActive = activeMember.type === 'markdown'
+  const isEditing = editMode !== 'view'
+
   return (
     <div className="entity-viewer">
       <div className="entity-tabs">
-        {entity.members.map((member) => {
-          const isActive = member.path === activeMember.path
-          const colors = getTabColors(member)
-          return (
-            <button
-              key={member.path}
-              className={`entity-tab ${isActive ? 'active' : ''}`}
-              style={{
-                backgroundColor: colors.base,
-                borderColor: isActive ? colors.light : colors.base,
-                fontWeight: isActive ? 'bold' : 'normal',
-              }}
-              onClick={() => onTabChange(member)}
-            >
-              {getTabLabel(member)}
-            </button>
-          )
-        })}
+        {/* Show tabs only in view mode */}
+        {!isEditing &&
+          entity.members.map((member) => {
+            const isActive = member.path === activeMember.path
+            const colors = getTabColors(member)
+            return (
+              <button
+                key={member.path}
+                className={`entity-tab ${isActive ? 'active' : ''}`}
+                style={{
+                  backgroundColor: colors.base,
+                  borderColor: isActive ? colors.light : colors.base,
+                  fontWeight: isActive ? 'bold' : 'normal',
+                }}
+                onClick={() => onTabChange(member)}
+              >
+                {getTabLabel(member)}
+              </button>
+            )
+          })}
+
+        {/* Show formatting toolbar in edit mode */}
+        {isEditing && <FormatToolbar editorRef={editorRef} activeFormats={activeFormats} />}
+
+        {isMarkdownActive && (
+          <ModeToggle mode={editMode} onModeChange={onEditModeChange} />
+        )}
+        {isDirty && <span className="save-indicator">Saving...</span>}
       </div>
       <div className="entity-content">
         {activeMember.type === 'pdf' ? (
           <PdfViewer filePath={activeMember.path} />
-        ) : content ? (
-          <MarkdownViewer content={content} />
+        ) : content !== null ? (
+          editMode === 'view' ? (
+            <MarkdownViewer content={content} />
+          ) : (
+            <MarkdownEditor
+              ref={editorRef}
+              content={editContent ?? content}
+              filePath={activeMember.path}
+              mode={editMode}
+              onModeChange={onEditModeChange}
+              onContentChange={onEditContentChange}
+              isDirty={isDirty}
+              showToolbar={false}
+              onSelectionChange={handleSelectionChange}
+            />
+          )
         ) : (
           <div className="placeholder">Loading...</div>
         )}

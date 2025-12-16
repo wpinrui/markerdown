@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:readDirectory', dirPath),
   readFile: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:readFile', filePath),
+  writeFile: (filePath: string, content: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('fs:writeFile', filePath, content),
   readPdfAsDataUrl: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:readPdfAsDataUrl', filePath),
   exists: (filePath: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', filePath),
