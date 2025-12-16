@@ -4,7 +4,7 @@
   "description": "A hierarchical markdown-based knowledge management system for students",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "concurrently --kill-others \"yarn dev:main\" \"yarn dev:renderer\"",
+    "dev": "concurrently --kill-others --success first \"yarn dev:main\" \"yarn dev:renderer\"",
     "dev:main": "tsc -p tsconfig.main.json && electron .",
     "dev:renderer": "vite",
     "build": "yarn build:renderer && yarn build:main",
