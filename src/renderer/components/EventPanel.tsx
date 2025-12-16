@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Trash2, Edit2, Check, X, MapPin } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Trash2, Edit2, MapPin } from 'lucide-react'
 import type { EventItem } from '@shared/types'
 import { NewEventModal } from './NewEventModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
+import { InlineEditInput } from './InlineEditInput'
 
 type FilterMode = 'all' | 'upcoming' | 'past'
 
@@ -106,7 +107,6 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
-  const editInputRef = useRef<HTMLInputElement>(null)
 
   // Load events from file
   const loadEvents = useCallback(async () => {
@@ -196,14 +196,6 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
     setEditText('')
   }
 
-  // Focus input when starting edit
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus()
-      editInputRef.current.select()
-    }
-  }, [editingId])
-
   // Filter events
   const filteredEvents = events.filter((event) => {
     if (filter === 'upcoming') return !isPast(event)
@@ -272,36 +264,14 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
               >
                 <div className="event-item-main">
                   {isEditing ? (
-                    <>
-                      <input
-                        ref={editInputRef}
-                        type="text"
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit()
-                          if (e.key === 'Escape') handleCancelEdit()
-                        }}
-                        className="event-edit-input"
-                        placeholder="Event name"
-                      />
-                      <button
-                        type="button"
-                        className="event-edit-btn save"
-                        onClick={handleSaveEdit}
-                        title="Save"
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="event-edit-btn cancel"
-                        onClick={handleCancelEdit}
-                        title="Cancel"
-                      >
-                        <X size={14} />
-                      </button>
-                    </>
+                    <InlineEditInput
+                      value={editText}
+                      onChange={setEditText}
+                      onSave={handleSaveEdit}
+                      onCancel={handleCancelEdit}
+                      placeholder="Event name"
+                      className="event-edit-input"
+                    />
                   ) : (
                     <>
                       <span className="event-text">{event.text}</span>

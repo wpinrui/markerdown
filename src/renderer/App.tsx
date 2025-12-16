@@ -103,7 +103,7 @@ function App() {
     window.electronAPI.setLastFolder(path).catch((err) => {
       console.error('Failed to save last folder:', err)
     })
-    window.electronAPI.setWindowTitle('Markerdown').catch((err) => {
+    window.electronAPI.setWindowTitle('Markerdown').catch((err: unknown) => {
       console.error('Failed to set window title:', err)
     })
   }
@@ -342,7 +342,7 @@ function App() {
     }
     // Update window title
     const filename = node.entity?.baseName || getBasename(node.path)
-    window.electronAPI.setWindowTitle(`${filename} - Markerdown`).catch((err) => {
+    window.electronAPI.setWindowTitle(`${filename} - Markerdown`).catch((err: unknown) => {
       console.error('Failed to set window title:', err)
     })
   }

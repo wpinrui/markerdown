@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Trash2, Edit2, Check, X } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Trash2, Edit2 } from 'lucide-react'
 import type { TodoItem } from '@shared/types'
 import { NewTodoModal } from './NewTodoModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
+import { InlineEditInput } from './InlineEditInput'
 
 type FilterMode = 'all' | 'incomplete' | 'completed'
 
@@ -97,7 +98,6 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
-  const editInputRef = useRef<HTMLInputElement>(null)
 
   // Load todos from file
   const loadTodos = useCallback(async () => {
@@ -195,14 +195,6 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
     setEditText('')
   }
 
-  // Focus input when starting edit
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus()
-      editInputRef.current.select()
-    }
-  }, [editingId])
-
   // Filter todos
   const filteredTodos = todos.filter((todo) => {
     if (filter === 'incomplete') return !todo.completed
@@ -276,36 +268,14 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
                     className="todo-checkbox"
                   />
                   {isEditing ? (
-                    <>
-                      <input
-                        ref={editInputRef}
-                        type="text"
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit()
-                          if (e.key === 'Escape') handleCancelEdit()
-                        }}
-                        className="todo-edit-input"
-                        placeholder="Todo text"
-                      />
-                      <button
-                        type="button"
-                        className="todo-edit-btn save"
-                        onClick={handleSaveEdit}
-                        title="Save"
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="todo-edit-btn cancel"
-                        onClick={handleCancelEdit}
-                        title="Cancel"
-                      >
-                        <X size={14} />
-                      </button>
-                    </>
+                    <InlineEditInput
+                      value={editText}
+                      onChange={setEditText}
+                      onSave={handleSaveEdit}
+                      onCancel={handleCancelEdit}
+                      placeholder="Todo text"
+                      className="todo-edit-input"
+                    />
                   ) : (
                     <>
                       <span className="todo-text">{todo.text}</span>

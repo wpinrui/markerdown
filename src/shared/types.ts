@@ -119,6 +119,7 @@ export interface ElectronAPI {
   setLastFolder: (folderPath: string | null) => Promise<void>
   getShowClaudeMd: () => Promise<boolean>
   setShowClaudeMd: (show: boolean) => Promise<void>
+  setWindowTitle: (title: string) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
   openInExplorer: (folderPath: string) => Promise<void>
