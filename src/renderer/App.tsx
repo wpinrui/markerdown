@@ -486,11 +486,8 @@ function App() {
   const getOutputPath = (sourcePath: string, outputFilename: string) =>
     `${getDirname(sourcePath)}/${outputFilename}`
 
-  const stripPdfExtension = (filename: string) =>
-    filename.toLowerCase().endsWith('.pdf') ? stripExtension(filename) : filename
-
-  const stripMdExtension = (filename: string) =>
-    filename.toLowerCase().endsWith('.md') ? stripExtension(filename) : filename
+  const stripFileExtension = (filename: string, ext: string) =>
+    filename.toLowerCase().endsWith(ext.toLowerCase()) ? stripExtension(filename) : filename
 
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
@@ -529,7 +526,7 @@ function App() {
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
   // For entities, use baseName; for standalone files, strip .pdf/.md extensions
   const summarizeBaseName = selectedNode?.entity?.baseName
-    ?? (selectedNode ? stripMdExtension(stripPdfExtension(selectedNode.name)) : '')
+    ?? (selectedNode ? stripFileExtension(stripFileExtension(selectedNode.name, '.pdf'), '.md') : '')
 
   const isEditing = editMode !== 'view'
 
@@ -822,7 +819,7 @@ function App() {
           targetDir = parentNode.path
         } else if (parentNode.hasSidecar) {
           // For sidecar files, the children go in the folder with same base name
-          targetDir = `${getDirname(parentNode.path)}/${stripMdExtension(parentNode.name)}`
+          targetDir = `${getDirname(parentNode.path)}/${stripFileExtension(parentNode.name, '.md')}`
         }
       }
     }
@@ -831,7 +828,7 @@ function App() {
     const newFilePath = `${targetDir}/${name}`
 
     // Create empty markdown file
-    const result = await window.electronAPI.writeFile(newFilePath, `# ${stripMdExtension(name)}\n\n`)
+    const result = await window.electronAPI.writeFile(newFilePath, `# ${stripFileExtension(name, '.md')}\n\n`)
     if (!result.success) {
       setError(`Failed to create note: ${result.error}`)
       return
@@ -839,7 +836,7 @@ function App() {
 
     // Move selected children to become children of this new note
     if (childrenPaths.length > 0) {
-      const sidecarDir = `${targetDir}/${stripMdExtension(name)}`
+      const sidecarDir = `${targetDir}/${stripFileExtension(name, '.md')}`
 
       // Create the sidecar folder
       const mkdirResult = await window.electronAPI.mkdir(sidecarDir)
@@ -867,7 +864,7 @@ function App() {
         } else if (childNode?.hasSidecar && childNode.children) {
           // Move markdown file with sidecar
           const childName = getBasename(childPath)
-          const baseName = stripMdExtension(childName)
+          const baseName = stripFileExtension(childName, '.md')
           const childDir = getDirname(childPath)
 
           await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
@@ -919,10 +916,10 @@ function App() {
     if (!selectedNode || selectedNode.entity) return { fileName: undefined, fileType: undefined }
 
     if (isMarkdownFile(selectedNode.name)) {
-      return { fileName: stripMdExtension(selectedNode.name), fileType: 'markdown' }
+      return { fileName: stripFileExtension(selectedNode.name, '.md'), fileType: 'markdown' }
     }
     if (isPdfFile(selectedNode.name)) {
-      return { fileName: stripPdfExtension(selectedNode.name), fileType: 'pdf' }
+      return { fileName: stripFileExtension(selectedNode.name, '.pdf'), fileType: 'pdf' }
     }
     return { fileName: selectedNode.name, fileType: 'other' }
   }
@@ -966,7 +963,7 @@ function App() {
         targetDir = targetNode.path
       } else if (targetNode.hasSidecar) {
         // Target is a file with sidecar - use the sidecar directory
-        const baseName = stripMdExtension(targetNode.name)
+        const baseName = stripFileExtension(targetNode.name, '.md')
         targetDir = `${getDirname(targetNode.path)}/${baseName}`
       } else {
         // Invalid target
@@ -994,7 +991,7 @@ function App() {
     // Move file with sidecar
     else if (node.hasSidecar && node.children) {
       const nodeName = getBasename(node.path)
-      const baseName = stripMdExtension(nodeName)
+      const baseName = stripFileExtension(nodeName, '.md')
       const nodeDir = getDirname(node.path)
 
       const success = await moveItem(node.path, `${targetDir}/${nodeName}`, nodeName)
@@ -1033,7 +1030,7 @@ function App() {
     const variantName = prompt('Enter variant name (e.g., "summary", "notes"):')
     if (!variantName) return
 
-    const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(selectedNode.name))
+    const baseName = selectedNode.entity?.baseName ?? stripFileExtension(stripFileExtension(selectedNode.name, '.pdf'), '.md')
     const dirPath = getDirname(selectedNode.path)
     const newFilePath = `${dirPath}/${baseName}.${variantName}.md`
 
