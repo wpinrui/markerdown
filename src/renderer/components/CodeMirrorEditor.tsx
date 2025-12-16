@@ -28,12 +28,13 @@ export interface CodeMirrorEditorRef {
 
 interface CodeMirrorEditorProps {
   content: string
+  filePath: string
   onChange: (content: string) => void
   onSelectionChange?: (formats: ActiveFormats) => void
 }
 
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditorProps>(
-  function CodeMirrorEditor({ content, onChange, onSelectionChange }, ref) {
+  function CodeMirrorEditor({ content, filePath, onChange, onSelectionChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const onChangeRef = useRef(onChange)
@@ -266,6 +267,59 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         isUpdatingRef.current = false
       }
     }, [content])
+
+    // Handle paste events for image pasting
+    useEffect(() => {
+      const container = containerRef.current
+      if (!container) return
+
+      const handlePaste = async (e: ClipboardEvent) => {
+        const items = e.clipboardData?.items
+        if (!items) return
+
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith('image/')) {
+            e.preventDefault()
+
+            const file = item.getAsFile()
+            if (!file) continue
+
+            // Convert to data URL
+            const reader = new FileReader()
+            reader.onload = async () => {
+              const dataUrl = reader.result as string
+
+              // Determine extension from MIME type
+              const extension = item.type.split('/')[1] === 'jpeg' ? '.jpg' : `.${item.type.split('/')[1]}`
+
+              // Save image via IPC
+              const result = await window.electronAPI.saveImage(filePath, dataUrl, extension)
+
+              if (result.success && result.relativePath) {
+                // Insert markdown image syntax at cursor
+                const view = viewRef.current
+                if (!view) return
+
+                const { from } = view.state.selection.main
+                const imgMd = `![image](${result.relativePath})`
+                view.dispatch({
+                  changes: { from, to: from, insert: imgMd },
+                  selection: { anchor: from + imgMd.length },
+                })
+                view.focus()
+              } else {
+                console.error('Failed to save image:', result.error)
+              }
+            }
+            reader.readAsDataURL(file)
+            break
+          }
+        }
+      }
+
+      container.addEventListener('paste', handlePaste)
+      return () => container.removeEventListener('paste', handlePaste)
+    }, [filePath])
 
     return <div ref={containerRef} className="codemirror-editor" />
   }

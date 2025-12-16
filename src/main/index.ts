@@ -266,6 +266,33 @@ ipcMain.handle('fs:delete', async (_event, filePath: string) => {
   }
 })
 
+ipcMain.handle('fs:saveImage', async (_event, markdownFilePath: string, imageData: string, extension: string) => {
+  try {
+    // Create .images folder next to the markdown file
+    const markdownDir = path.dirname(markdownFilePath)
+    const imagesDir = path.join(markdownDir, '.images')
+    await fs.promises.mkdir(imagesDir, { recursive: true })
+
+    // Generate unique filename based on timestamp and random string
+    const timestamp = Date.now()
+    const randomStr = crypto.randomBytes(4).toString('hex')
+    const filename = `image-${timestamp}-${randomStr}${extension}`
+    const imagePath = path.join(imagesDir, filename)
+
+    // Convert base64 data URL to buffer and save
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '')
+    const buffer = Buffer.from(base64Data, 'base64')
+    await fs.promises.writeFile(imagePath, buffer)
+
+    // Return relative path for markdown
+    const relativePath = `.images/${filename}`
+    return { success: true, relativePath }
+  } catch (error) {
+    console.error('Error saving image:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 async function getSessionFiles(sessionsDir: string): Promise<Set<string>> {
   try {
     const files = await fs.promises.readdir(sessionsDir)

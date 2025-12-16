@@ -157,6 +157,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
               key={filePath} // Remount when file changes
               ref={milkdownRef}
               content={currentContentRef.current}
+              filePath={filePath}
               onChange={handleContentChange}
               onSelectionChange={handleSelectionChange}
             />
@@ -166,6 +167,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
             <CodeMirrorEditor
               ref={codemirrorRef}
               content={currentContentRef.current}
+              filePath={filePath}
               onChange={handleContentChange}
               onSelectionChange={handleSelectionChange}
             />

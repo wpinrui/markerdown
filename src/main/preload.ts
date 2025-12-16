@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:move', sourcePath, destPath),
   deleteFile: (filePath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('fs:delete', filePath),
+  saveImage: (markdownFilePath: string, imageData: string, extension: string): Promise<{ success: boolean; relativePath?: string; error?: string }> =>
+    ipcRenderer.invoke('fs:saveImage', markdownFilePath, imageData, extension),
   onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, data: FileChangeEvent) => callback(data)
     ipcRenderer.on('fs:changed', listener)

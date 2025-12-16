@@ -32,12 +32,13 @@ export interface MilkdownEditorRef {
 
 interface MilkdownEditorProps {
   content: string
+  filePath: string
   onChange: (content: string) => void
   onSelectionChange?: (formats: ActiveFormats) => void
 }
 
 export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>(
-  function MilkdownEditor({ content, onChange, onSelectionChange }, ref) {
+  function MilkdownEditor({ content, filePath, onChange, onSelectionChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const editorRef = useRef<Editor | null>(null)
     const contentRef = useRef(content)
@@ -246,6 +247,56 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
       // If user switches files, the component should remount with new key
       contentRef.current = content
     }, [content])
+
+    // Handle paste events for image pasting
+    useEffect(() => {
+      const container = containerRef.current
+      if (!container) return
+
+      const handlePaste = async (e: ClipboardEvent) => {
+        const items = e.clipboardData?.items
+        if (!items) return
+
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith('image/')) {
+            e.preventDefault()
+
+            const file = item.getAsFile()
+            if (!file) continue
+
+            // Convert to data URL
+            const reader = new FileReader()
+            reader.onload = async () => {
+              const dataUrl = reader.result as string
+
+              // Determine extension from MIME type
+              const extension = item.type.split('/')[1] === 'jpeg' ? '.jpg' : `.${item.type.split('/')[1]}`
+
+              // Save image via IPC
+              const result = await window.electronAPI.saveImage(filePath, dataUrl, extension)
+
+              if (result.success && result.relativePath) {
+                // Insert image using Milkdown command
+                const editor = editorRef.current
+                if (!editor) return
+
+                editor.action(callCommand(insertImageCommand.key, {
+                  src: result.relativePath,
+                  alt: 'image'
+                }))
+              } else {
+                console.error('Failed to save image:', result.error)
+              }
+            }
+            reader.readAsDataURL(file)
+            break
+          }
+        }
+      }
+
+      container.addEventListener('paste', handlePaste)
+      return () => container.removeEventListener('paste', handlePaste)
+    }, [filePath])
 
     return <div ref={containerRef} className="milkdown-editor" />
   }
