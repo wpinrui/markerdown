@@ -24,6 +24,12 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const isCancelledRef = useRef(false)
   const historyRef = useRef<HTMLDivElement>(null)
   const streamingContentRef = useRef('')
+  const workingDirRef = useRef(workingDir)
+  const sessionIdRef = useRef(sessionId)
+
+  // Keep refs in sync
+  workingDirRef.current = workingDir
+  sessionIdRef.current = sessionId
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -63,21 +69,32 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       setStreamingContent(streamingContentRef.current)
     })
 
-    const unsubComplete = window.electronAPI.onAgentComplete((error) => {
+    const unsubComplete = window.electronAPI.onAgentComplete(async (error) => {
       setIsLoading(false)
-      // Ignore errors from intentional cancellation (already handled in handleCancel/handleNewChat)
-      if (isCancelledRef.current) {
-        isCancelledRef.current = false
-        streamingContentRef.current = ''
-        return
-      }
-      if (error) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
-      } else if (streamingContentRef.current) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: streamingContentRef.current }])
-      }
       streamingContentRef.current = ''
       setStreamingContent('')
+
+      if (isCancelledRef.current) {
+        isCancelledRef.current = false
+        return
+      }
+
+      if (error) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
+        return
+      }
+
+      // Reload messages from session file - it's the source of truth
+      const dir = workingDirRef.current
+      const sid = sessionIdRef.current
+      if (dir && sid) {
+        try {
+          const history = await window.electronAPI.loadAgentSession(dir, sid)
+          setMessages(history.messages)
+        } catch (err) {
+          console.error('Failed to reload session:', err)
+        }
+      }
     })
 
     return () => {
