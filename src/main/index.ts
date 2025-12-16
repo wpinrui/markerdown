@@ -198,6 +198,26 @@ ipcMain.handle('shell:openInExplorer', async (_event, folderPath: string) => {
   await shell.openPath(folderPath)
 })
 
+ipcMain.handle('fs:mkdir', async (_event, dirPath: string) => {
+  try {
+    await fs.promises.mkdir(dirPath, { recursive: true })
+    return { success: true }
+  } catch (error) {
+    console.error('Error creating directory:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
+ipcMain.handle('fs:move', async (_event, sourcePath: string, destPath: string) => {
+  try {
+    await fs.promises.rename(sourcePath, destPath)
+    return { success: true }
+  } catch (error) {
+    console.error('Error moving file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {
   const { pdfPath, outputPath, prompt, workingDir } = request
 

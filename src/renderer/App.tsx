@@ -379,13 +379,93 @@ function App() {
     }
 
     // Move selected children to become children of this new note
-    // This requires creating a sidecar folder and moving files
     if (childrenPaths.length > 0) {
       const sidecarDir = `${targetDir}/${name.replace(/\.md$/i, '')}`
-      // The file watcher will handle the tree refresh after moves
-      // For now, we'll let the user know this is a future feature
-      console.log('Moving children to sidecar folder:', sidecarDir, childrenPaths)
-      // TODO: Implement file moving in Electron main process
+
+      // Create the sidecar folder
+      const mkdirResult = await window.electronAPI.mkdir(sidecarDir)
+      if (!mkdirResult.success) {
+        setError(`Failed to create folder: ${mkdirResult.error}`)
+        return
+      }
+
+      // Helper to find node by path
+      const findNodeByPath = (nodes: TreeNode[], targetPath: string): TreeNode | null => {
+        for (const node of nodes) {
+          if (node.path === targetPath) return node
+          if (node.children) {
+            const found = findNodeByPath(node.children, targetPath)
+            if (found) return found
+          }
+        }
+        return null
+      }
+
+      // Move each selected child into the sidecar folder
+      for (const childPath of childrenPaths) {
+        const childNode = findNodeByPath(treeNodes, childPath)
+
+        if (childNode?.entity) {
+          // Move all entity members
+          for (const member of childNode.entity.members) {
+            const memberName = member.path.substring(Math.max(member.path.lastIndexOf('/'), member.path.lastIndexOf('\\')) + 1)
+            const destPath = `${sidecarDir}/${memberName}`
+            const moveResult = await window.electronAPI.move(member.path, destPath)
+            if (!moveResult.success) {
+              setError(`Failed to move ${memberName}: ${moveResult.error}`)
+            }
+          }
+          // Also move entity's sidecar folder if it has children
+          if (childNode.hasSidecar && childNode.children) {
+            const entityBaseName = childNode.entity.baseName
+            const lastSlash = Math.max(childNode.path.lastIndexOf('/'), childNode.path.lastIndexOf('\\'))
+            const entityDir = childNode.path.substring(0, lastSlash)
+            const entitySidecarPath = `${entityDir}/${entityBaseName}`
+            const destSidecarPath = `${sidecarDir}/${entityBaseName}`
+            const moveResult = await window.electronAPI.move(entitySidecarPath, destSidecarPath)
+            if (!moveResult.success) {
+              setError(`Failed to move folder ${entityBaseName}: ${moveResult.error}`)
+            }
+          }
+        } else if (childNode?.hasSidecar && childNode.children) {
+          // Move markdown file with sidecar
+          const childName = childPath.substring(Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\')) + 1)
+          const baseName = childName.replace(/\.md$/i, '')
+          const lastSlash = Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\'))
+          const childDir = childPath.substring(0, lastSlash)
+
+          // Move the markdown file
+          const destPath = `${sidecarDir}/${childName}`
+          let moveResult = await window.electronAPI.move(childPath, destPath)
+          if (!moveResult.success) {
+            setError(`Failed to move ${childName}: ${moveResult.error}`)
+          }
+
+          // Move the sidecar folder
+          const sidecarPath = `${childDir}/${baseName}`
+          const destSidecarPath = `${sidecarDir}/${baseName}`
+          moveResult = await window.electronAPI.move(sidecarPath, destSidecarPath)
+          if (!moveResult.success) {
+            setError(`Failed to move folder ${baseName}: ${moveResult.error}`)
+          }
+        } else if (childNode?.isDirectory) {
+          // Move entire directory
+          const dirName = childPath.substring(Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\')) + 1)
+          const destPath = `${sidecarDir}/${dirName}`
+          const moveResult = await window.electronAPI.move(childPath, destPath)
+          if (!moveResult.success) {
+            setError(`Failed to move ${dirName}: ${moveResult.error}`)
+          }
+        } else {
+          // Simple file move
+          const childName = childPath.substring(Math.max(childPath.lastIndexOf('/'), childPath.lastIndexOf('\\')) + 1)
+          const destPath = `${sidecarDir}/${childName}`
+          const moveResult = await window.electronAPI.move(childPath, destPath)
+          if (!moveResult.success) {
+            setError(`Failed to move ${childName}: ${moveResult.error}`)
+          }
+        }
+      }
     }
 
     // Refresh tree (watcher should handle this, but force refresh to be safe)
