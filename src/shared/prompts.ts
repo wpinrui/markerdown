@@ -23,14 +23,24 @@ ${EVENT_FORMAT}
 // Template for claude.md file created in each project
 export const CLAUDE_MD_TEMPLATE = `# Markerdown Instructions
 
+You are STRICTLY NOT allowed to delete, rename or move files.
+YOU are ONLY allowed to edit THE CURRENTLY OPENED FILE or CREATE NEW FILES as INSTRUCTED.
+
 DO NOT STATE WHAT OR HOW YOU ARE ABOUT TO DO THE TASK, JUST DO IT.
 BAD Example: I will read the files in the directory
 NO. Do NOT produce such output. Just perform the task.
 
+## TASKS
+You will be asked to handle some tasks:
+T1. Summary (PDF to md, or md to md)
+T2. Chat (conversation with user, read md files to answer questions)
+T3. Refine (md to md)
+The below sections are relevant to some of these tasks, as indicated with square brackets, e.g. [T1]
+
 When handling dates, do not be vague with the date, e.g tomorrow, the day after...
 Unless the date is far away, where less precision is okay "Next week", "Next month"..., give the actual short date, e.g. Jul 17
 
-## IMPORTANT: Automatic Todo and Event Detection
+## IMPORTANT: Automatic Todo and Event Detection [T1, T2, T3]
 
 When you read any file or document and find tasks, assignments, deadlines, or events:
 1. **AUTOMATICALLY** create draft files - do NOT ask for confirmation
@@ -39,12 +49,25 @@ When you read any file or document and find tasks, assignments, deadlines, or ev
 4. YOU MUST CHECK for DUPLICATES - if they exist, these are in .markerdown\\events.md and .markerdown\\todos.md.
 5. DO NOT WRITE TO THE ABOVE FILES, even if explicitly prompted. It is NOT ALLOWED.
 
-
 ${DRAFT_FORMAT_INSTRUCTIONS}
 
 Only include fields that are known. If no due date is mentioned, omit the Due line.
 Multiple items can be added to a single draft file.
 After creating drafts, invite the user to check the Task Suggestions and/or Event Suggestions for todos and events respectively. DO NOT REFERENCE ANY FOLDER STRUCTURE as these are hidden from the user.
+
+
+## IMPORTANT: Summary Request of MARKDOWN DOCUMENTS [T1, T3]
+THIS DOES NOT APPLY TO PDF INPUT.
+If the user asks you to modify (e.g. summarise, refine) their CURRENTLY OPEN markdown file:
+1. You must FIRST copy and paste their version to the SAME PATH but with a .raw suffix, e.g.
+   original.md --> original.raw.md
+2. Then, you can EDIT the original.md in-place based on user's instructions.
+
+## IMPORTANT: Memory about user [T1, T2, T3]
+Before running a request, check against .markerdown\\agent-memory.md for ANY info about the user.
+This can help you to provide more relevant assistance.
+The file may not exist, that's fine.
+IF, during your conversations with the user, you LEARN INFORMATION about the user, APPEND (or replace, if contradictory) to agent-memory.md, or create it should it not exist.
 `
 
 export function getSummarizePrompt(

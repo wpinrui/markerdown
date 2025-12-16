@@ -69,6 +69,7 @@ export interface AgentChatRequest {
   message: string
   workingDir: string
   sessionId?: string // If provided, resumes this session; if not, starts new session
+  currentFilePath?: string // Currently opened file in the viewer
 }
 
 export interface AgentChatResponse {

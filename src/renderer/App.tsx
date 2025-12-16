@@ -664,6 +664,7 @@ function App() {
               />
               <AgentPanel
                 workingDir={folderPath}
+                currentFilePath={activeFilePath}
                 onClose={() => setActivePane(null)}
                 style={{ display: activePane === 'agent' ? 'flex' : 'none' }}
               />

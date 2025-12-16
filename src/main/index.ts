@@ -28,7 +28,19 @@ const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
 const CLAUDE_MD_FILE = 'claude.md'
-const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it. Then respond to: '
+const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it.'
+const CLAUDE_MD_RESPOND_MARKER = 'USER_MESSAGE:'
+
+// Strip our internal prefix from user messages for display
+function stripMessagePrefix(text: string | undefined): string | undefined {
+  if (!text) return text
+  // Match our prefix pattern: CLAUDE_MD_PREFIX + optional file context + USER_MESSAGE: + actual message
+  const markerIndex = text.indexOf(CLAUDE_MD_RESPOND_MARKER)
+  if (markerIndex !== -1) {
+    return text.slice(markerIndex + CLAUDE_MD_RESPOND_MARKER.length).trimStart()
+  }
+  return text
+}
 
 async function readAgentMemory(workingDir: string): Promise<string | null> {
   try {
@@ -333,7 +345,7 @@ function cancelAgent() {
 }
 
 ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<AgentChatResponse> => {
-  const { message, workingDir, sessionId: existingSessionId } = request
+  const { message, workingDir, sessionId: existingSessionId, currentFilePath } = request
 
   // Cancel any existing agent process
   cancelAgent()
@@ -366,8 +378,9 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     await addChatSessionId(workingDir, sessionId)
   }
 
-  // Prefix message with instruction to read claude.md for project-specific instructions
-  const prefixedMessage = `${CLAUDE_MD_PREFIX}${message}`
+  // Prefix message with instruction to read claude.md and context about current file
+  const currentFileContext = currentFilePath ? ` The user currently has "${currentFilePath}" open.` : ''
+  const prefixedMessage = `${CLAUDE_MD_PREFIX}${currentFileContext} ${CLAUDE_MD_RESPOND_MARKER} ${message}`
   args.push(prefixedMessage)
 
   agentProcess = spawn('claude', args, {
@@ -494,11 +507,8 @@ async function parseSessionMetadata(filePath: string): Promise<{ timestamp: stri
 
         // Get first user message
         if (data.type === 'user' && data.message?.role === 'user') {
-          let text = extractTextFromContent(data.message.content)
-          // Strip the claude.md prefix we add to messages
-          if (text?.startsWith(CLAUDE_MD_PREFIX)) {
-            text = text.slice(CLAUDE_MD_PREFIX.length)
-          }
+          const rawText = extractTextFromContent(data.message.content)
+          const text = stripMessagePrefix(rawText)
           if (text) {
             firstMessage = text.slice(0, MESSAGE_PREVIEW_LENGTH)
             rl.close()
@@ -572,11 +582,8 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
         const entry: SessionJsonLine = JSON.parse(line)
 
         if (entry.type === 'user' && entry.message?.role === 'user') {
-          let text = extractTextFromContent(entry.message.content)
-          // Strip the claude.md prefix we add to messages
-          if (text?.startsWith(CLAUDE_MD_PREFIX)) {
-            text = text.slice(CLAUDE_MD_PREFIX.length)
-          }
+          const rawText = extractTextFromContent(entry.message.content)
+          const text = stripMessagePrefix(rawText)
           if (text) {
             messages.push({ role: 'user', content: text })
           }
