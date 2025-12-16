@@ -23,6 +23,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isCancelledRef = useRef(false)
   const historyRef = useRef<HTMLDivElement>(null)
+  const streamingContentRef = useRef('')
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -58,7 +59,8 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   // Set up streaming listeners
   useEffect(() => {
     const unsubChunk = window.electronAPI.onAgentChunk((chunk) => {
-      setStreamingContent((prev) => prev + chunk)
+      streamingContentRef.current += chunk
+      setStreamingContent(streamingContentRef.current)
     })
 
     const unsubComplete = window.electronAPI.onAgentComplete((error) => {
@@ -66,19 +68,16 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       // Ignore errors from intentional cancellation (already handled in handleCancel/handleNewChat)
       if (isCancelledRef.current) {
         isCancelledRef.current = false
+        streamingContentRef.current = ''
         return
       }
       if (error) {
-        setStreamingContent('')
         setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
-      } else {
-        setStreamingContent((prev) => {
-          if (prev) {
-            setMessages((msgs) => [...msgs, { role: 'assistant', content: prev }])
-          }
-          return ''
-        })
+      } else if (streamingContentRef.current) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: streamingContentRef.current }])
       }
+      streamingContentRef.current = ''
+      setStreamingContent('')
     })
 
     return () => {
@@ -94,6 +93,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
+    streamingContentRef.current = ''
     setStreamingContent('')
 
     try {
@@ -121,10 +121,11 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setIsLoading(false)
-    if (streamingContent) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: streamingContent + '\n\n(cancelled)' }])
-      setStreamingContent('')
+    if (streamingContentRef.current) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: streamingContentRef.current + '\n\n(cancelled)' }])
     }
+    streamingContentRef.current = ''
+    setStreamingContent('')
   }
 
   const handleNewChat = () => {
@@ -132,6 +133,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     window.electronAPI.agentCancel()
     setMessages([])
     setSessionId(null)
+    streamingContentRef.current = ''
     setStreamingContent('')
     setIsLoading(false)
     setShowHistory(false)
@@ -160,14 +162,19 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const handleLoadSession = async (session: AgentSession) => {
     if (!workingDir) return
 
+    // Cancel any in-progress agent request to prevent stale responses from corrupting new session
+    isCancelledRef.current = true
+    window.electronAPI.agentCancel()
+
     setShowHistory(false)
     setIsLoading(true)
+    streamingContentRef.current = ''
+    setStreamingContent('')
 
     try {
       const history = await window.electronAPI.loadAgentSession(workingDir, session.sessionId)
       setMessages(history.messages)
       setSessionId(session.sessionId)
-      setStreamingContent('')
     } catch (err) {
       console.error('Failed to load session:', err)
     } finally {

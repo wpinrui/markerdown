@@ -251,8 +251,8 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
   // Cancel any existing agent process
   cancelAgent()
 
-  // Use existing session ID or generate a new one
-  const sessionId = existingSessionId ?? crypto.randomUUID()
+  // Use existing session ID or generate a new one with chat- prefix
+  const sessionId = existingSessionId ?? `chat-${crypto.randomUUID()}`
 
   const args = [
     '--print',
@@ -407,11 +407,12 @@ ipcMain.handle('agent:getSessions', async (_event, workingDir: string): Promise<
   try {
     const sessionsDir = getSessionsDir(workingDir)
     const files = await fs.promises.readdir(sessionsDir)
-    const jsonlFiles = files.filter((f) => f.endsWith('.jsonl') && !f.startsWith('agent-'))
+    // Only include chat sessions (prefixed with chat-)
+    const chatFiles = files.filter((f) => f.endsWith('.jsonl') && f.startsWith('chat-'))
 
     const sessions: AgentSession[] = []
 
-    for (const file of jsonlFiles) {
+    for (const file of chatFiles) {
       const sessionId = file.replace('.jsonl', '')
       const filePath = path.join(sessionsDir, file)
       const metadata = await parseSessionMetadata(filePath)
