@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight, MapPin } from 'lucide-react'
 import type { EventItem } from '@shared/types'
 import { NewEventModal } from './NewEventModal'
+import { formatDateForDisplay } from '../utils/dateUtils'
 
 type FilterMode = 'all' | 'upcoming' | 'past'
 
@@ -260,9 +261,9 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
                     </button>
                   )}
                   <span className="event-text">{event.text}</span>
-                  <span className="event-datetime">{event.startDate}</span>
+                  <span className="event-datetime">{formatDateForDisplay(event.startDate)}</span>
                   {event.endDate && (
-                    <span className="event-datetime-end">→ {event.endDate}</span>
+                    <span className="event-datetime-end">→ {formatDateForDisplay(event.endDate)}</span>
                   )}
                   {deleteConfirmId === event.id ? (
                     <div className="event-delete-confirm">

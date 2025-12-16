@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { EventItem } from '@shared/types'
-import { formatDateForInput, formatDateForStorage } from '../utils/dateUtils'
+import { formatDateForInput } from '../utils/dateUtils'
 
 interface NewEventModalProps {
   isOpen: boolean
@@ -51,8 +51,8 @@ export function NewEventModal({ isOpen, onClose, onSubmit }: NewEventModalProps)
 
     onSubmit({
       text: text.trim(),
-      startDate: formatDateForStorage(startDate),
-      endDate: formatDateForStorage(endDate) || undefined,
+      startDate,
+      endDate: endDate || undefined,
       location: location.trim() || undefined,
       notes: notes.trim() || undefined,
     })

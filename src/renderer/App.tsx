@@ -18,6 +18,9 @@ import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
+const DEFAULT_SIDEBAR_WIDTH = 280
+const MIN_SIDEBAR_WIDTH = 180
+const MAX_SIDEBAR_WIDTH = 500
 
 // Extract filename from path (handles both / and \ separators)
 function getBasename(filePath: string): string {
@@ -64,6 +67,11 @@ function App() {
   const [activePane, setActivePane] = useState<PaneType | null>(null)
   const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
   const isDraggingAgentPanel = useRef(false)
+
+  // Left sidebar state
+  const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  const isDraggingSidebar = useRef(false)
 
   // Editor state
   const [editMode, setEditMode] = useState<EditMode>('view')
@@ -143,6 +151,34 @@ function App() {
 
     const handleMouseUp = () => {
       isDraggingAgentPanel.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [])
+
+  // Sidebar resize handler (drag from right edge)
+  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingSidebar.current = true
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingSidebar.current) return
+      const newWidth = Math.min(
+        MAX_SIDEBAR_WIDTH,
+        Math.max(MIN_SIDEBAR_WIDTH, e.clientX)
+      )
+      setSidebarWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      isDraggingSidebar.current = false
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
       document.removeEventListener('mousemove', handleMouseMove)
@@ -598,25 +634,31 @@ function App() {
   return (
     <div className="app">
       <main className="main">
-        <aside className="sidebar">
-          <div className="sidebar-tree">
-            {folderPath ? (
-              <TreeView
-                nodes={treeNodes}
-                selectedPath={selectedNode?.path ?? null}
-                onSelect={handleSelectNode}
-                summarizingPaths={summarizingPaths}
-              />
-            ) : (
-              <p className="placeholder">No folder opened</p>
-            )}
-          </div>
-          <SidebarToolbar
-            onNewNote={() => setShowNewNoteModal(true)}
-            onOpenFolder={handleOpenInExplorer}
-            onOpenOptions={() => setShowOptionsModal(true)}
-          />
-        </aside>
+        {sidebarVisible && (
+          <aside className="sidebar" style={{ width: sidebarWidth }}>
+            <div className="sidebar-tree">
+              {folderPath ? (
+                <TreeView
+                  nodes={treeNodes}
+                  selectedPath={selectedNode?.path ?? null}
+                  onSelect={handleSelectNode}
+                  summarizingPaths={summarizingPaths}
+                />
+              ) : (
+                <p className="placeholder">No folder opened</p>
+              )}
+            </div>
+            <SidebarToolbar
+              onNewNote={() => setShowNewNoteModal(true)}
+              onOpenFolder={handleOpenInExplorer}
+              onOpenOptions={() => setShowOptionsModal(true)}
+            />
+            <div
+              className="sidebar-resize-handle"
+              onMouseDown={handleSidebarMouseDown}
+            />
+          </aside>
+        )}
         <section className="content">
           <TopToolbar
             entity={selectedNode?.entity}
@@ -636,6 +678,8 @@ function App() {
             suggestionType={selectedNode?.isSuggestion}
             onAcceptSuggestion={handleAcceptSuggestion}
             onDiscardSuggestion={handleDiscardSuggestion}
+            sidebarVisible={sidebarVisible}
+            onSidebarToggle={() => setSidebarVisible((v) => !v)}
           />
           <div className="content-body-wrapper">
             <div className="content-body">

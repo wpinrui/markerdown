@@ -42,16 +42,29 @@ body {
 }
 
 .sidebar {
-  width: 280px;
+  position: relative;
   background-color: #252526;
   border-right: 1px solid #3c3c3c;
   display: flex;
   flex-direction: column;
 }
 
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.sidebar-resize-handle:hover {
+  background-color: #0e639c;
+}
+
 .sidebar-tree {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
   padding: 12px;
 }
 
@@ -143,6 +156,8 @@ body {
   cursor: pointer;
   border-radius: 4px;
   user-select: none;
+  width: fit-content;
+  min-width: 100%;
 }
 
 .tree-item-row:hover {
@@ -188,8 +203,6 @@ body {
 
 .tree-name {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .tree-variant-count {

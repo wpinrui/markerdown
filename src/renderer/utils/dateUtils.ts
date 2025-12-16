@@ -13,9 +13,9 @@ export function formatDateForInput(date: Date): string {
 }
 
 /**
- * Convert datetime-local value to storage format (YYYY-MM-DD HH:mm)
+ * Format ISO date string for display (replaces T with space)
  */
-export function formatDateForStorage(datetimeLocal: string): string {
-  if (!datetimeLocal) return ''
-  return datetimeLocal.replace('T', ' ')
+export function formatDateForDisplay(isoDate: string): string {
+  if (!isoDate) return ''
+  return isoDate.replace('T', ' ')
 }
