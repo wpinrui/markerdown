@@ -45,7 +45,8 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
   const isSummarizing = summarizingPaths?.has(node.path) ?? false
   const isPdf = isPdfFile(node.name)
   const isEntity = !!node.entity
-  const isSelectable = isMarkdown || isPdf || isEntity
+  const isSuggestion = !!node.isSuggestion
+  const isSelectable = isMarkdown || isPdf || isEntity || isSuggestion
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -69,6 +70,12 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
   }
 
   const getIcon = () => {
+    if (node.isSuggestion === 'todos') {
+      return '✅'
+    }
+    if (node.isSuggestion === 'events') {
+      return '📅'
+    }
     if (node.isDirectory) {
       return expanded ? '📂' : '📁'
     }
@@ -93,7 +100,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
   return (
     <div className="tree-item">
       <div
-        className={`tree-item-row ${isSelected ? 'selected' : ''}`}
+        className={`tree-item-row ${isSelected ? 'selected' : ''} ${isSuggestion ? 'suggestion' : ''}`}
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         onClick={handleRowClick}
       >

@@ -180,17 +180,48 @@ function App() {
     setActiveFormats(formats)
   }, [])
 
-  const refreshTree = useCallback(() => {
+  const refreshTree = useCallback(async () => {
     if (!folderPath) {
       setTreeNodes([])
       return
     }
-    buildFileTree(folderPath, window.electronAPI.readDirectory)
-      .then(setTreeNodes)
-      .catch((err) => {
-        console.error('Failed to build file tree:', err)
-        setError('Failed to load folder contents')
-      })
+    try {
+      const nodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+
+      // Check for suggestion draft files and inject them at the top
+      const suggestionNodes: TreeNode[] = []
+      const todosDraftPath = `${folderPath}/.markerdown/todos-draft.md`
+      const eventsDraftPath = `${folderPath}/.markerdown/events-draft.md`
+
+      const [todosDraftExists, eventsDraftExists] = await Promise.all([
+        window.electronAPI.exists(todosDraftPath),
+        window.electronAPI.exists(eventsDraftPath),
+      ])
+
+      if (todosDraftExists) {
+        suggestionNodes.push({
+          name: 'Task Suggestions',
+          path: todosDraftPath,
+          isDirectory: false,
+          hasSidecar: false,
+          isSuggestion: 'todos',
+        })
+      }
+      if (eventsDraftExists) {
+        suggestionNodes.push({
+          name: 'Event Suggestions',
+          path: eventsDraftPath,
+          isDirectory: false,
+          hasSidecar: false,
+          isSuggestion: 'events',
+        })
+      }
+
+      setTreeNodes([...suggestionNodes, ...nodes])
+    } catch (err) {
+      console.error('Failed to build file tree:', err)
+      setError('Failed to load folder contents')
+    }
   }, [folderPath])
 
   // Build tree when folder changes

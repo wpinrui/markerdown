@@ -34,6 +34,7 @@ export interface TreeNode {
   hasSidecar: boolean // true if this .md file has a matching folder
   entity?: Entity // if this node represents an entity (grouped files)
   children?: TreeNode[]
+  isSuggestion?: 'todos' | 'events' // if this is a suggestion draft file
 }
 
 export type FileChangeEventType = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir'

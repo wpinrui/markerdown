@@ -153,6 +153,19 @@ body {
   background-color: #094771;
 }
 
+.tree-item-row.suggestion {
+  background-color: rgba(255, 193, 7, 0.15);
+  border-left: 2px solid #ffc107;
+}
+
+.tree-item-row.suggestion:hover {
+  background-color: rgba(255, 193, 7, 0.25);
+}
+
+.tree-item-row.suggestion.selected {
+  background-color: rgba(255, 193, 7, 0.3);
+}
+
 .tree-chevron {
   font-size: 10px;
   width: 16px;
