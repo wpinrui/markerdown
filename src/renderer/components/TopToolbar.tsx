@@ -128,13 +128,15 @@ export function TopToolbar({
             {isSummarizing ? <span className="btn-spinner" /> : '📋'}
           </button>
         )}
-        <button
-          className={`tab-action-btn ${showAgent ? 'active' : ''}`}
-          onClick={onAgentToggle}
-          title="Toggle Agent (Ctrl+Shift+A)"
-        >
-          ✦
-        </button>
+        {!isEditing && (
+          <button
+            className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
+            onClick={onAgentToggle}
+            title="Toggle Agent (Ctrl+Shift+A)"
+          >
+            ✦ Agent
+          </button>
+        )}
       </div>
     </div>
   )
