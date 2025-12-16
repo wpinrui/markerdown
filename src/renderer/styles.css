@@ -42,11 +42,24 @@ body {
 }
 
 .sidebar {
-  width: 280px;
+  position: relative;
   background-color: #252526;
   border-right: 1px solid #3c3c3c;
   display: flex;
   flex-direction: column;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.sidebar-resize-handle:hover {
+  background-color: #0e639c;
 }
 
 .sidebar-tree {
@@ -187,6 +200,8 @@ body {
 }
 
 .tree-name {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

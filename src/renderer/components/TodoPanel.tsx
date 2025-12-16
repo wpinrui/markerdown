@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { TodoItem } from '@shared/types'
 import { NewTodoModal } from './NewTodoModal'
+import { formatDateForDisplay } from '../utils/dateUtils'
 
 type FilterMode = 'all' | 'incomplete' | 'completed'
 
@@ -265,7 +266,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
                   )}
                   <span className="todo-text">{todo.text}</span>
                   {todo.dueDate && (
-                    <span className="todo-due">{todo.dueDate}</span>
+                    <span className="todo-due">{formatDateForDisplay(todo.dueDate)}</span>
                   )}
                   {deleteConfirmId === todo.id ? (
                     <div className="todo-delete-confirm">

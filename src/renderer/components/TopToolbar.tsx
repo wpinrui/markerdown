@@ -2,7 +2,7 @@ import type { Entity, EntityMember, EditMode } from '@shared/types'
 import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
 import { ModeToggle } from './ModeToggle'
-import { MessageSquare, CheckSquare, Calendar, Check, X, Sparkles } from 'lucide-react'
+import { MessageSquare, CheckSquare, Calendar, Check, X, Sparkles, PanelLeft } from 'lucide-react'
 
 export type PaneType = 'agent' | 'todos' | 'events'
 
@@ -50,6 +50,9 @@ interface TopToolbarProps {
   suggestionType?: 'todos' | 'events'
   onAcceptSuggestion?: () => void
   onDiscardSuggestion?: () => void
+  // Sidebar toggle props
+  sidebarVisible: boolean
+  onSidebarToggle: () => void
 }
 
 export function TopToolbar({
@@ -70,6 +73,8 @@ export function TopToolbar({
   suggestionType,
   onAcceptSuggestion,
   onDiscardSuggestion,
+  sidebarVisible,
+  onSidebarToggle,
 }: TopToolbarProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
@@ -88,6 +93,16 @@ export function TopToolbar({
 
   return (
     <div className="top-toolbar">
+      {/* Sidebar toggle */}
+      <button
+        className={`toolbar-icon-btn sidebar-toggle ${sidebarVisible ? 'active' : ''}`}
+        onClick={onSidebarToggle}
+        title="Toggle sidebar (Ctrl+B)"
+      >
+        <PanelLeft size={16} strokeWidth={1.5} />
+      </button>
+      <div className="toolbar-separator" />
+
       {/* Show entity tabs only in view mode when viewing an entity */}
       {entity && activeMember && !isEditing && onTabChange &&
         entity.members.map((member) => {

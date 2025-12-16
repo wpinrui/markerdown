@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { TodoItem } from '@shared/types'
-import { formatDateForInput, formatDateForStorage } from '../utils/dateUtils'
+import { formatDateForInput } from '../utils/dateUtils'
 
 interface NewTodoModalProps {
   isOpen: boolean
@@ -48,7 +48,7 @@ export function NewTodoModal({ isOpen, onClose, onSubmit }: NewTodoModalProps) {
     onSubmit({
       text: text.trim(),
       completed: false,
-      dueDate: formatDateForStorage(dueDate) || undefined,
+      dueDate: dueDate || undefined,
       notes: notes.trim() || undefined,
     })
   }
