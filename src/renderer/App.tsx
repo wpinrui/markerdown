@@ -40,6 +40,10 @@ function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null 
   }
   return null
 }
+
+// Move item result type
+type MoveItemResult = { success: boolean; error?: string }
+
 const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
@@ -546,6 +550,16 @@ function App() {
     setContextMenu(null)
   }, [])
 
+  // Shared helper to move a file/folder with error handling
+  const moveItem = useCallback(async (sourcePath: string, destPath: string, displayName: string): Promise<boolean> => {
+    const result = await window.electronAPI.move(sourcePath, destPath)
+    if (!result.success) {
+      setError(`Failed to move ${displayName}: ${result.error}`)
+      return false
+    }
+    return true
+  }, [])
+
   const handleRevealInExplorer = useCallback(async (node: TreeNode) => {
     // Get the path to reveal - for entities use the first member's path
     const pathToReveal = node.entity?.members[0]?.path ?? node.path
@@ -801,14 +815,6 @@ function App() {
   const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
     if (!folderPath) return
 
-    // Helper to move a file/folder and report errors
-    const moveItem = async (sourcePath: string, destPath: string, displayName: string) => {
-      const result = await window.electronAPI.move(sourcePath, destPath)
-      if (!result.success) {
-        setError(`Failed to move ${displayName}: ${result.error}`)
-      }
-    }
-
     // Determine the directory where the file should be created
     let targetDir = folderPath
 
@@ -943,16 +949,6 @@ function App() {
   const handleTreeMove = useCallback(async (node: TreeNode, targetPath: string) => {
     if (!folderPath) return
 
-    // Helper to move a file/folder
-    const moveItem = async (sourcePath: string, destPath: string, displayName: string) => {
-      const result = await window.electronAPI.move(sourcePath, destPath)
-      if (!result.success) {
-        setError(`Failed to move ${displayName}: ${result.error}`)
-        return false
-      }
-      return true
-    }
-
     // Determine target directory
     let targetDir = targetPath
     const targetNode = findNodeByPath(treeNodes, targetPath)
@@ -1020,7 +1016,7 @@ function App() {
 
     // Refresh tree
     refreshTree()
-  }, [folderPath, treeNodes, selectedNode, refreshTree])
+  }, [folderPath, treeNodes, selectedNode, refreshTree, moveItem])
 
   // Handle creating new entity member
   const handleCreateMember = async () => {
