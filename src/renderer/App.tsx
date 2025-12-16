@@ -19,7 +19,7 @@ import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
-import { getBasename, getDirname, getExtension, stripExtension, stripMultipleExtensions, normalizePath, findNodeByPath, flattenTree, detectPathSeparator, PATH_SEPARATOR_FORWARD, PATH_SEPARATOR_BACKWARD } from '@shared/pathUtils'
+import { getBasename, getDirname, getExtension, stripExtension, stripMultipleExtensions, normalizePath, findNodeByPath, flattenTree, detectPathSeparator } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
@@ -557,7 +557,8 @@ function App() {
     if (node.hasSidecar && node.children) {
       const entityBaseName = node.entity.baseName
       const sidecarPath = `${getDirname(node.path)}/${entityBaseName}`
-      await moveItem(sidecarPath, `${targetDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+      const success = await moveItem(sidecarPath, `${targetDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+      if (!success) return false
     }
 
     return true
@@ -572,7 +573,12 @@ function App() {
     const success = await moveItem(node.path, `${targetDir}/${nodeName}`, nodeName)
     if (!success) return false
 
-    await moveItem(`${nodeDir}/${baseName}`, `${targetDir}/${baseName}`, `folder ${baseName}`)
+    // Only move sidecar if it exists
+    if (node.hasSidecar && node.children) {
+      const sidecarSuccess = await moveItem(`${nodeDir}/${baseName}`, `${targetDir}/${baseName}`, `folder ${baseName}`)
+      if (!sidecarSuccess) return false
+    }
+
     return true
   }, [moveItem])
 
