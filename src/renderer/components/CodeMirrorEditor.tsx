@@ -277,14 +277,19 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         const view = viewRef.current
         if (!view) return
 
+        // Convert relative path to absolute file:// URL for display
+        const markdownDir = filePath.substring(0, filePath.lastIndexOf('\\'))
+        const absolutePath = `${markdownDir}\\${relativePath.replace(/\//g, '\\')}`
+        const fileUrl = `file:///${absolutePath.replace(/\\/g, '/')}`
+
         const { from } = view.state.selection.main
-        const imgMd = `![image](${relativePath})`
+        const imgMd = `![image](${fileUrl})`
         view.dispatch({
           changes: { from, to: from, insert: imgMd },
           selection: { anchor: from + imgMd.length },
         })
         view.focus()
-      }, []),
+      }, [filePath]),
     })
 
     return <div ref={containerRef} className="codemirror-editor" />
