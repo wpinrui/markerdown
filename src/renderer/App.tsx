@@ -327,11 +327,10 @@ function App() {
   const isEditing = editMode !== 'view'
   const toggleAgent = () => setShowAgent((prev) => !prev)
 
-  // Open folder handler (for sidebar toolbar)
-  const handleOpenFolder = async () => {
-    const path = await window.electronAPI.openFolder()
-    if (path) {
-      handleFolderChange(path)
+  // Open in file explorer handler (for sidebar toolbar)
+  const handleOpenInExplorer = async () => {
+    if (folderPath) {
+      await window.electronAPI.openInExplorer(folderPath)
     }
   }
 
@@ -462,7 +461,7 @@ function App() {
           </div>
           <SidebarToolbar
             onNewNote={() => setShowNewNoteModal(true)}
-            onOpenFolder={handleOpenFolder}
+            onOpenFolder={handleOpenInExplorer}
             onOpenOptions={() => setShowOptionsModal(true)}
           />
         </aside>

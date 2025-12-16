@@ -19,7 +19,7 @@ export function SidebarToolbar({ onNewNote, onOpenFolder, onOpenOptions }: Sideb
       <button
         className="sidebar-toolbar-btn"
         onClick={onOpenFolder}
-        title="Open Folder"
+        title="Open in File Explorer"
       >
         <Folder size={18} strokeWidth={1.5} />
       </button>

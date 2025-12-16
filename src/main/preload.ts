@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   watchFolder: (folderPath: string): Promise<void> =>
     ipcRenderer.invoke('fs:watchFolder', folderPath),
   unwatchFolder: (): Promise<void> => ipcRenderer.invoke('fs:unwatchFolder'),
+  openInExplorer: (folderPath: string): Promise<void> =>
+    ipcRenderer.invoke('shell:openInExplorer', folderPath),
   onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, data: FileChangeEvent) => callback(data)
     ipcRenderer.on('fs:changed', listener)

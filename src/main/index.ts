@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
@@ -192,6 +192,10 @@ ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
 
 ipcMain.handle('fs:unwatchFolder', () => {
   closeWatcher()
+})
+
+ipcMain.handle('shell:openInExplorer', async (_event, folderPath: string) => {
+  await shell.openPath(folderPath)
 })
 
 ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Promise<SummarizeResult> => {

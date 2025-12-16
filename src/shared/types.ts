@@ -97,6 +97,7 @@ export interface ElectronAPI {
   setLastFolder: (folderPath: string | null) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
+  openInExplorer: (folderPath: string) => Promise<void>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarizePdf: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>
