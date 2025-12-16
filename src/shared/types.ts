@@ -9,6 +9,11 @@ export const PDF_EXTENSION = '.pdf'
 export const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv']
 export const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
 
+// Hidden folder names
+export const IMAGES_DIR = '.images'
+export const CLAUDE_DIR = '.claude'
+export const MARKERDOWN_DIR = '.markerdown'
+
 export type EntityMemberType = 'markdown' | 'pdf' | 'video' | 'audio'
 
 const MIME_TYPES: Record<string, string> = {

@@ -5,6 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
+import { IMAGES_DIR, MARKERDOWN_DIR } from '@shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
 import * as os from 'os'
@@ -38,12 +39,10 @@ protocol.registerSchemesAsPrivileged([
   },
 ])
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
-const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
 const CLAUDE_MD_FILE = 'claude.md'
 const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it.'
-const IMAGES_DIR = '.images'
 const IMAGE_FILENAME_PREFIX = 'image-'
 const IMAGE_DATA_URL_PREFIX = /^data:image\/\w+;base64,/
 const RANDOM_BYTES_LENGTH = 4 // For unique filename generation
@@ -260,7 +259,7 @@ ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   watcher = chokidar.watch(folderPath, {
     ignored: (filePath: string) => {
       // Allow .markerdown folder, ignore other dotfiles
-      if (filePath.includes('.markerdown')) return false
+      if (filePath.includes(MARKERDOWN_DIR)) return false
       return /(^|[\/\\])\./.test(filePath)
     },
     persistent: true,
