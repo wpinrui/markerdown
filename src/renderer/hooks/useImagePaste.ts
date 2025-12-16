@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 const IMAGE_MIME_PREFIX = 'image/'
 const SUPPORTED_IMAGE_FORMATS: Record<string, string> = {
@@ -23,6 +23,13 @@ function getImageExtension(mimeType: string): string | null {
 }
 
 export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImagePasteOptions) {
+  const onImageSavedRef = useRef(onImageSaved)
+
+  // Keep ref up to date
+  useEffect(() => {
+    onImageSavedRef.current = onImageSaved
+  }, [onImageSaved])
+
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -53,13 +60,17 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
               return
             }
 
-            // Save image via IPC
-            const saveResult = await window.electronAPI.saveImage(filePath, imageDataUrl, extension)
+            try {
+              // Save image via IPC
+              const saveResult = await window.electronAPI.saveImage(filePath, imageDataUrl, extension)
 
-            if (saveResult.success && saveResult.relativePath) {
-              onImageSaved(saveResult.relativePath)
-            } else {
-              console.error('Failed to save image:', saveResult.error)
+              if (saveResult.success && saveResult.relativePath) {
+                onImageSavedRef.current(saveResult.relativePath)
+              } else {
+                console.error('Failed to save image:', saveResult.error)
+              }
+            } catch (error) {
+              console.error('Error saving image:', error)
             }
           }
           reader.onerror = () => {
@@ -73,5 +84,5 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
 
     container.addEventListener('paste', handlePaste)
     return () => container.removeEventListener('paste', handlePaste)
-  }, [containerRef, filePath, onImageSaved])
+  }, [containerRef, filePath])
 }
