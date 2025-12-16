@@ -29,9 +29,13 @@ export function OptionsModal({
   }, [isOpen, currentFolderPath])
 
   const handleBrowse = async () => {
-    const path = await window.electronAPI.openFolder()
-    if (path) {
-      setPendingFolderPath(path)
+    try {
+      const path = await window.electronAPI.openFolder()
+      if (path) {
+        setPendingFolderPath(path)
+      }
+    } catch (err) {
+      console.error('Failed to open folder dialog:', err)
     }
   }
 

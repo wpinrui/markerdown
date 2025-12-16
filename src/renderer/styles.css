@@ -209,23 +209,6 @@ body {
   height: 100%;
 }
 
-.entity-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid #3c3c3c;
-  flex-wrap: wrap;
-}
-
-.entity-tabs .editor-mode-toggle {
-  margin-left: auto;
-}
-
-.entity-tabs .save-indicator {
-  margin-left: 8px;
-}
-
 .entity-tab {
   padding: 6px 12px;
   color: white;
@@ -238,13 +221,6 @@ body {
 
 .entity-tab:hover {
   filter: brightness(1.15);
-}
-
-.entity-tabs-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .tab-action-btn {
@@ -288,11 +264,6 @@ body {
   border-top-color: #d4d4d4;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-}
-
-.entity-content {
-  flex: 1;
-  overflow-y: auto;
 }
 
 /* PDF Viewer */

@@ -330,6 +330,26 @@ function App() {
     (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
   const isStandalonePdfView = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
 
+  // Render markdown content (viewer or editor) - shared between entity and standalone
+  const renderMarkdownContent = (filePath: string) => {
+    if (editMode === 'view') {
+      return <MarkdownViewer content={fileContent!} />
+    }
+    return (
+      <MarkdownEditor
+        ref={standaloneEditorRef}
+        content={editContent ?? fileContent!}
+        filePath={filePath}
+        mode={editMode}
+        onModeChange={setEditMode}
+        onContentChange={handleEditContentChange}
+        isDirty={isDirty}
+        showToolbar={false}
+        onSelectionChange={handleStandaloneSelectionChange}
+      />
+    )
+  }
+
   return (
     <div className="app">
       <main className="main">
@@ -376,42 +396,14 @@ function App() {
                 activeMember.type === 'pdf' ? (
                   <PdfViewer filePath={activeMember.path} />
                 ) : fileContent !== null ? (
-                  editMode === 'view' ? (
-                    <MarkdownViewer content={fileContent} />
-                  ) : (
-                    <MarkdownEditor
-                      ref={standaloneEditorRef}
-                      content={editContent ?? fileContent}
-                      filePath={activeMember.path}
-                      mode={editMode}
-                      onModeChange={setEditMode}
-                      onContentChange={handleEditContentChange}
-                      isDirty={isDirty}
-                      showToolbar={false}
-                      onSelectionChange={handleStandaloneSelectionChange}
-                    />
-                  )
+                  renderMarkdownContent(activeMember.path)
                 ) : (
                   <div className="placeholder">Loading...</div>
                 )
               ) : isStandalonePdfView ? (
                 <PdfViewer filePath={selectedNode.path} />
               ) : fileContent !== null && selectedNode ? (
-                editMode === 'view' ? (
-                  <MarkdownViewer content={fileContent} />
-                ) : (
-                  <MarkdownEditor
-                    ref={standaloneEditorRef}
-                    content={editContent ?? fileContent}
-                    filePath={selectedNode.path}
-                    mode={editMode}
-                    onModeChange={setEditMode}
-                    onContentChange={handleEditContentChange}
-                    isDirty={isDirty}
-                    showToolbar={false}
-                    onSelectionChange={handleStandaloneSelectionChange}
-                  />
-                )
+                renderMarkdownContent(selectedNode.path)
               ) : null}
             </div>
             <aside
