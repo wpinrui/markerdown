@@ -12,6 +12,7 @@ import { TopToolbar, PaneType } from './components/TopToolbar'
 import { SidebarToolbar } from './components/SidebarToolbar'
 import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
+import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
@@ -66,12 +67,24 @@ function App() {
   // Right pane state (agent/todos/events)
   const [activePane, setActivePane] = useState<PaneType | null>(null)
   const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
-  const isDraggingAgentPanel = useRef(false)
 
   // Left sidebar state
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
-  const isDraggingSidebar = useRef(false)
+
+  // Resize handlers
+  const { handleMouseDown: handleAgentPanelMouseDown } = useHorizontalResize({
+    direction: 'right',
+    minWidth: MIN_AGENT_PANEL_WIDTH,
+    maxWidth: MAX_AGENT_PANEL_WIDTH,
+    setWidth: setAgentPanelWidth,
+  })
+  const { handleMouseDown: handleSidebarMouseDown } = useHorizontalResize({
+    direction: 'left',
+    minWidth: MIN_SIDEBAR_WIDTH,
+    maxWidth: MAX_SIDEBAR_WIDTH,
+    setWidth: setSidebarWidth,
+  })
 
   // Editor state
   const [editMode, setEditMode] = useState<EditMode>('view')
@@ -132,62 +145,6 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeMember, selectedNode, handlePaneToggle])
-
-  // Agent panel resize handler (drag from left edge)
-  const handleAgentPanelMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    isDraggingAgentPanel.current = true
-    document.body.style.cursor = 'ew-resize'
-    document.body.style.userSelect = 'none'
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingAgentPanel.current) return
-      const newWidth = Math.min(
-        MAX_AGENT_PANEL_WIDTH,
-        Math.max(MIN_AGENT_PANEL_WIDTH, window.innerWidth - e.clientX)
-      )
-      setAgentPanelWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      isDraggingAgentPanel.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }, [])
-
-  // Sidebar resize handler (drag from right edge)
-  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    isDraggingSidebar.current = true
-    document.body.style.cursor = 'ew-resize'
-    document.body.style.userSelect = 'none'
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingSidebar.current) return
-      const newWidth = Math.min(
-        MAX_SIDEBAR_WIDTH,
-        Math.max(MIN_SIDEBAR_WIDTH, e.clientX)
-      )
-      setSidebarWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      isDraggingSidebar.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }, [])
 
   // Save handler for editor
   const handleSaveFile = useCallback(async (content: string, filePath: string) => {
