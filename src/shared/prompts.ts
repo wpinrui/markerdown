@@ -24,8 +24,11 @@ ${EVENT_FORMAT}
 export const CLAUDE_MD_TEMPLATE = `# Markerdown Instructions
 
 DO NOT STATE WHAT OR HOW YOU ARE ABOUT TO DO THE TASK, JUST DO IT.
-Example: I will read the files in the directory
+BAD Example: I will read the files in the directory
 NO. Do NOT produce such output. Just perform the task.
+
+When handling dates, do not be vague with the date, e.g tomorrow, the day after...
+Unless the date is far away, where less precision is okay "Next week", "Next month"..., give the actual short date, e.g. Jul 17
 
 ## IMPORTANT: Automatic Todo and Event Detection
 
@@ -33,6 +36,9 @@ When you read any file or document and find tasks, assignments, deadlines, or ev
 1. **AUTOMATICALLY** create draft files - do NOT ask for confirmation
 2. **DO NOT** use any built-in todo tools - create the actual draft files below
 3. Create drafts even if the user didn't explicitly ask
+4. YOU MUST CHECK for DUPLICATES - if they exist, these are in .markerdown\\events.md and .markerdown\\todos.md.
+5. DO NOT WRITE TO THE ABOVE FILES, even if explicitly prompted. It is NOT ALLOWED.
+
 
 ${DRAFT_FORMAT_INSTRUCTIONS}
 
