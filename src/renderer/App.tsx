@@ -242,7 +242,11 @@ function App() {
     })
 
     const unsubscribe = window.electronAPI.onFileChange((event: FileChangeEvent) => {
-      if (isStructureChange(event.event)) {
+      // Check if this is a draft file change (need to refresh tree for suggestion items)
+      const isDraftFile = event.path.includes('.markerdown') &&
+        (event.path.endsWith('todos-draft.md') || event.path.endsWith('events-draft.md'))
+
+      if (isStructureChange(event.event) || isDraftFile) {
         refreshTree()
       } else if (event.event === 'change' && activeFilePathRef.current === event.path) {
         // Skip reload if we just saved this file (avoid overwriting edits)
