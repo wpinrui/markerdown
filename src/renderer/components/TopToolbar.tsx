@@ -37,9 +37,6 @@ interface TopToolbarProps {
   // What type of content is shown
   showModeToggle: boolean
   isEditing: boolean
-  // Agent props
-  showAgent: boolean
-  onAgentToggle: () => void
   // Summarize props
   canSummarize: boolean
   isSummarizing: boolean
@@ -57,8 +54,6 @@ export function TopToolbar({
   isDirty,
   showModeToggle,
   isEditing,
-  showAgent,
-  onAgentToggle,
   canSummarize,
   isSummarizing,
   onSummarizeClick,
@@ -125,13 +120,6 @@ export function TopToolbar({
             {isSummarizing ? <span className="btn-spinner" /> : '📋'}
           </button>
         )}
-        <button
-          className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
-          onClick={onAgentToggle}
-          title="Toggle Agent (Ctrl+Shift+A)"
-        >
-          ✦ Agent
-        </button>
       </div>
     </div>
   )

@@ -86,6 +86,26 @@ export interface AgentSessionHistory {
 
 export type EditMode = 'view' | 'visual' | 'code'
 
+// Todo and Event types
+export interface TodoItem {
+  id: string
+  text: string
+  completed: boolean
+  dueDate?: string  // YYYY-MM-DD or YYYY-MM-DD HH:mm
+  notes?: string
+  createdAt: string
+}
+
+export interface EventItem {
+  id: string
+  text: string
+  startDate: string  // YYYY-MM-DD HH:mm
+  endDate?: string   // YYYY-MM-DD HH:mm
+  location?: string
+  notes?: string
+  createdAt: string
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>

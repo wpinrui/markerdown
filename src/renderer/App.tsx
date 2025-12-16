@@ -5,9 +5,11 @@ import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/M
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
+import { TodoPanel } from './components/TodoPanel'
+import { EventPanel } from './components/EventPanel'
 import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar } from './components/TopToolbar'
-import { SidebarToolbar } from './components/SidebarToolbar'
+import { SidebarToolbar, PaneType } from './components/SidebarToolbar'
 import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
@@ -57,8 +59,8 @@ function App() {
   const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
-  // Agent panel state
-  const [showAgent, setShowAgent] = useState(false)
+  // Right pane state (agent/todos/events)
+  const [activePane, setActivePane] = useState<PaneType | null>(null)
   const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
   const isDraggingAgentPanel = useRef(false)
 
@@ -90,13 +92,18 @@ function App() {
     })
   }, [])
 
+  // Pane toggle helper
+  const handlePaneToggle = useCallback((pane: PaneType) => {
+    setActivePane((prev) => (prev === pane ? null : pane))
+  }, [])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Agent toggle: Ctrl+Shift+A
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault()
-        setShowAgent((prev) => !prev)
+        handlePaneToggle('agent')
       }
       // Edit mode toggle: Ctrl+E
       if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'e') {
@@ -110,7 +117,7 @@ function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeMember, selectedNode])
+  }, [activeMember, selectedNode, handlePaneToggle])
 
   // Agent panel resize handler (drag from left edge)
   const handleAgentPanelMouseDown = useCallback((e: React.MouseEvent) => {
@@ -348,7 +355,6 @@ function App() {
   const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? stripPdfExtension(selectedNode.name) : '')
 
   const isEditing = editMode !== 'view'
-  const toggleAgent = () => setShowAgent((prev) => !prev)
 
   // Open in file explorer handler (for sidebar toolbar)
   const handleOpenInExplorer = async () => {
@@ -508,6 +514,8 @@ function App() {
             onNewNote={() => setShowNewNoteModal(true)}
             onOpenFolder={handleOpenInExplorer}
             onOpenOptions={() => setShowOptionsModal(true)}
+            activePane={activePane}
+            onPaneToggle={handlePaneToggle}
           />
         </aside>
         <section className="content">
@@ -522,8 +530,6 @@ function App() {
             isDirty={isDirty}
             showModeToggle={!!isMarkdownActive}
             isEditing={isEditing}
-            showAgent={showAgent}
-            onAgentToggle={toggleAgent}
             canSummarize={!!canSummarize}
             isSummarizing={summarizingPaths.size > 0}
             onSummarizeClick={() => setShowSummarizeModal(true)}
@@ -548,13 +554,25 @@ function App() {
             </div>
             <aside
               className="agent-sidebar"
-              style={{ width: agentPanelWidth, display: showAgent ? 'flex' : 'none' }}
+              style={{ width: agentPanelWidth, display: activePane ? 'flex' : 'none' }}
             >
               <div
                 className="agent-sidebar-resize-handle"
                 onMouseDown={handleAgentPanelMouseDown}
               />
-              <AgentPanel workingDir={folderPath} onClose={() => setShowAgent(false)} />
+              <AgentPanel
+                workingDir={folderPath}
+                onClose={() => setActivePane(null)}
+                style={{ display: activePane === 'agent' ? 'flex' : 'none' }}
+              />
+              <TodoPanel
+                workingDir={folderPath}
+                style={{ display: activePane === 'todos' ? 'flex' : 'none' }}
+              />
+              <EventPanel
+                workingDir={folderPath}
+                style={{ display: activePane === 'events' ? 'flex' : 'none' }}
+              />
             </aside>
           </div>
         </section>
