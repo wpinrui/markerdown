@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
@@ -11,29 +11,23 @@ import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar, PaneType } from './components/TopToolbar'
 import { SidebarToolbar } from './components/SidebarToolbar'
 import { NewNoteModal } from './components/NewNoteModal'
+import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
+import { DeleteConfirmModal } from './components/DeleteConfirmModal'
+import { RenameModal } from './components/RenameModal'
+import { SidebarSearch } from './components/SidebarSearch'
 import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
+import { getBasename, getDirname, getExtension, stripExtension } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
+import { Edit3, Trash2, FolderOpen } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 500
-
-// Extract filename from path (handles both / and \ separators)
-function getBasename(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  return filePath.substring(lastSlash + 1)
-}
-
-// Extract directory from path (handles both / and \ separators)
-function getDirname(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-  return filePath.substring(0, lastSlash)
-}
 
 // Find a node by path in the tree
 function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
@@ -64,6 +58,17 @@ function App() {
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
   const [showClaudeMd, setShowClaudeMd] = useState(false)
 
+  // Context menu state (for tree nodes and entity tabs)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: TreeNode; member?: EntityMember } | null>(null)
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
+
+  // Rename modal state
+  const [renameTarget, setRenameTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
+  // After rename, store the new path to re-select once tree refreshes
+  const [pendingSelectionPath, setPendingSelectionPath] = useState<string | null>(null)
+
   // Right pane state (agent/todos/events)
   const [activePane, setActivePane] = useState<PaneType | null>(null)
   const [agentPanelWidth, setAgentPanelWidth] = useState(DEFAULT_AGENT_PANEL_WIDTH)
@@ -71,6 +76,7 @@ function App() {
   // Left sidebar state
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Resize handlers
   const { handleMouseDown: handleAgentPanelMouseDown } = useHorizontalResize({
@@ -85,6 +91,32 @@ function App() {
     maxWidth: MAX_SIDEBAR_WIDTH,
     setWidth: setSidebarWidth,
   })
+
+  // Filter tree nodes by search query
+  const filteredTreeNodes = useMemo(() => {
+    if (!searchQuery.trim()) return treeNodes
+
+    const query = searchQuery.toLowerCase()
+
+    function filterNodes(nodes: TreeNode[]): TreeNode[] {
+      const result: TreeNode[] = []
+      for (const node of nodes) {
+        const nameMatches = node.name.toLowerCase().includes(query)
+        const filteredChildren = node.children ? filterNodes(node.children) : undefined
+
+        // Include node if it matches or has matching descendants
+        if (nameMatches || (filteredChildren && filteredChildren.length > 0)) {
+          result.push({
+            ...node,
+            children: filteredChildren,
+          })
+        }
+      }
+      return result
+    }
+
+    return filterNodes(treeNodes)
+  }, [treeNodes, searchQuery])
 
   // Editor state
   const [editMode, setEditMode] = useState<EditMode>('view')
@@ -148,6 +180,11 @@ function App() {
       if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault()
         setSidebarVisible((v) => !v)
+      }
+      // Rename: F2
+      if (e.key === 'F2' && selectedNode && !selectedNode.isDirectory && !selectedNode.isSuggestion) {
+        e.preventDefault()
+        setRenameTarget({ node: selectedNode })
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -237,6 +274,35 @@ function App() {
   useEffect(() => {
     refreshTree()
   }, [refreshTree])
+
+  // Handle pending selection after rename (re-select the renamed node)
+  useEffect(() => {
+    if (!pendingSelectionPath || treeNodes.length === 0) return
+
+    // Find the node with the new path (try both forward and backslash variants)
+    const node = findNodeByPath(treeNodes, pendingSelectionPath) ??
+      findNodeByPath(treeNodes, pendingSelectionPath.replace(/\//g, '\\'))
+
+    if (node) {
+      setSelectedNode(node)
+      // Set active member to default member if it's an entity
+      if (node.entity) {
+        setActiveMember(node.entity.defaultMember ?? node.entity.members[0])
+      }
+      // Load file content
+      if (node.entity?.defaultMember || !node.isDirectory) {
+        const memberPath = node.entity?.defaultMember?.path ?? node.entity?.members[0]?.path ?? node.path
+        if (isMarkdownFile(memberPath)) {
+          window.electronAPI.readFile(memberPath).then((content) => {
+            if (content !== null) setFileContent(content)
+          })
+        }
+      }
+    }
+
+    // Clear pending selection
+    setPendingSelectionPath(null)
+  }, [treeNodes, pendingSelectionPath])
 
   // Watch folder for changes
   const activeFilePathRef = useRef<string | null>(null)
@@ -418,10 +484,10 @@ function App() {
     `${getDirname(sourcePath)}/${outputFilename}`
 
   const stripPdfExtension = (filename: string) =>
-    filename.replace(/\.pdf$/i, '')
+    filename.toLowerCase().endsWith('.pdf') ? stripExtension(filename) : filename
 
   const stripMdExtension = (filename: string) =>
-    filename.replace(/\.md$/i, '')
+    filename.toLowerCase().endsWith('.md') ? stripExtension(filename) : filename
 
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
@@ -470,6 +536,266 @@ function App() {
       await window.electronAPI.openInExplorer(folderPath)
     }
   }
+
+  // Context menu handlers
+  const handleTreeContextMenu = useCallback((e: React.MouseEvent, node: TreeNode) => {
+    setContextMenu({ x: e.clientX, y: e.clientY, node })
+  }, [])
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null)
+  }, [])
+
+  const handleRevealInExplorer = useCallback(async (node: TreeNode) => {
+    // Get the path to reveal - for entities use the first member's path
+    const pathToReveal = node.entity?.members[0]?.path ?? node.path
+    await window.electronAPI.openInExplorer(pathToReveal)
+  }, [])
+
+  // Delete handler - performs actual deletion
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return
+
+    try {
+      // Deleting a specific entity member
+      if (deleteTarget.member) {
+        const result = await window.electronAPI.deleteFile(deleteTarget.member.path)
+        if (!result.success) {
+          setError(`Failed to delete file: ${result.error}`)
+        }
+        // Clear selection if we deleted the active member
+        if (activeMember?.path === deleteTarget.member.path) {
+          setActiveMember(null)
+          setSelectedNode(null)
+          setFileContent(null)
+        }
+      }
+      // Deleting a tree node
+      else if (deleteTarget.node) {
+        const node = deleteTarget.node
+
+        // Entity - delete all member files (leave sidecar folder intact per user preference)
+        if (node.entity) {
+          for (const member of node.entity.members) {
+            const result = await window.electronAPI.deleteFile(member.path)
+            if (!result.success) {
+              setError(`Failed to delete ${getBasename(member.path)}: ${result.error}`)
+            }
+          }
+        }
+        // Directory
+        else if (node.isDirectory) {
+          const result = await window.electronAPI.deleteDir(node.path)
+          if (!result.success) {
+            setError(`Failed to delete folder: ${result.error}`)
+          }
+        }
+        // Regular file
+        else {
+          const result = await window.electronAPI.deleteFile(node.path)
+          if (!result.success) {
+            setError(`Failed to delete file: ${result.error}`)
+          }
+        }
+
+        // Clear selection if we deleted the selected node
+        if (selectedNode?.path === node.path) {
+          setSelectedNode(null)
+          setActiveMember(null)
+          setFileContent(null)
+        }
+      }
+
+      // File watcher will refresh tree automatically
+      refreshTree()
+    } catch (err) {
+      setError(`Delete failed: ${err}`)
+    }
+  }, [deleteTarget, activeMember, selectedNode, refreshTree])
+
+  // Rename handler - performs actual renaming
+  const handleRenameSubmit = useCallback(async (newName: string) => {
+    if (!renameTarget || !folderPath) return
+
+    let newSelectionPath: string | null = null
+
+    try {
+      // Renaming a specific entity member suffix
+      if (renameTarget.member && selectedNode?.entity) {
+        const member = renameTarget.member
+        const entity = selectedNode.entity
+        const dir = getDirname(member.path)
+        const ext = member.type === 'pdf' ? '.pdf' : '.md'
+        const newFileName = newName ? `${entity.baseName}.${newName}${ext}` : `${entity.baseName}${ext}`
+        const newPath = `${dir}/${newFileName}`
+
+        const result = await window.electronAPI.move(member.path, newPath)
+        if (!result.success) {
+          setError(`Failed to rename: ${result.error}`)
+        } else {
+          // Keep same entity selected, just update active member path
+          newSelectionPath = selectedNode.path
+        }
+      }
+      // Renaming a tree node (entity or file)
+      else if (renameTarget.node) {
+        const node = renameTarget.node
+        const dir = getDirname(node.path)
+
+        // Entity - rename all member files and sidecar folder
+        if (node.entity) {
+          for (const member of node.entity.members) {
+            const oldName = getBasename(member.path)
+            const ext = member.type === 'pdf' ? '.pdf' : '.md'
+            const variant = member.variant
+            const newFileName = variant ? `${newName}.${variant}${ext}` : `${newName}${ext}`
+            const newPath = `${dir}/${newFileName}`
+
+            const result = await window.electronAPI.move(member.path, newPath)
+            if (!result.success) {
+              setError(`Failed to rename ${oldName}: ${result.error}`)
+            }
+          }
+
+          // Rename sidecar folder if it exists
+          if (node.hasSidecar) {
+            const oldSidecarPath = `${dir}/${node.entity.baseName}`
+            const newSidecarPath = `${dir}/${newName}`
+            const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
+            if (!result.success) {
+              // Sidecar folder might not exist, ignore error
+              console.warn('Failed to rename sidecar folder:', result.error)
+            }
+          }
+
+          // New entity path uses the default member's new path
+          const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
+          const ext = defaultMember.type === 'pdf' ? '.pdf' : '.md'
+          const variant = defaultMember.variant
+          const newFileName = variant ? `${newName}.${variant}${ext}` : `${newName}${ext}`
+          newSelectionPath = `${dir}/${newFileName}`
+        }
+        // Regular file
+        else {
+          const ext = getExtension(node.name)
+          const newFileName = `${newName}${ext}`
+          const newPath = `${dir}/${newFileName}`
+
+          const result = await window.electronAPI.move(node.path, newPath)
+          if (!result.success) {
+            setError(`Failed to rename: ${result.error}`)
+          } else {
+            newSelectionPath = newPath
+          }
+        }
+      }
+
+      // Store pending selection to re-select after tree refresh
+      if (newSelectionPath) {
+        setPendingSelectionPath(newSelectionPath)
+      }
+
+      // File watcher will refresh tree automatically
+      refreshTree()
+    } catch (err) {
+      setError(`Rename failed: ${err}`)
+    }
+  }, [renameTarget, folderPath, selectedNode, refreshTree])
+
+  // Get sibling names for conflict detection
+  const getSiblingNames = useCallback((node: TreeNode): string[] => {
+    const dir = getDirname(node.path)
+
+    // Flatten all nodes in tree
+    const flattenNodes = (nodes: TreeNode[]): TreeNode[] => {
+      const result: TreeNode[] = []
+      for (const n of nodes) {
+        result.push(n)
+        if (n.children) {
+          result.push(...flattenNodes(n.children))
+        }
+      }
+      return result
+    }
+
+    // Find all nodes in the same directory (excluding the target node)
+    return flattenNodes(treeNodes)
+      .filter((n) => getDirname(n.path) === dir && n.path !== node.path)
+      .map((n) => n.name)
+  }, [treeNodes])
+
+  // Build context menu items based on node type
+  const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = []
+
+    // Directories get Delete and Reveal in Explorer
+    if (node.isDirectory) {
+      items.push({
+        label: 'Delete',
+        icon: Trash2,
+        onClick: () => setDeleteTarget({ node }),
+        danger: true,
+      })
+      items.push({
+        label: 'Reveal in Explorer',
+        icon: FolderOpen,
+        onClick: () => handleRevealInExplorer(node),
+      })
+      return items
+    }
+
+    // Don't show context menu for suggestion drafts
+    if (node.isSuggestion) {
+      return items
+    }
+
+    // Files and entities get Rename, Delete, Reveal
+    items.push({
+      label: 'Rename',
+      icon: Edit3,
+      onClick: () => setRenameTarget({ node }),
+    })
+
+    items.push({
+      label: 'Delete',
+      icon: Trash2,
+      onClick: () => setDeleteTarget({ node }),
+      danger: true,
+    })
+
+    items.push({
+      label: 'Reveal in Explorer',
+      icon: FolderOpen,
+      onClick: () => handleRevealInExplorer(node),
+    })
+
+    return items
+  }, [handleRevealInExplorer])
+
+  // Build context menu items for entity tab members
+  const getTabContextMenuItems = useCallback((member: EntityMember): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = []
+
+    items.push({
+      label: 'Rename',
+      icon: Edit3,
+      onClick: () => setRenameTarget({ member }),
+    })
+
+    items.push({
+      label: 'Delete',
+      icon: Trash2,
+      onClick: () => setDeleteTarget({ member }),
+      danger: true,
+    })
+
+    return items
+  }, [])
+
+  // Tab context menu handler
+  const handleTabContextMenu = useCallback((e: React.MouseEvent, member: EntityMember) => {
+    setContextMenu({ x: e.clientX, y: e.clientY, member })
+  }, [])
 
   // Create new note handler
   const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
@@ -646,13 +972,20 @@ function App() {
       <main className="main">
         {sidebarVisible && (
           <aside className="sidebar" style={{ width: sidebarWidth }}>
+            {folderPath && (
+              <SidebarSearch
+                value={searchQuery}
+                onChange={setSearchQuery}
+              />
+            )}
             <div className="sidebar-tree">
               {folderPath ? (
                 <TreeView
-                  nodes={treeNodes}
+                  nodes={filteredTreeNodes}
                   selectedPath={selectedNode?.path ?? null}
                   onSelect={handleSelectNode}
                   summarizingPaths={summarizingPaths}
+                  onContextMenu={handleTreeContextMenu}
                 />
               ) : (
                 <p className="placeholder">No folder opened</p>
@@ -676,6 +1009,7 @@ function App() {
             onTabChange={handleTabChange}
             selectedFileName={selectedFileName}
             selectedFileType={selectedFileType}
+            onTabContextMenu={handleTabContextMenu}
             editMode={editMode}
             onEditModeChange={setEditMode}
             editorRef={editorRef}
@@ -764,6 +1098,30 @@ function App() {
         onSubmit={handleCreateNote}
         treeNodes={treeNodes}
         selectedNode={selectedNode}
+      />
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenu.node ? getContextMenuItems(contextMenu.node) : contextMenu.member ? getTabContextMenuItems(contextMenu.member) : []}
+          onClose={handleCloseContextMenu}
+        />
+      )}
+      <DeleteConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        node={deleteTarget?.node}
+        member={deleteTarget?.member}
+      />
+      <RenameModal
+        isOpen={!!renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onSubmit={handleRenameSubmit}
+        node={renameTarget?.node}
+        member={renameTarget?.member}
+        entity={renameTarget?.node?.entity ?? selectedNode?.entity}
+        existingNames={renameTarget?.node ? getSiblingNames(renameTarget.node) : []}
       />
     </div>
   )

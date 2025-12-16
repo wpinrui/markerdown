@@ -34,6 +34,7 @@ interface TopToolbarProps {
   // Standalone file props (for showing single tab)
   selectedFileName?: string
   selectedFileType?: string
+  onTabContextMenu?: (e: React.MouseEvent, member: EntityMember) => void
   // Editor props
   editMode: EditMode
   onEditModeChange: (mode: EditMode) => void
@@ -66,6 +67,7 @@ export function TopToolbar({
   onTabChange,
   selectedFileName,
   selectedFileType,
+  onTabContextMenu,
   editMode,
   onEditModeChange,
   editorRef,
@@ -131,6 +133,10 @@ export function TopToolbar({
                       fontWeight: isActive ? 'bold' : 'normal',
                     }}
                     onClick={() => onTabChange(member)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      onTabContextMenu?.(e, member)
+                    }}
                   >
                     {getTabLabel(member)}
                   </button>
