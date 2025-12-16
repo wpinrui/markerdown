@@ -8,7 +8,6 @@ import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
-import { ContentToolbar } from './components/ContentToolbar'
 import { OptionsModal } from './components/OptionsModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
@@ -332,27 +331,23 @@ function App() {
     <div className="app">
       <main className="main">
         <aside className="sidebar">
-          {folderPath ? (
-            <TreeView
-              nodes={treeNodes}
-              selectedPath={selectedNode?.path ?? null}
-              onSelect={handleSelectNode}
-              summarizingPaths={summarizingPaths}
-            />
-          ) : (
-            <p className="placeholder">No folder opened</p>
-          )}
+          <div className="sidebar-tree">
+            {folderPath ? (
+              <TreeView
+                nodes={treeNodes}
+                selectedPath={selectedNode?.path ?? null}
+                onSelect={handleSelectNode}
+                summarizingPaths={summarizingPaths}
+              />
+            ) : (
+              <p className="placeholder">No folder opened</p>
+            )}
+          </div>
+          <button className="sidebar-options-btn" onClick={() => setShowOptionsModal(true)}>
+            Options
+          </button>
         </aside>
         <section className="content">
-          <ContentToolbar
-            onOptionsClick={() => setShowOptionsModal(true)}
-            showSummarize={canSummarize || summarizingPaths.size > 0}
-            isSummarizing={summarizingPaths.size > 0}
-            onSummarizeClick={() => setShowSummarizeModal(true)}
-            showAgent={showAgent}
-            onAgentToggle={toggleAgent}
-          />
-          <div className="content-body">
             {error ? (
               <p className="error-message">{error}</p>
             ) : selectedNode?.entity && activeMember ? (
@@ -368,6 +363,9 @@ function App() {
                 isDirty={isDirty}
                 showAgent={showAgent}
                 onAgentToggle={toggleAgent}
+                canSummarize={!!canSummarize}
+                isSummarizing={summarizingPaths.size > 0}
+                onSummarizeClick={() => setShowSummarizeModal(true)}
               />
             ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
               <PdfViewer filePath={selectedNode.path} />
@@ -386,6 +384,16 @@ function App() {
                   )}
                   <ModeToggle mode={editMode} onModeChange={setEditMode} />
                   {isDirty && <span className="save-indicator">Saving...</span>}
+                  {/* Right-aligned action buttons */}
+                  <div className="entity-tabs-actions">
+                    <button
+                      className={`tab-action-btn ${showAgent ? 'active' : ''}`}
+                      onClick={toggleAgent}
+                      title="Toggle Agent (Ctrl+Shift+A)"
+                    >
+                      ✦
+                    </button>
+                  </div>
                 </div>
                 <div className="standalone-markdown-content">
                   {editMode === 'view' ? (
@@ -406,7 +414,6 @@ function App() {
                 </div>
               </div>
             ) : null}
-          </div>
         </section>
         <aside
           className="agent-sidebar"

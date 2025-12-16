@@ -45,6 +45,10 @@ interface EntityViewerProps {
   // Agent props
   showAgent: boolean
   onAgentToggle: () => void
+  // Summarize props
+  canSummarize: boolean
+  isSummarizing: boolean
+  onSummarizeClick: () => void
 }
 
 export function EntityViewer({
@@ -59,6 +63,9 @@ export function EntityViewer({
   isDirty,
   showAgent,
   onAgentToggle,
+  canSummarize,
+  isSummarizing,
+  onSummarizeClick,
 }: EntityViewerProps) {
   const editorRef = useRef<MarkdownEditorRef>(null)
   const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
@@ -124,6 +131,27 @@ export function EntityViewer({
           <ModeToggle mode={editMode} onModeChange={onEditModeChange} />
         )}
         {isDirty && <span className="save-indicator">Saving...</span>}
+
+        {/* Right-aligned action buttons */}
+        <div className="entity-tabs-actions">
+          {(canSummarize || isSummarizing) && (
+            <button
+              className={`tab-action-btn ${isSummarizing ? 'loading' : ''}`}
+              onClick={isSummarizing ? undefined : onSummarizeClick}
+              disabled={isSummarizing}
+              title="Summarize PDF"
+            >
+              {isSummarizing ? <span className="btn-spinner" /> : '📋'}
+            </button>
+          )}
+          <button
+            className={`tab-action-btn ${showAgent ? 'active' : ''}`}
+            onClick={onAgentToggle}
+            title="Toggle Agent (Ctrl+Shift+A)"
+          >
+            ✦
+          </button>
+        </div>
       </div>
       <div className="entity-content">
         {activeMember.type === 'pdf' ? (
