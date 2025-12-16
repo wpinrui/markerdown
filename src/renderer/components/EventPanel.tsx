@@ -139,13 +139,11 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
   useEffect(() => {
     if (!workingDir) return
 
-    const sep = workingDir.includes('\\') ? '\\' : '/'
-    const eventsPath = `${workingDir}${sep}.markerdown${sep}events.md`
+    // Normalize to forward slashes for comparison (works on all platforms)
+    const watchPath = `${workingDir}/.markerdown/events.md`.replace(/\\/g, '/')
 
     const unsubscribe = window.electronAPI.onFileChange((event) => {
-      // Normalize paths for comparison
       const changedPath = event.path.replace(/\\/g, '/')
-      const watchPath = eventsPath.replace(/\\/g, '/')
       if (changedPath === watchPath) {
         loadEvents()
       }

@@ -130,13 +130,11 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
   useEffect(() => {
     if (!workingDir) return
 
-    const sep = workingDir.includes('\\') ? '\\' : '/'
-    const todosPath = `${workingDir}${sep}.markerdown${sep}todos.md`
+    // Normalize to forward slashes for comparison (works on all platforms)
+    const watchPath = `${workingDir}/.markerdown/todos.md`.replace(/\\/g, '/')
 
     const unsubscribe = window.electronAPI.onFileChange((event) => {
-      // Normalize paths for comparison
       const changedPath = event.path.replace(/\\/g, '/')
-      const watchPath = todosPath.replace(/\\/g, '/')
       if (changedPath === watchPath) {
         loadTodos()
       }
