@@ -305,6 +305,9 @@ function App() {
   const stripPdfExtension = (filename: string) =>
     filename.replace(/\.pdf$/i, '')
 
+  const stripMdExtension = (filename: string) =>
+    filename.replace(/\.md$/i, '')
+
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
 
@@ -367,8 +370,7 @@ function App() {
           targetDir = parentNode.path
         } else if (parentNode.hasSidecar) {
           // For sidecar files, the children go in the folder with same base name
-          const baseName = parentNode.name.replace(/\.md$/i, '')
-          targetDir = `${getDirname(parentNode.path)}/${baseName}`
+          targetDir = `${getDirname(parentNode.path)}/${stripMdExtension(parentNode.name)}`
         }
       }
     }
@@ -377,7 +379,7 @@ function App() {
     const newFilePath = `${targetDir}/${name}`
 
     // Create empty markdown file
-    const result = await window.electronAPI.writeFile(newFilePath, `# ${name.replace(/\.md$/i, '')}\n\n`)
+    const result = await window.electronAPI.writeFile(newFilePath, `# ${stripMdExtension(name)}\n\n`)
     if (!result.success) {
       setError(`Failed to create note: ${result.error}`)
       return
@@ -385,7 +387,7 @@ function App() {
 
     // Move selected children to become children of this new note
     if (childrenPaths.length > 0) {
-      const sidecarDir = `${targetDir}/${name.replace(/\.md$/i, '')}`
+      const sidecarDir = `${targetDir}/${stripMdExtension(name)}`
 
       // Create the sidecar folder
       const mkdirResult = await window.electronAPI.mkdir(sidecarDir)
@@ -421,7 +423,7 @@ function App() {
         } else if (childNode?.hasSidecar && childNode.children) {
           // Move markdown file with sidecar
           const childName = getBasename(childPath)
-          const baseName = childName.replace(/\.md$/i, '')
+          const baseName = stripMdExtension(childName)
           const childDir = getDirname(childPath)
 
           // Move the markdown file

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ChevronRight, ChevronDown, Check } from 'lucide-react'
 import type { TreeNode } from '@shared/types'
 
@@ -93,6 +93,19 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
   const [parentPath, setParentPath] = useState<string | null>(null)
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set())
   const [showParentDropdown, setShowParentDropdown] = useState(false)
+  const dialogRef = useRef<HTMLDialogElement>(null)
+
+  // Open/close dialog using showModal for proper backdrop support
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    if (isOpen && !dialog.open) {
+      dialog.showModal()
+    } else if (!isOpen && dialog.open) {
+      dialog.close()
+    }
+  }, [isOpen])
 
   // Calculate default name on open
   useEffect(() => {
@@ -174,10 +187,8 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
     return parent?.node.name ?? '(Root)'
   }
 
-  if (!isOpen) return null
-
   return (
-    <dialog className="new-note-modal" open>
+    <dialog ref={dialogRef} className="new-note-modal">
       <div className="new-note-modal-header">New Note</div>
       <div className="new-note-modal-body">
         {/* Name input */}
