@@ -21,6 +21,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const historyRef = useRef<HTMLDivElement>(null)
+  const isCancelledRef = useRef(false)
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -69,13 +70,14 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
+    isCancelledRef.current = false
 
     // Set up completion listener BEFORE starting agent to avoid race condition
     let cleanup: (() => void) | undefined
-    const completionPromise = new Promise<void>((resolve) => {
-      const unsub = window.electronAPI.onAgentComplete(() => {
+    const completionPromise = new Promise<string | undefined>((resolve) => {
+      const unsub = window.electronAPI.onAgentComplete((error) => {
         unsub()
-        resolve()
+        resolve(error)
       })
       cleanup = unsub
     })
@@ -89,11 +91,18 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
       setSessionId(response.sessionId)
 
       // Wait for agent to finish, then reload from file
-      await completionPromise
-      await reloadSession(workingDir, response.sessionId)
+      const error = await completionPromise
+      if (isCancelledRef.current) {
+        // User cancelled - don't show error or reload
+        isCancelledRef.current = false
+      } else if (error) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${error}` }])
+      } else {
+        await reloadSession(workingDir, response.sessionId)
+      }
     } catch (err) {
       cleanup?.() // Clean up listener on error
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Failed: ${err}` }])
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Failed to start agent: ${err}` }])
     } finally {
       setIsLoading(false)
     }
@@ -107,11 +116,13 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   }
 
   const handleCancel = () => {
+    isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setIsLoading(false)
   }
 
   const handleNewChat = () => {
+    isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setMessages([])
     setSessionId(null)
