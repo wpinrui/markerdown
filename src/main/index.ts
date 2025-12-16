@@ -342,6 +342,8 @@ async function addChatSessionId(workingDir: string, sessionId: string): Promise<
   const ids = await getChatSessionIds(workingDir)
   ids.add(sessionId)
   const metadataPath = getChatSessionsMetadataPath(workingDir)
+  const sessionsDir = getSessionsDir(workingDir)
+  await fs.promises.mkdir(sessionsDir, { recursive: true })
   await fs.promises.writeFile(metadataPath, JSON.stringify([...ids], null, 2))
 }
 

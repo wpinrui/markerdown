@@ -53,7 +53,6 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
     loadMostRecent()
   }, [workingDir])
 
-
   const reloadSession = useCallback(async (dir: string, sid: string) => {
     try {
       const history = await window.electronAPI.loadAgentSession(dir, sid)
