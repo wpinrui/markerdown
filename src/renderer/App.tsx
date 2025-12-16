@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
+import { FormatToolbar } from './components/FormatToolbar'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
@@ -391,28 +392,7 @@ function App() {
               <div className="standalone-markdown-toolbar">
                 {/* Show formatting toolbar in edit mode */}
                 {editMode !== 'view' && (
-                  <div className="editor-format-toolbar" onMouseDown={(e) => e.preventDefault()}>
-                    <button className={standaloneActiveFormats.bold ? 'active' : ''} onClick={() => standaloneEditorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>
-                    <button className={standaloneActiveFormats.italic ? 'active' : ''} onClick={() => standaloneEditorRef.current?.italic()} title="Italic (Ctrl+I)"><em>I</em></button>
-                    <button className={standaloneActiveFormats.strikethrough ? 'active' : ''} onClick={() => standaloneEditorRef.current?.strikethrough()} title="Strikethrough"><s>S</s></button>
-                    <span className="toolbar-divider" />
-                    <button className={standaloneActiveFormats.headingLevel === 1 ? 'active' : ''} onClick={() => standaloneEditorRef.current?.heading(1)} title="Heading 1">H1</button>
-                    <button className={standaloneActiveFormats.headingLevel === 2 ? 'active' : ''} onClick={() => standaloneEditorRef.current?.heading(2)} title="Heading 2">H2</button>
-                    <button className={standaloneActiveFormats.headingLevel === 3 ? 'active' : ''} onClick={() => standaloneEditorRef.current?.heading(3)} title="Heading 3">H3</button>
-                    <span className="toolbar-divider" />
-                    <button className={standaloneActiveFormats.bulletList ? 'active' : ''} onClick={() => standaloneEditorRef.current?.bulletList()} title="Bullet List">•</button>
-                    <button className={standaloneActiveFormats.orderedList ? 'active' : ''} onClick={() => standaloneEditorRef.current?.orderedList()} title="Numbered List">1.</button>
-                    <button className={standaloneActiveFormats.taskList ? 'active' : ''} onClick={() => standaloneEditorRef.current?.taskList()} title="Task List">☐</button>
-                    <span className="toolbar-divider" />
-                    <button className={standaloneActiveFormats.link ? 'active' : ''} onClick={() => standaloneEditorRef.current?.insertLink()} title="Link">🔗</button>
-                    <button onClick={() => standaloneEditorRef.current?.insertImage()} title="Image">🖼</button>
-                    <button className={standaloneActiveFormats.code ? 'active' : ''} onClick={() => standaloneEditorRef.current?.insertCode()} title="Code">&lt;/&gt;</button>
-                    <button className={standaloneActiveFormats.codeBlock ? 'active' : ''} onClick={() => standaloneEditorRef.current?.insertCodeBlock()} title="Code Block">```</button>
-                    <span className="toolbar-divider" />
-                    <button className={standaloneActiveFormats.blockquote ? 'active' : ''} onClick={() => standaloneEditorRef.current?.blockquote()} title="Quote">"</button>
-                    <button onClick={() => standaloneEditorRef.current?.horizontalRule()} title="Horizontal Rule">―</button>
-                    <button onClick={() => standaloneEditorRef.current?.insertTable()} title="Table">⊞</button>
-                  </div>
+                  <FormatToolbar editorRef={standaloneEditorRef} activeFormats={standaloneActiveFormats} />
                 )}
                 <div className="editor-mode-toggle">
                   <button

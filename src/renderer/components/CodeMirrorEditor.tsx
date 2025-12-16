@@ -4,34 +4,9 @@ import { EditorView, lineNumbers, highlightActiveLine, keymap } from '@codemirro
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { ActiveFormats, defaultFormats } from './editorTypes'
 
-export interface ActiveFormats {
-  bold: boolean
-  italic: boolean
-  strikethrough: boolean
-  code: boolean
-  link: boolean
-  headingLevel: number | null
-  bulletList: boolean
-  orderedList: boolean
-  taskList: boolean
-  blockquote: boolean
-  codeBlock: boolean
-}
-
-const defaultFormats: ActiveFormats = {
-  bold: false,
-  italic: false,
-  strikethrough: false,
-  code: false,
-  link: false,
-  headingLevel: null,
-  bulletList: false,
-  orderedList: false,
-  taskList: false,
-  blockquote: false,
-  codeBlock: false,
-}
+export type { ActiveFormats }
 
 export interface CodeMirrorEditorRef {
   bold: () => void
@@ -112,7 +87,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
 
         // Count opening/closing markers before cursor to determine if we're "inside"
         const countBefore = (pattern: RegExp) => (beforeCursor.match(pattern) || []).length
-        const countAfter = (pattern: RegExp) => (afterCursor.match(pattern) || []).length
 
         // Bold: ** or __
         const boldOpenBefore = countBefore(/\*\*(?!\s)/g)

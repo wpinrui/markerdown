@@ -1,24 +1,12 @@
 import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import type { EditMode } from '@shared/types'
 import { EditorToolbar } from './EditorToolbar'
-import { MilkdownEditor, MilkdownEditorRef, ActiveFormats as MilkdownActiveFormats } from './MilkdownEditor'
-import { CodeMirrorEditor, CodeMirrorEditorRef, ActiveFormats as CodeMirrorActiveFormats } from './CodeMirrorEditor'
+import { MilkdownEditor, MilkdownEditorRef } from './MilkdownEditor'
+import { CodeMirrorEditor, CodeMirrorEditorRef } from './CodeMirrorEditor'
 import { StyledMarkdown } from '../markdownConfig'
+import { ActiveFormats, defaultFormats } from './editorTypes'
 
-// Combined ActiveFormats type
-export interface ActiveFormats {
-  bold: boolean
-  italic: boolean
-  strikethrough: boolean
-  code: boolean
-  link: boolean
-  headingLevel: number | null
-  bulletList: boolean
-  orderedList: boolean
-  taskList: boolean
-  blockquote: boolean
-  codeBlock: boolean
-}
+export type { ActiveFormats }
 
 export interface MarkdownEditorRef {
   bold: () => void
@@ -49,20 +37,6 @@ interface MarkdownEditorProps {
   onSelectionChange?: (formats: ActiveFormats) => void
 }
 
-const defaultFormats: ActiveFormats = {
-  bold: false,
-  italic: false,
-  strikethrough: false,
-  code: false,
-  link: false,
-  headingLevel: null,
-  bulletList: false,
-  orderedList: false,
-  taskList: false,
-  blockquote: false,
-  codeBlock: false,
-}
-
 export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
   function MarkdownEditor(
     { content, filePath, mode, onModeChange, onContentChange, isDirty, showToolbar = true, onSelectionChange },
@@ -83,8 +57,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     }, [mode])
 
     // Handle selection change from child editors
-    const handleSelectionChange = useCallback((formats: MilkdownActiveFormats | CodeMirrorActiveFormats) => {
-      onSelectionChange?.(formats as ActiveFormats)
+    const handleSelectionChange = useCallback((formats: ActiveFormats) => {
+      onSelectionChange?.(formats)
     }, [onSelectionChange])
 
     // Expose formatting commands - delegate to active editor

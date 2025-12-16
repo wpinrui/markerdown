@@ -1,6 +1,6 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx, editorViewCtx } from '@milkdown/core'
-import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, insertImageCommand } from '@milkdown/preset-commonmark'
+import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, insertImageCommand, toggleInlineCodeCommand } from '@milkdown/preset-commonmark'
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/preset-gfm'
 import { history } from '@milkdown/plugin-history'
 import { clipboard } from '@milkdown/plugin-clipboard'
@@ -8,20 +8,9 @@ import { listener, listenerCtx } from '@milkdown/plugin-listener'
 import { callCommand } from '@milkdown/utils'
 import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
+import { ActiveFormats, defaultFormats } from './editorTypes'
 
-export interface ActiveFormats {
-  bold: boolean
-  italic: boolean
-  strikethrough: boolean
-  code: boolean
-  link: boolean
-  headingLevel: number | null // 1-6 or null
-  bulletList: boolean
-  orderedList: boolean
-  taskList: boolean
-  blockquote: boolean
-  codeBlock: boolean
-}
+export type { ActiveFormats }
 
 export interface MilkdownEditorRef {
   getMarkdown: () => string
@@ -45,20 +34,6 @@ interface MilkdownEditorProps {
   content: string
   onChange: (content: string) => void
   onSelectionChange?: (formats: ActiveFormats) => void
-}
-
-const defaultFormats: ActiveFormats = {
-  bold: false,
-  italic: false,
-  strikethrough: false,
-  code: false,
-  link: false,
-  headingLevel: null,
-  bulletList: false,
-  orderedList: false,
-  taskList: false,
-  blockquote: false,
-  codeBlock: false,
 }
 
 export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>(
@@ -169,19 +144,15 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
         editorRef.current?.action(callCommand(insertTableCommand.key))
       },
       insertLink: () => {
-        // Links are handled via selection - just toggle inline code as placeholder
-        // Users select text first, then apply link
+        // TODO: Milkdown doesn't expose a simple link command
+        // Links work via the editor's paste/type handling - use code mode for explicit link insertion
       },
       insertCode: () => {
-        // Toggle inline code - need to use prosemirror marks directly
-        const editor = editorRef.current
-        if (!editor) return
-        // Insert backticks around selection or at cursor
+        editorRef.current?.action(callCommand(toggleInlineCodeCommand.key))
       },
       insertCodeBlock: () => {
-        // Insert code fence
-        const editor = editorRef.current
-        if (!editor) return
+        // TODO: Milkdown requires more complex prosemirror integration for code blocks
+        // Use code mode for explicit code block insertion
       },
     }))
 
