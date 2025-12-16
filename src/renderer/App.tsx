@@ -109,7 +109,7 @@ function App() {
       if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault()
         const activeFilePath = activeMember?.path ?? selectedNode?.path
-        const isMarkdown = activeMember?.type === 'markdown' || (selectedNode && isMarkdownFile(selectedNode.name))
+        const isMarkdown = activeMember?.type === 'markdown' || (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion))
         if (activeFilePath && isMarkdown) {
           setEditMode((prev) => (prev === 'view' ? 'visual' : 'view'))
         }
@@ -276,8 +276,8 @@ function App() {
         filePath = activeMember.path
       }
       // PDF doesn't load content this way
-    } else if (selectedNode && isMarkdownFile(selectedNode.name)) {
-      // Regular markdown file
+    } else if (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion)) {
+      // Regular markdown file or suggestion draft
       filePath = selectedNode.path
     }
 
@@ -504,7 +504,7 @@ function App() {
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
-    (selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity)
+    (selectedNode && (isMarkdownFile(selectedNode.name) || selectedNode.isSuggestion) && !selectedNode.entity)
 
   // Render markdown content (viewer or editor) - shared between entity and standalone
   const renderMarkdownContent = (filePath: string) => {
