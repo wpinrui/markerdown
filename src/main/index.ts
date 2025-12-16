@@ -79,6 +79,7 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     closeWatcher()
+    cancelAgent()
     mainWindow = null
   })
 }
