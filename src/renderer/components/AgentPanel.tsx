@@ -153,6 +153,7 @@ export function AgentPanel({ workingDir, onClose }: AgentPanelProps) {
   const handleLoadSession = async (session: AgentSession) => {
     if (!workingDir) return
 
+    isCancelledRef.current = true
     window.electronAPI.agentCancel()
     setShowHistory(false)
     setIsLoading(true)
