@@ -2,7 +2,7 @@ import type { Entity, EntityMember, EditMode } from '@shared/types'
 import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
 import { ModeToggle } from './ModeToggle'
-import { MessageSquare, CheckSquare, Calendar, Check, X } from 'lucide-react'
+import { MessageSquare, CheckSquare, Calendar, Check, X, Sparkles } from 'lucide-react'
 
 export type PaneType = 'agent' | 'todos' | 'events'
 
@@ -36,7 +36,6 @@ interface TopToolbarProps {
   onEditModeChange: (mode: EditMode) => void
   editorRef: React.RefObject<MarkdownEditorRef | null>
   activeFormats: ActiveFormats
-  isDirty: boolean
   // What type of content is shown
   showModeToggle: boolean
   isEditing: boolean
@@ -61,7 +60,6 @@ export function TopToolbar({
   onEditModeChange,
   editorRef,
   activeFormats,
-  isDirty,
   showModeToggle,
   isEditing,
   canSummarize,
@@ -149,15 +147,19 @@ export function TopToolbar({
         {showModeToggle && (
           <ModeToggle mode={editMode} onModeChange={onEditModeChange} />
         )}
-        {isDirty && <span className="save-indicator">Saving...</span>}
         {(canSummarize || isSummarizing) && (
           <button
-            className={`tab-action-btn ${isSummarizing ? 'loading' : ''}`}
+            className={`summarize-btn ${isSummarizing ? 'loading' : ''}`}
             onClick={isSummarizing ? undefined : onSummarizeClick}
             disabled={isSummarizing}
-            title="Summarize PDF"
+            title="Summarize with Claude"
           >
-            {isSummarizing ? <span className="btn-spinner" /> : '📋'}
+            {isSummarizing ? (
+              <span className="btn-spinner" />
+            ) : (
+              <Sparkles size={16} strokeWidth={1.5} />
+            )}
+            <span>Summarize</span>
           </button>
         )}
         <div className="toolbar-separator" />

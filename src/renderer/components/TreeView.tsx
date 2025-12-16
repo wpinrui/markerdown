@@ -57,15 +57,12 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
     if (isSelectable) {
       onSelect(node)
     }
+    // Single click only selects - doesn't expand/collapse
+  }
+
+  const handleRowDoubleClick = () => {
     if (hasChildren) {
-      if (isSelected) {
-        // Only toggle collapse if already viewing this item
-        setExpanded(!expanded)
-      } else if (!expanded) {
-        // Expand when navigating to a collapsed item
-        setExpanded(true)
-      }
-      // Don't collapse when navigating to an already-expanded item
+      setExpanded(!expanded)
     }
   }
 
@@ -91,11 +88,10 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
     return '📎'
   }
 
-  const getVariantCount = () => {
-    if (!node.entity) return null
-    const count = node.entity.members.length
-    return count > 1 ? `${count} variants` : '1 variant'
-  }
+  // Only show variant count when there are multiple variants
+  const variantCount = node.entity && node.entity.members.length > 1
+    ? node.entity.members.length
+    : null
 
   return (
     <div className="tree-item">
@@ -103,6 +99,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
         className={`tree-item-row ${isSelected ? 'selected' : ''} ${isSuggestion ? 'suggestion' : ''}`}
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         onClick={handleRowClick}
+        onDoubleClick={handleRowDoubleClick}
       >
         {hasChildren && (
           <span
@@ -115,8 +112,8 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths }: Tre
         {!hasChildren && <span className="tree-chevron-placeholder" />}
         <span className="tree-icon">{getIcon()}</span>
         <span className="tree-name">{node.name}</span>
-        {node.entity && (
-          <span className="tree-variant-count">{getVariantCount()}</span>
+        {variantCount && (
+          <span className="tree-variant-count">{variantCount}</span>
         )}
         {isSummarizing && (
           <span className="tree-spinner" title="Summarizing with Claude...">

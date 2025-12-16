@@ -32,14 +32,13 @@ interface MarkdownEditorProps {
   mode: EditMode
   onModeChange: (mode: EditMode) => void
   onContentChange: (content: string) => void
-  isDirty: boolean
   showToolbar?: boolean
   onSelectionChange?: (formats: ActiveFormats) => void
 }
 
 export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
   function MarkdownEditor(
-    { content, filePath, mode, onModeChange, onContentChange, isDirty, showToolbar = true, onSelectionChange },
+    { content, filePath, mode, onModeChange, onContentChange, showToolbar = true, onSelectionChange },
     ref
   ) {
     const milkdownRef = useRef<MilkdownEditorRef>(null)
@@ -147,7 +146,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     return (
       <div className="markdown-editor">
         {showToolbar && (
-          <EditorToolbar mode={mode} onModeChange={handleModeChange} isDirty={isDirty} />
+          <EditorToolbar mode={mode} onModeChange={handleModeChange} />
         )}
 
         <div className="markdown-editor-content">
