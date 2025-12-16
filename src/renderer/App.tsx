@@ -190,8 +190,9 @@ function App() {
 
       // Check for suggestion draft files and inject them at the top
       const suggestionNodes: TreeNode[] = []
-      const todosDraftPath = `${folderPath}/.markerdown/todos-draft.md`
-      const eventsDraftPath = `${folderPath}/.markerdown/events-draft.md`
+      const sep = folderPath.includes('\\') ? '\\' : '/'
+      const todosDraftPath = `${folderPath}${sep}.markerdown${sep}todos-draft.md`
+      const eventsDraftPath = `${folderPath}${sep}.markerdown${sep}events-draft.md`
 
       const [todosDraftExists, eventsDraftExists] = await Promise.all([
         window.electronAPI.exists(todosDraftPath),
