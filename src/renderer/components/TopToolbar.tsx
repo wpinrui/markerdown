@@ -2,6 +2,9 @@ import type { Entity, EntityMember, EditMode } from '@shared/types'
 import type { ActiveFormats, MarkdownEditorRef } from './MarkdownEditor'
 import { FormatToolbar } from './FormatToolbar'
 import { ModeToggle } from './ModeToggle'
+import { MessageSquare, CheckSquare, Calendar } from 'lucide-react'
+
+export type PaneType = 'agent' | 'todos' | 'events'
 
 /**
  * Simple string hash function (djb2 algorithm)
@@ -41,6 +44,9 @@ interface TopToolbarProps {
   canSummarize: boolean
   isSummarizing: boolean
   onSummarizeClick: () => void
+  // Pane toggle props
+  activePane: PaneType | null
+  onPaneToggle: (pane: PaneType) => void
 }
 
 export function TopToolbar({
@@ -57,6 +63,8 @@ export function TopToolbar({
   canSummarize,
   isSummarizing,
   onSummarizeClick,
+  activePane,
+  onPaneToggle,
 }: TopToolbarProps) {
   const getTabLabel = (member: EntityMember) => {
     if (member.type === 'pdf') {
@@ -120,6 +128,28 @@ export function TopToolbar({
             {isSummarizing ? <span className="btn-spinner" /> : '📋'}
           </button>
         )}
+        <div className="toolbar-separator" />
+        <button
+          className={`toolbar-icon-btn ${activePane === 'agent' ? 'active' : ''}`}
+          onClick={() => onPaneToggle('agent')}
+          title="Agent (Ctrl+Shift+A)"
+        >
+          <MessageSquare size={16} strokeWidth={1.5} />
+        </button>
+        <button
+          className={`toolbar-icon-btn ${activePane === 'todos' ? 'active' : ''}`}
+          onClick={() => onPaneToggle('todos')}
+          title="Todos"
+        >
+          <CheckSquare size={16} strokeWidth={1.5} />
+        </button>
+        <button
+          className={`toolbar-icon-btn ${activePane === 'events' ? 'active' : ''}`}
+          onClick={() => onPaneToggle('events')}
+          title="Events"
+        >
+          <Calendar size={16} strokeWidth={1.5} />
+        </button>
       </div>
     </div>
   )

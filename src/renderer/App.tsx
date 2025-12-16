@@ -8,8 +8,8 @@ import { AgentPanel } from './components/AgentPanel'
 import { TodoPanel } from './components/TodoPanel'
 import { EventPanel } from './components/EventPanel'
 import { OptionsModal } from './components/OptionsModal'
-import { TopToolbar } from './components/TopToolbar'
-import { SidebarToolbar, PaneType } from './components/SidebarToolbar'
+import { TopToolbar, PaneType } from './components/TopToolbar'
+import { SidebarToolbar } from './components/SidebarToolbar'
 import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
@@ -514,8 +514,6 @@ function App() {
             onNewNote={() => setShowNewNoteModal(true)}
             onOpenFolder={handleOpenInExplorer}
             onOpenOptions={() => setShowOptionsModal(true)}
-            activePane={activePane}
-            onPaneToggle={handlePaneToggle}
           />
         </aside>
         <section className="content">
@@ -533,6 +531,8 @@ function App() {
             canSummarize={!!canSummarize}
             isSummarizing={summarizingPaths.size > 0}
             onSummarizeClick={() => setShowSummarizeModal(true)}
+            activePane={activePane}
+            onPaneToggle={handlePaneToggle}
           />
           <div className="content-body-wrapper">
             <div className="content-body">

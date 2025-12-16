@@ -1671,20 +1671,39 @@ body {
   cursor: not-allowed;
 }
 
-/* Sidebar Toolbar Separator & Active State */
-.sidebar-toolbar-separator {
+/* Top Toolbar Icon Buttons */
+.toolbar-separator {
   width: 1px;
   height: 20px;
   background-color: #3c3c3c;
   margin: 0 4px;
 }
 
-.sidebar-toolbar-btn.active {
+.toolbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: transparent;
+  color: #808080;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.toolbar-icon-btn:hover {
+  background-color: #3c3c3c;
+  color: #d4d4d4;
+}
+
+.toolbar-icon-btn.active {
   background-color: #0e639c;
   color: #ffffff;
 }
 
-.sidebar-toolbar-btn.active:hover {
+.toolbar-icon-btn.active:hover {
   background-color: #1177bb;
 }
 
