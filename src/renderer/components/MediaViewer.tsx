@@ -7,7 +7,8 @@ interface MediaViewerProps {
 export function MediaViewer({ filePath }: MediaViewerProps) {
   const isVideo = isVideoFile(filePath)
   // Use custom media:// protocol to serve local files (file:// is blocked by Electron security)
-  const fileUrl = `media://${filePath.replace(/\\/g, '/')}`
+  // Triple slash (media:///) ensures the path isn't parsed as a hostname
+  const fileUrl = `media:///${filePath.replace(/\\/g, '/')}`
 
   return (
     <div className="media-viewer">
