@@ -299,16 +299,11 @@ function App() {
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
   const canSummarize = isPdfActive || isStandalonePdf
 
-  const getOutputPath = (pdfPath: string, outputFilename: string) => {
-    const lastSlash = Math.max(pdfPath.lastIndexOf('/'), pdfPath.lastIndexOf('\\'))
-    const dir = pdfPath.substring(0, lastSlash)
-    return `${dir}/${outputFilename}`
-  }
+  const getOutputPath = (pdfPath: string, outputFilename: string) =>
+    `${getDirname(pdfPath)}/${outputFilename}`
 
-  const getBaseName = (filename: string) => {
-    // Remove .pdf extension to get base name
-    return filename.replace(/\.pdf$/i, '')
-  }
+  const stripPdfExtension = (filename: string) =>
+    filename.replace(/\.pdf$/i, '')
 
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
@@ -346,7 +341,7 @@ function App() {
   // For entities, use entity members; for standalone PDFs, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
   // For entities, use baseName; for standalone PDFs, extract from filename
-  const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? getBaseName(selectedNode.name) : '')
+  const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? stripPdfExtension(selectedNode.name) : '')
 
   const isEditing = editMode !== 'view'
   const toggleAgent = () => setShowAgent((prev) => !prev)
