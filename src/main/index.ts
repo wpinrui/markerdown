@@ -28,6 +28,8 @@ const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
 const CLAUDE_MD_FILE = 'claude.md'
 const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it.'
+const IMAGES_DIR = '.images'
+const IMAGE_FILENAME_PREFIX = 'image-'
 const CLAUDE_MD_RESPOND_MARKER = 'USER_MESSAGE:'
 
 // Strip our internal prefix from user messages for display
@@ -286,13 +288,13 @@ ipcMain.handle('fs:saveImage', async (_event, markdownFilePath: string, imageDat
   try {
     // Create .images folder next to the markdown file
     const markdownDir = path.dirname(markdownFilePath)
-    const imagesDir = path.join(markdownDir, '.images')
+    const imagesDir = path.join(markdownDir, IMAGES_DIR)
     await fs.promises.mkdir(imagesDir, { recursive: true })
 
     // Generate unique filename based on timestamp and random string
     const timestamp = Date.now()
     const randomStr = crypto.randomBytes(4).toString('hex')
-    const filename = `image-${timestamp}-${randomStr}${extension}`
+    const filename = `${IMAGE_FILENAME_PREFIX}${timestamp}-${randomStr}${extension}`
     const imagePath = path.join(imagesDir, filename)
 
     // Convert base64 data URL to buffer and save
@@ -301,7 +303,7 @@ ipcMain.handle('fs:saveImage', async (_event, markdownFilePath: string, imageDat
     await fs.promises.writeFile(imagePath, buffer)
 
     // Return relative path for markdown
-    const relativePath = `.images/${filename}`
+    const relativePath = `${IMAGES_DIR}/${filename}`
     return { success: true, relativePath }
   } catch (error) {
     console.error('Error saving image:', error)

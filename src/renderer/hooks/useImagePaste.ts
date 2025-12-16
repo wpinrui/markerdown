@@ -1,15 +1,24 @@
 import { useEffect } from 'react'
 
-interface SaveImageResult {
-  success: boolean
-  relativePath?: string
-  error?: string
+const IMAGE_MIME_PREFIX = 'image/'
+const SUPPORTED_IMAGE_FORMATS: Record<string, string> = {
+  'jpeg': '.jpg',
+  'jpg': '.jpg',
+  'png': '.png',
+  'gif': '.gif',
+  'webp': '.webp',
+  'svg+xml': '.svg'
 }
 
 interface UseImagePasteOptions {
   containerRef: React.RefObject<HTMLElement>
   filePath: string
   onImageSaved: (relativePath: string) => void
+}
+
+function getImageExtension(mimeType: string): string | null {
+  const format = mimeType.split('/')[1]
+  return format ? SUPPORTED_IMAGE_FORMATS[format] || null : null
 }
 
 export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImagePasteOptions) {
@@ -22,27 +31,34 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
       if (!items) return
 
       for (const item of Array.from(items)) {
-        if (item.type.startsWith('image/')) {
+        if (item.type.startsWith(IMAGE_MIME_PREFIX)) {
           e.preventDefault()
 
           const file = item.getAsFile()
           if (!file) continue
 
+          const extension = getImageExtension(item.type)
+          if (!extension) {
+            console.error('Unsupported image format:', item.type)
+            continue
+          }
+
           // Convert to data URL
           const reader = new FileReader()
           reader.onload = async () => {
-            const dataUrl = reader.result as string
-
-            // Determine extension from MIME type
-            const extension = item.type.split('/')[1] === 'jpeg' ? '.jpg' : `.${item.type.split('/')[1]}`
+            const result = reader.result
+            if (typeof result !== 'string') {
+              console.error('Failed to read image as data URL')
+              return
+            }
 
             // Save image via IPC
-            const result: SaveImageResult = await window.electronAPI.saveImage(filePath, dataUrl, extension)
+            const saveResult = await window.electronAPI.saveImage(filePath, result, extension)
 
-            if (result.success && result.relativePath) {
-              onImageSaved(result.relativePath)
+            if (saveResult.success && saveResult.relativePath) {
+              onImageSaved(saveResult.relativePath)
             } else {
-              console.error('Failed to save image:', result.error)
+              console.error('Failed to save image:', saveResult.error)
             }
           }
           reader.onerror = () => {
