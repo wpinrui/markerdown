@@ -331,8 +331,11 @@ async function getChatSessionIds(workingDir: string): Promise<Set<string>> {
   try {
     const metadataPath = getChatSessionsMetadataPath(workingDir)
     const content = await fs.promises.readFile(metadataPath, 'utf-8')
-    const ids: string[] = JSON.parse(content)
-    return new Set(ids)
+    const parsed: unknown = JSON.parse(content)
+    if (!Array.isArray(parsed)) {
+      return new Set()
+    }
+    return new Set(parsed.filter((id): id is string => typeof id === 'string'))
   } catch {
     return new Set()
   }
