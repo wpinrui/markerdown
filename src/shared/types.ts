@@ -116,6 +116,8 @@ export interface ElectronAPI {
   exists: (filePath: string) => Promise<boolean>
   getLastFolder: () => Promise<string | null>
   setLastFolder: (folderPath: string | null) => Promise<void>
+  getShowClaudeMd: () => Promise<boolean>
+  setShowClaudeMd: (show: boolean) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
   openInExplorer: (folderPath: string) => Promise<void>

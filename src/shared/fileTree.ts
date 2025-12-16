@@ -80,14 +80,23 @@ function groupFilesIntoEntities(
  * the folder's contents become children of the markdown file.
  * Groups related files into entities based on naming convention.
  */
+export interface BuildFileTreeOptions {
+  showClaudeMd?: boolean
+}
+
 export async function buildFileTree(
   dirPath: string,
-  readDirectory: (path: string) => Promise<FileEntry[]>
+  readDirectory: (path: string) => Promise<FileEntry[]>,
+  options?: BuildFileTreeOptions
 ): Promise<TreeNode[]> {
   const entries = await readDirectory(dirPath)
 
-  // Separate files and directories, filtering out .markerdown folder
-  const files = entries.filter((e) => !e.isDirectory)
+  // Separate files and directories, filtering out .markerdown folder and optionally claude.md
+  const files = entries.filter((e) => {
+    if (e.isDirectory) return false
+    if (!options?.showClaudeMd && e.name === 'claude.md') return false
+    return true
+  })
   const dirs = entries.filter((e) => e.isDirectory && e.name !== '.markerdown')
 
   // Parse entity info for markdown and PDF files
@@ -153,7 +162,7 @@ export async function buildFileTree(
         // If there's a sidecar folder, recursively get its contents as children
         if (hasSidecar) {
           const sidecarDir = dirs.find((d) => d.name === entity.baseName)!
-          node.children = await buildFileTree(sidecarDir.path, readDirectory)
+          node.children = await buildFileTree(sidecarDir.path, readDirectory, options)
           processedDirs.add(entity.baseName)
         }
 
@@ -176,7 +185,7 @@ export async function buildFileTree(
 
     if (hasSidecar) {
       const sidecarDir = dirs.find((d) => d.name === baseName)!
-      node.children = await buildFileTree(sidecarDir.path, readDirectory)
+      node.children = await buildFileTree(sidecarDir.path, readDirectory, options)
       processedDirs.add(baseName)
     }
 
@@ -192,7 +201,7 @@ export async function buildFileTree(
       path: dir.path,
       isDirectory: true,
       hasSidecar: false,
-      children: await buildFileTree(dir.path, readDirectory),
+      children: await buildFileTree(dir.path, readDirectory, options),
     }
 
     nodes.push(node)

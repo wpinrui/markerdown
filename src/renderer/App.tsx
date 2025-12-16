@@ -13,7 +13,7 @@ import { SidebarToolbar } from './components/SidebarToolbar'
 import { NewNoteModal } from './components/NewNoteModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
-import { buildFileTree } from '@shared/fileTree'
+import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 
@@ -58,6 +58,7 @@ function App() {
   const [showOptionsModal, setShowOptionsModal] = useState(false)
   const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
+  const [showClaudeMd, setShowClaudeMd] = useState(false)
 
   // Right pane state (agent/todos/events)
   const [activePane, setActivePane] = useState<PaneType | null>(null)
@@ -83,12 +84,17 @@ function App() {
     })
   }
 
-  // Load last folder on startup
+  // Load settings on startup
   useEffect(() => {
     window.electronAPI.getLastFolder().then((path) => {
       if (path) setFolderPath(path)
     }).catch((err) => {
       console.error('Failed to load last folder:', err)
+    })
+    window.electronAPI.getShowClaudeMd().then((show) => {
+      setShowClaudeMd(show)
+    }).catch((err) => {
+      console.error('Failed to load showClaudeMd setting:', err)
     })
   }, [])
 
@@ -186,7 +192,8 @@ function App() {
       return
     }
     try {
-      const nodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+      const treeOptions: BuildFileTreeOptions = { showClaudeMd }
+      const nodes = await buildFileTree(folderPath, window.electronAPI.readDirectory, treeOptions)
 
       // Check for suggestion draft files and inject them at the top
       const suggestionNodes: TreeNode[] = []
@@ -223,7 +230,7 @@ function App() {
       console.error('Failed to build file tree:', err)
       setError('Failed to load folder contents')
     }
-  }, [folderPath])
+  }, [folderPath, showClaudeMd])
 
   // Build tree when folder changes
   useEffect(() => {
@@ -546,7 +553,7 @@ function App() {
     // We need to wait for the tree to refresh first
     setTimeout(async () => {
       try {
-        const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+        const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory, { showClaudeMd })
         // Try exact match first, then normalized (Windows vs Unix paths)
         const newNode = findNodeByPath(newNodes, newFilePath) ??
           findNodeByPath(newNodes, newFilePath.replace(/\//g, '\\'))
@@ -684,6 +691,13 @@ function App() {
         onClose={() => setShowOptionsModal(false)}
         currentFolderPath={folderPath}
         onFolderChange={handleFolderChange}
+        showClaudeMd={showClaudeMd}
+        onShowClaudeMdChange={(show) => {
+          setShowClaudeMd(show)
+          window.electronAPI.setShowClaudeMd(show).catch((err) => {
+            console.error('Failed to save showClaudeMd setting:', err)
+          })
+        }}
       />
       <NewNoteModal
         isOpen={showNewNoteModal}

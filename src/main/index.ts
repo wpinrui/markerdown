@@ -5,7 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
-import { getSummarizePrompt, getAgentSystemPrompt } from '../shared/prompts'
+import { getSummarizePrompt, getAgentSystemPrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -27,6 +27,7 @@ const AGENT_MEMORY_FILE = 'Agent Memory.md'
 const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
+const CLAUDE_MD_FILE = 'claude.md'
 
 async function readAgentMemory(workingDir: string): Promise<string | null> {
   try {
@@ -51,8 +52,19 @@ function formatMemoryContext(agentMemory: string | null): string {
   return `User context:\n${agentMemory}\n\n`
 }
 
+async function ensureClaudeMd(workingDir: string): Promise<void> {
+  const claudeMdPath = path.join(workingDir, CLAUDE_MD_FILE)
+  try {
+    await fs.promises.access(claudeMdPath)
+  } catch {
+    // File doesn't exist, create it
+    await fs.promises.writeFile(claudeMdPath, CLAUDE_MD_TEMPLATE)
+  }
+}
+
 interface Settings {
   lastFolder?: string
+  showClaudeMd?: boolean
 }
 
 function loadSettings(): Settings {
@@ -184,6 +196,16 @@ ipcMain.handle('settings:setLastFolder', (_event, folderPath: string | null) => 
   saveSettings(settings)
 })
 
+ipcMain.handle('settings:getShowClaudeMd', () => {
+  return loadSettings().showClaudeMd ?? false
+})
+
+ipcMain.handle('settings:setShowClaudeMd', (_event, show: boolean) => {
+  const settings = loadSettings()
+  settings.showClaudeMd = show
+  saveSettings(settings)
+})
+
 ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   closeWatcher()
 
@@ -255,6 +277,9 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
     // File doesn't exist, good to proceed
   }
 
+  // Ensure claude.md exists for Claude Code integration
+  await ensureClaudeMd(workingDir)
+
   const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
   const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
   const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
@@ -311,6 +336,9 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
 
   // Cancel any existing agent process
   cancelAgent()
+
+  // Ensure claude.md exists for Claude Code integration
+  await ensureClaudeMd(workingDir)
 
   // Use existing session ID or generate a new one
   const sessionId = existingSessionId ?? crypto.randomUUID()
