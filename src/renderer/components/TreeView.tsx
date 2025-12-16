@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { isMarkdownFile, isPdfFile } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isVideoFile, isAudioFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
 
 const INDENT_PX = 16
@@ -47,9 +47,11 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onCon
   const isMarkdown = isMarkdownFile(node.name)
   const isSummarizing = summarizingPaths?.has(node.path) ?? false
   const isPdf = isPdfFile(node.name)
+  const isVideo = isVideoFile(node.name)
+  const isAudio = isAudioFile(node.name)
   const isEntity = !!node.entity
   const isSuggestion = !!node.isSuggestion
-  const isSelectable = isMarkdown || isPdf || isEntity || isSuggestion
+  const isSelectable = isMarkdown || isPdf || isVideo || isAudio || isEntity || isSuggestion
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -93,6 +95,12 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onCon
     }
     if (isPdf) {
       return '📑'
+    }
+    if (isVideo) {
+      return '🎬'
+    }
+    if (isAudio) {
+      return '🎵'
     }
     return '📎'
   }

@@ -6,6 +6,8 @@ export interface FileEntry {
 
 export const MARKDOWN_EXTENSION = '.md'
 export const PDF_EXTENSION = '.pdf'
+export const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv']
+export const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac']
 
 export function isMarkdownFile(name: string): boolean {
   return name.endsWith(MARKDOWN_EXTENSION)
@@ -15,10 +17,24 @@ export function isPdfFile(name: string): boolean {
   return name.endsWith(PDF_EXTENSION)
 }
 
+export function isVideoFile(name: string): boolean {
+  const lower = name.toLowerCase()
+  return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext))
+}
+
+export function isAudioFile(name: string): boolean {
+  const lower = name.toLowerCase()
+  return AUDIO_EXTENSIONS.some(ext => lower.endsWith(ext))
+}
+
+export function isMediaFile(name: string): boolean {
+  return isVideoFile(name) || isAudioFile(name)
+}
+
 export interface EntityMember {
   path: string
   variant: string | null // null = default (no suffix)
-  type: 'markdown' | 'pdf'
+  type: 'markdown' | 'pdf' | 'video' | 'audio'
 }
 
 export interface Entity {

@@ -3,6 +3,7 @@ import { TreeView } from './components/TreeView'
 import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
 import { PdfViewer } from './components/PdfViewer'
+import MediaViewer from './components/MediaViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
 import { TodoPanel } from './components/TodoPanel'
@@ -20,7 +21,7 @@ import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension } from '@shared/pathUtils'
-import { isMarkdownFile, isPdfFile, isStructureChange } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
 
@@ -470,6 +471,8 @@ function App() {
   const isStandalonePdf = selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity
   const isMdActive = activeMember?.type === 'markdown'
   const isStandaloneMd = selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity && !selectedNode.isSuggestion
+  const isMediaActive = activeMember?.type === 'video' || activeMember?.type === 'audio'
+  const isStandaloneMedia = selectedNode && isMediaFile(selectedNode.name) && !selectedNode.entity
   const canSummarize = isPdfActive || isStandalonePdf || isMdActive || isStandaloneMd
 
   const getOutputPath = (sourcePath: string, outputFilename: string) =>
@@ -984,6 +987,8 @@ function App() {
               ) : selectedNode?.entity && activeMember ? (
                 activeMember.type === 'pdf' ? (
                   <PdfViewer filePath={activeMember.path} />
+                ) : activeMember.type === 'video' || activeMember.type === 'audio' ? (
+                  <MediaViewer filePath={activeMember.path} />
                 ) : fileContent !== null ? (
                   renderMarkdownContent(activeMember.path)
                 ) : (
@@ -991,6 +996,8 @@ function App() {
                 )
               ) : isStandalonePdf ? (
                 <PdfViewer filePath={selectedNode!.path} />
+              ) : isStandaloneMedia ? (
+                <MediaViewer filePath={selectedNode!.path} />
               ) : fileContent !== null && selectedNode ? (
                 renderMarkdownContent(selectedNode.path)
               ) : null}
