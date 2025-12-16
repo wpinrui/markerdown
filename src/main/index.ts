@@ -30,6 +30,8 @@ const CLAUDE_MD_FILE = 'claude.md'
 const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it.'
 const IMAGES_DIR = '.images'
 const IMAGE_FILENAME_PREFIX = 'image-'
+const IMAGE_DATA_URL_PREFIX = /^data:image\/\w+;base64,/
+const RANDOM_BYTES_LENGTH = 4 // For unique filename generation
 const CLAUDE_MD_RESPOND_MARKER = 'USER_MESSAGE:'
 
 // Strip our internal prefix from user messages for display
@@ -293,12 +295,12 @@ ipcMain.handle('fs:saveImage', async (_event, markdownFilePath: string, imageDat
 
     // Generate unique filename based on timestamp and random string
     const timestamp = Date.now()
-    const randomStr = crypto.randomBytes(4).toString('hex')
+    const randomStr = crypto.randomBytes(RANDOM_BYTES_LENGTH).toString('hex')
     const filename = `${IMAGE_FILENAME_PREFIX}${timestamp}-${randomStr}${extension}`
     const imagePath = path.join(imagesDir, filename)
 
     // Convert base64 data URL to buffer and save
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '')
+    const base64Data = imageData.replace(IMAGE_DATA_URL_PREFIX, '')
     const buffer = Buffer.from(base64Data, 'base64')
     await fs.promises.writeFile(imagePath, buffer)
 

@@ -18,7 +18,8 @@ interface UseImagePasteOptions {
 
 function getImageExtension(mimeType: string): string | null {
   const format = mimeType.split('/')[1]
-  return format ? SUPPORTED_IMAGE_FORMATS[format] || null : null
+  if (!format) return null
+  return SUPPORTED_IMAGE_FORMATS[format] || null
 }
 
 export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImagePasteOptions) {
@@ -30,7 +31,7 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
       const items = e.clipboardData?.items
       if (!items) return
 
-      for (const item of Array.from(items)) {
+      for (const item of items) {
         if (item.type.startsWith(IMAGE_MIME_PREFIX)) {
           e.preventDefault()
 
@@ -43,17 +44,17 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
             continue
           }
 
-          // Convert to data URL
+          // Convert to data URL and save
           const reader = new FileReader()
           reader.onload = async () => {
-            const result = reader.result
-            if (typeof result !== 'string') {
+            const imageDataUrl = reader.result
+            if (typeof imageDataUrl !== 'string') {
               console.error('Failed to read image as data URL')
               return
             }
 
             // Save image via IPC
-            const saveResult = await window.electronAPI.saveImage(filePath, result, extension)
+            const saveResult = await window.electronAPI.saveImage(filePath, imageDataUrl, extension)
 
             if (saveResult.success && saveResult.relativePath) {
               onImageSaved(saveResult.relativePath)
