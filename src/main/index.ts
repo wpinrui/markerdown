@@ -126,6 +126,7 @@ app.whenReady().then(() => {
   // Handle media:// protocol for local video/audio files
   protocol.handle('media', async (request) => {
     const url = new URL(request.url)
+    console.log('Media URL parsed:', { href: url.href, host: url.host, pathname: url.pathname })
     const filePath = decodeURIComponent(url.pathname)
     // On Windows, pathname starts with / so we get /C:/... -> C:/...
     const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
