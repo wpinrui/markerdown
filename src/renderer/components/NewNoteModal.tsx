@@ -143,7 +143,7 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
 
     // Check for duplicate at same parent level
     const siblings = getDirectChildren(treeNodes, parentPath)
-    const siblingNames = siblings.map(n => n.name.toLowerCase())
+    const siblingNames = siblings.map(sibling => sibling.name.toLowerCase())
 
     if (siblingNames.includes(normalizedName)) {
       return { type: 'error' as const, message: 'A file with this name already exists here' }
@@ -178,13 +178,19 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
     })
   }, [])
 
+  const handleSelectParent = useCallback((path: string | null) => {
+    setParentPath(path)
+    setSelectedChildren(new Set())
+    setShowParentDropdown(false)
+  }, [])
+
   const selectableParents = useMemo(() => getSelectableParents(treeNodes), [treeNodes])
   const availableChildren = useMemo(() => getDirectChildren(treeNodes, parentPath), [treeNodes, parentPath])
 
   // Get display name for parent
   const parentDisplayName = useMemo(() => {
     if (parentPath === null) return '(Root)'
-    const parent = selectableParents.find(p => p.node.path === parentPath)
+    const parent = selectableParents.find(entry => entry.node.path === parentPath)
     return parent?.node.name ?? '(Root)'
   }, [parentPath, selectableParents])
 
@@ -230,11 +236,7 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
                 <button
                   type="button"
                   className={`new-note-dropdown-item ${parentPath === null ? 'selected' : ''}`}
-                  onClick={() => {
-                    setParentPath(null)
-                    setSelectedChildren(new Set())
-                    setShowParentDropdown(false)
-                  }}
+                  onClick={() => handleSelectParent(null)}
                 >
                   (Root)
                 </button>
@@ -244,11 +246,7 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
                     type="button"
                     className={`new-note-dropdown-item ${parentPath === node.path ? 'selected' : ''}`}
                     style={{ paddingLeft: `${12 + depth * 16}px` }}
-                    onClick={() => {
-                      setParentPath(node.path)
-                      setSelectedChildren(new Set())
-                      setShowParentDropdown(false)
-                    }}
+                    onClick={() => handleSelectParent(node.path)}
                   >
                     {node.name}
                   </button>

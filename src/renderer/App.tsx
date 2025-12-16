@@ -447,15 +447,19 @@ function App() {
     // Select the new file and open in edit mode
     // We need to wait for the tree to refresh first
     setTimeout(async () => {
-      const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
-      // Try exact match first, then normalized (Windows vs Unix paths)
-      const newNode = findNodeByPath(newNodes, newFilePath) ??
-        findNodeByPath(newNodes, newFilePath.replace(/\//g, '\\'))
+      try {
+        const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory)
+        // Try exact match first, then normalized (Windows vs Unix paths)
+        const newNode = findNodeByPath(newNodes, newFilePath) ??
+          findNodeByPath(newNodes, newFilePath.replace(/\//g, '\\'))
 
-      if (newNode) {
-        setSelectedNode(newNode)
-        setActiveMember(null)
-        setEditMode('visual')
+        if (newNode) {
+          setSelectedNode(newNode)
+          setActiveMember(null)
+          setEditMode('visual')
+        }
+      } catch (err) {
+        console.error('Failed to refresh tree after note creation:', err)
       }
     }, TREE_REFRESH_DELAY_MS)
   }
