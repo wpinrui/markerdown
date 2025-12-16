@@ -278,8 +278,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         if (!view) return
 
         // Convert relative path to absolute path with custom protocol
+        // Use forward slashes to avoid markdown escape character issues
         const markdownDir = filePath.substring(0, filePath.lastIndexOf('\\'))
-        const absolutePath = `${markdownDir}\\${relativePath.replace(/\//g, '\\')}`
+        const absolutePath = `${markdownDir}/${relativePath}`.replace(/\\/g, '/')
         const imageUrl = `local-image://${absolutePath}`
 
         const { from } = view.state.selection.main

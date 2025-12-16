@@ -11,9 +11,29 @@ interface StyledMarkdownProps {
   content: string
 }
 
+// Allow local-image: protocol (default urlTransform strips unknown protocols)
+function allowLocalImageProtocol(url: string): string {
+  if (url.startsWith('local-image://')) {
+    return url
+  }
+  // Default behavior: allow http, https, mailto, tel
+  if (/^(https?|mailto|tel):/.test(url)) {
+    return url
+  }
+  // Allow relative URLs
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return url
+  }
+  return ''
+}
+
 export function StyledMarkdown({ content }: StyledMarkdownProps) {
   return (
-    <Markdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+    <Markdown
+      remarkPlugins={REMARK_PLUGINS}
+      rehypePlugins={REHYPE_PLUGINS}
+      urlTransform={allowLocalImageProtocol}
+    >
       {content}
     </Markdown>
   )
