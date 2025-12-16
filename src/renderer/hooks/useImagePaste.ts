@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react'
 
 const IMAGE_MIME_PREFIX = 'image/'
-const SUPPORTED_IMAGE_FORMATS: Record<string, string> = {
+const SUPPORTED_IMAGE_FORMATS = {
   'jpeg': '.jpg',
   'jpg': '.jpg',
   'png': '.png',
   'gif': '.gif',
   'webp': '.webp',
   'svg+xml': '.svg'
-}
+} as const
+
+type SupportedImageFormat = keyof typeof SUPPORTED_IMAGE_FORMATS
 
 interface UseImagePasteOptions {
   containerRef: React.RefObject<HTMLElement>
@@ -17,18 +19,21 @@ interface UseImagePasteOptions {
 }
 
 function getImageExtension(mimeType: string): string | null {
-  const format = mimeType.split('/')[1]
+  const parts = mimeType.split('/')
+  const format = parts[1]
   if (!format) return null
-  return SUPPORTED_IMAGE_FORMATS[format] || null
+  return SUPPORTED_IMAGE_FORMATS[format as SupportedImageFormat] ?? null
 }
 
 export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImagePasteOptions) {
   const onImageSavedRef = useRef(onImageSaved)
+  const filePathRef = useRef(filePath)
 
-  // Keep ref up to date
+  // Keep refs up to date
   useEffect(() => {
     onImageSavedRef.current = onImageSaved
-  }, [onImageSaved])
+    filePathRef.current = filePath
+  }, [onImageSaved, filePath])
 
   useEffect(() => {
     const container = containerRef.current
@@ -62,7 +67,7 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
 
             try {
               // Save image via IPC
-              const saveResult = await window.electronAPI.saveImage(filePath, imageDataUrl, extension)
+              const saveResult = await window.electronAPI.saveImage(filePathRef.current, imageDataUrl, extension)
 
               if (saveResult.success && saveResult.relativePath) {
                 onImageSavedRef.current(saveResult.relativePath)
@@ -84,5 +89,5 @@ export function useImagePaste({ containerRef, filePath, onImageSaved }: UseImage
 
     container.addEventListener('paste', handlePaste)
     return () => container.removeEventListener('paste', handlePaste)
-  }, [containerRef, filePath])
+  }, [])
 }
