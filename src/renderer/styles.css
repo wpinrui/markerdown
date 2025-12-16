@@ -64,7 +64,7 @@ body {
 
 .sidebar-tree {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
   padding: 12px;
 }
 
@@ -156,8 +156,6 @@ body {
   cursor: pointer;
   border-radius: 4px;
   user-select: none;
-  width: fit-content;
-  min-width: 100%;
 }
 
 .tree-item-row:hover {
@@ -202,10 +200,11 @@ body {
 }
 
 .tree-name {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
 }
 
 .tree-variant-count {
