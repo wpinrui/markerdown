@@ -6,6 +6,7 @@ import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
+import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -42,6 +43,10 @@ const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
 const CLAUDE_MD_FILE = 'claude.md'
 const CLAUDE_MD_PREFIX = 'First read claude.md in this directory for project-specific instructions. DO NOT COMMENT that you will be reading it.'
+const IMAGES_DIR = '.images'
+const IMAGE_FILENAME_PREFIX = 'image-'
+const IMAGE_DATA_URL_PREFIX = /^data:image\/\w+;base64,/
+const RANDOM_BYTES_LENGTH = 4 // For unique filename generation
 const CLAUDE_MD_RESPOND_MARKER = 'USER_MESSAGE:'
 
 // Strip our internal prefix from user messages for display
@@ -106,6 +111,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       plugins: true,
+      webSecurity: true,
     },
   })
 
@@ -123,6 +129,17 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Register custom protocol to serve local images
+  protocol.registerFileProtocol('local-image', (request, callback) => {
+    const url = request.url.replace(LOCAL_IMAGE_PROTOCOL, '')
+    try {
+      return callback(decodeURIComponent(url))
+    } catch (error) {
+      console.error('Error loading local image:', error)
+      return callback({ error: -2 }) // FILE_NOT_FOUND
+    }
+  })
+
   // Handle media:// protocol for local video/audio files
   protocol.registerFileProtocol('media', (request, callback) => {
     const url = new URL(request.url)
@@ -303,6 +320,33 @@ ipcMain.handle('fs:deleteDir', async (_event, dirPath: string) => {
     return { success: true }
   } catch (error) {
     console.error('Error deleting directory:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
+ipcMain.handle('fs:saveImage', async (_event, markdownFilePath: string, imageData: string, extension: string) => {
+  try {
+    // Create .images folder next to the markdown file
+    const markdownDir = path.dirname(markdownFilePath)
+    const imagesDir = path.join(markdownDir, IMAGES_DIR)
+    await fs.promises.mkdir(imagesDir, { recursive: true })
+
+    // Generate unique filename based on timestamp and random string
+    const timestamp = Date.now()
+    const randomStr = crypto.randomBytes(RANDOM_BYTES_LENGTH).toString('hex')
+    const filename = `${IMAGE_FILENAME_PREFIX}${timestamp}-${randomStr}${extension}`
+    const imagePath = path.join(imagesDir, filename)
+
+    // Convert base64 data URL to buffer and save
+    const base64Data = imageData.replace(IMAGE_DATA_URL_PREFIX, '')
+    const buffer = Buffer.from(base64Data, 'base64')
+    await fs.promises.writeFile(imagePath, buffer)
+
+    // Return relative path for markdown
+    const relativePath = `${IMAGES_DIR}/${filename}`
+    return { success: true, relativePath }
+  } catch (error) {
+    console.error('Error saving image:', error)
     return { success: false, error: String(error) }
   }
 })

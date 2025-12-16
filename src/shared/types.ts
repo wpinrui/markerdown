@@ -171,6 +171,7 @@ export interface ElectronAPI {
   move: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
   deleteDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
+  saveImage: (markdownFilePath: string, imageData: string, extension: string) => Promise<{ success: boolean; relativePath?: string; error?: string }>
   onFileChange: (callback: (event: FileChangeEvent) => void) => () => void
   summarize: (request: SummarizeRequest) => Promise<SummarizeResult>
   agentChat: (request: AgentChatRequest) => Promise<AgentChatResponse>
