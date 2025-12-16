@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:delete', filePath),
   deleteDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('fs:deleteDir', dirPath),
+  readOrder: (dirPath: string): Promise<string[] | null> =>
+    ipcRenderer.invoke('fs:readOrder', dirPath),
+  writeOrder: (dirPath: string, order: string[]): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('fs:writeOrder', dirPath, order),
   onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, data: FileChangeEvent) => callback(data)
     ipcRenderer.on('fs:changed', listener)

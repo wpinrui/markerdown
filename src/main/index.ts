@@ -282,6 +282,30 @@ ipcMain.handle('fs:deleteDir', async (_event, dirPath: string) => {
   }
 })
 
+ipcMain.handle('fs:readOrder', async (_event, dirPath: string): Promise<string[] | null> => {
+  try {
+    const orderFilePath = path.join(dirPath, MARKERDOWN_DIR, 'order.json')
+    const content = await fs.promises.readFile(orderFilePath, 'utf-8')
+    const data = JSON.parse(content)
+    return Array.isArray(data.order) ? data.order : null
+  } catch {
+    return null
+  }
+})
+
+ipcMain.handle('fs:writeOrder', async (_event, dirPath: string, order: string[]): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const markerdownDir = path.join(dirPath, MARKERDOWN_DIR)
+    await fs.promises.mkdir(markerdownDir, { recursive: true })
+    const orderFilePath = path.join(markerdownDir, 'order.json')
+    await fs.promises.writeFile(orderFilePath, JSON.stringify({ order }, null, 2))
+    return { success: true }
+  } catch (error) {
+    console.error('Error writing order file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 async function getSessionFiles(sessionsDir: string): Promise<Set<string>> {
   try {
     const files = await fs.promises.readdir(sessionsDir)

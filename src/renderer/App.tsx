@@ -230,7 +230,10 @@ function App() {
       return
     }
     try {
-      const treeOptions: BuildFileTreeOptions = { showClaudeMd }
+      const treeOptions: BuildFileTreeOptions = {
+        showClaudeMd,
+        readOrder: window.electronAPI.readOrder,
+      }
       const nodes = await buildFileTree(folderPath, window.electronAPI.readDirectory, treeOptions)
 
       // Check for suggestion draft files and inject them at the top
@@ -888,7 +891,10 @@ function App() {
     // We need to wait for the tree to refresh first
     setTimeout(async () => {
       try {
-        const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory, { showClaudeMd })
+        const newNodes = await buildFileTree(folderPath, window.electronAPI.readDirectory, {
+          showClaudeMd,
+          readOrder: window.electronAPI.readOrder,
+        })
         // Try exact match first, then normalized (Windows vs Unix paths)
         const newNode = findNodeByPath(newNodes, newFilePath) ??
           findNodeByPath(newNodes, newFilePath.replace(/\//g, '\\'))
@@ -922,6 +928,19 @@ function App() {
   }
 
   const { fileName: selectedFileName, fileType: selectedFileType } = getSelectedFileInfo()
+
+  // Handle tree reordering
+  const handleTreeReorder = useCallback(async (parentPath: string, newOrder: string[]) => {
+    if (!folderPath) return
+
+    const result = await window.electronAPI.writeOrder(parentPath, newOrder)
+    if (!result.success) {
+      setError(`Failed to save order: ${result.error}`)
+    }
+
+    // Refresh tree to reflect new order
+    refreshTree()
+  }, [folderPath, refreshTree])
 
   // Handle creating new entity member
   const handleCreateMember = async () => {
@@ -986,6 +1005,8 @@ function App() {
                   onSelect={handleSelectNode}
                   summarizingPaths={summarizingPaths}
                   onContextMenu={handleTreeContextMenu}
+                  onReorder={handleTreeReorder}
+                  folderPath={folderPath}
                 />
               ) : (
                 <p className="placeholder">No folder opened</p>

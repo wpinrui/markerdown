@@ -231,6 +231,23 @@ body {
   background-color: rgba(255, 193, 7, 0.3);
 }
 
+.tree-item-row.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.tree-item-row.drop-before {
+  border-top: 2px solid #4a9eff;
+}
+
+.tree-item-row.drop-after {
+  border-bottom: 2px solid #4a9eff;
+}
+
+.tree-item-row[draggable="true"] {
+  cursor: grab;
+}
+
 .tree-chevron {
   font-size: 10px;
   width: 16px;

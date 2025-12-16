@@ -82,6 +82,7 @@ function groupFilesIntoEntities(
  */
 export interface BuildFileTreeOptions {
   showClaudeMd?: boolean
+  readOrder?: (dirPath: string) => Promise<string[] | null>
 }
 
 export async function buildFileTree(
@@ -217,13 +218,33 @@ export async function buildFileTree(
     })
   }
 
-  // Sort: directories/sidecars/entities first, then files, alphabetically within each group
+  // Sort: respect custom order if available, otherwise alphabetically
+  const customOrder = options?.readOrder ? await options.readOrder(dirPath) : null
+
   return nodes.sort((a, b) => {
+    // First: containers (directories/sidecars/entities) before files
     const aIsContainer = a.isDirectory || a.hasSidecar || a.entity
     const bIsContainer = b.isDirectory || b.hasSidecar || b.entity
 
     if (aIsContainer && !bIsContainer) return -1
     if (!aIsContainer && bIsContainer) return 1
+
+    // Within same category: respect custom order if available
+    if (customOrder) {
+      const aIndex = customOrder.indexOf(a.name)
+      const bIndex = customOrder.indexOf(b.name)
+
+      // Both in custom order: use that order
+      if (aIndex !== -1 && bIndex !== -1) {
+        return aIndex - bIndex
+      }
+      // Only a in custom order: a comes first
+      if (aIndex !== -1) return -1
+      // Only b in custom order: b comes first
+      if (bIndex !== -1) return 1
+    }
+
+    // Fall back to alphabetical
     return a.name.localeCompare(b.name)
   })
 }
