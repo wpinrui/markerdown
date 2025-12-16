@@ -452,14 +452,9 @@ function App() {
 
   // For entities, use entity members; for standalone files, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
-  // For entities, use baseName; for standalone files, extract from filename
-  const getBaseName = () => {
-    if (selectedNode?.entity?.baseName) return selectedNode.entity.baseName
-    if (!selectedNode) return ''
-    // Strip both .pdf and .md extensions
-    return stripMdExtension(stripPdfExtension(selectedNode.name))
-  }
-  const summarizeBaseName = getBaseName()
+  // For entities, use baseName; for standalone files, strip .pdf/.md extensions
+  const summarizeBaseName = selectedNode?.entity?.baseName
+    ?? (selectedNode ? stripMdExtension(stripPdfExtension(selectedNode.name)) : '')
 
   const isEditing = editMode !== 'view'
 
