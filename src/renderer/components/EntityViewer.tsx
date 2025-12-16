@@ -42,6 +42,9 @@ interface EntityViewerProps {
   editContent: string | null
   onEditContentChange: (content: string) => void
   isDirty: boolean
+  // Agent props
+  showAgent: boolean
+  onAgentToggle: () => void
 }
 
 export function EntityViewer({
@@ -54,6 +57,8 @@ export function EntityViewer({
   editContent,
   onEditContentChange,
   isDirty,
+  showAgent,
+  onAgentToggle,
 }: EntityViewerProps) {
   const editorRef = useRef<MarkdownEditorRef>(null)
   const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
@@ -105,7 +110,15 @@ export function EntityViewer({
           })}
 
         {/* Show formatting toolbar in edit mode */}
-        {isEditing && <FormatToolbar editorRef={editorRef} activeFormats={activeFormats} />}
+        {isEditing && (
+          <FormatToolbar
+            editorRef={editorRef}
+            activeFormats={activeFormats}
+            showAgentButton
+            isAgentActive={showAgent}
+            onAgentToggle={onAgentToggle}
+          />
+        )}
 
         {isMarkdownActive && (
           <ModeToggle mode={editMode} onModeChange={onEditModeChange} />

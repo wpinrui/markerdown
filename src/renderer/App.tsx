@@ -7,8 +7,9 @@ import { ModeToggle } from './components/ModeToggle'
 import { EntityViewer } from './components/EntityViewer'
 import { PdfViewer } from './components/PdfViewer'
 import { SummarizeModal } from './components/SummarizeModal'
-import { SummarizeButton } from './components/SummarizeButton'
 import { AgentPanel } from './components/AgentPanel'
+import { ContentToolbar } from './components/ContentToolbar'
+import { OptionsModal } from './components/OptionsModal'
 import { useAutoSave } from './hooks/useAutoSave'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree } from '@shared/fileTree'
@@ -28,6 +29,7 @@ function App() {
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
+  const [showOptionsModal, setShowOptionsModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
 
   // Agent panel state
@@ -43,18 +45,15 @@ function App() {
   const standaloneEditorRef = useRef<MarkdownEditorRef>(null)
   const [standaloneActiveFormats, setStandaloneActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
-  const handleOpenFolder = async () => {
-    const path = await window.electronAPI.openFolder()
-    if (path) {
-      setFolderPath(path)
-      setSelectedNode(null)
-      setActiveMember(null)
-      setFileContent(null)
-      setError(null)
-      window.electronAPI.setLastFolder(path).catch((err) => {
-        console.error('Failed to save last folder:', err)
-      })
-    }
+  const handleFolderChange = (path: string) => {
+    setFolderPath(path)
+    setSelectedNode(null)
+    setActiveMember(null)
+    setFileContent(null)
+    setError(null)
+    window.electronAPI.setLastFolder(path).catch((err) => {
+      console.error('Failed to save last folder:', err)
+    })
   }
 
   // Load last folder on startup
@@ -326,28 +325,11 @@ function App() {
   // For entities, use baseName; for standalone PDFs, extract from filename
   const summarizeBaseName = selectedNode?.entity?.baseName ?? (selectedNode ? getBaseName(selectedNode.name) : '')
 
+  const isEditing = editMode !== 'view'
+  const toggleAgent = () => setShowAgent((prev) => !prev)
+
   return (
     <div className="app">
-      <header className="header">
-        <h1>MarkerDown</h1>
-        <div className="header-actions">
-          <button
-            className={`agent-toggle-btn ${showAgent ? 'active' : ''}`}
-            onClick={() => setShowAgent((prev) => !prev)}
-            title="Toggle Agent Panel (Ctrl+Shift+A)"
-          >
-            Agent
-            <span className="shortcut">Ctrl+Shift+A</span>
-          </button>
-          {(canSummarize || summarizingPaths.size > 0) && (
-            <SummarizeButton
-              isSummarizing={summarizingPaths.size > 0}
-              onClick={() => setShowSummarizeModal(true)}
-            />
-          )}
-          <button onClick={handleOpenFolder}>Open Folder</button>
-        </div>
-      </header>
       <main className="main">
         <aside className="sidebar">
           {folderPath ? (
@@ -362,51 +344,69 @@ function App() {
           )}
         </aside>
         <section className="content">
-          {error ? (
-            <p className="error-message">{error}</p>
-          ) : selectedNode?.entity && activeMember ? (
-            <EntityViewer
-              entity={selectedNode.entity}
-              activeMember={activeMember}
-              content={fileContent}
-              onTabChange={handleTabChange}
-              editMode={editMode}
-              onEditModeChange={setEditMode}
-              editContent={editContent}
-              onEditContentChange={handleEditContentChange}
-              isDirty={isDirty}
-            />
-          ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
-            <PdfViewer filePath={selectedNode.path} />
-          ) : fileContent !== null && selectedNode ? (
-            <div className="standalone-markdown">
-              <div className="standalone-markdown-toolbar">
-                {/* Show formatting toolbar in edit mode */}
-                {editMode !== 'view' && (
-                  <FormatToolbar editorRef={standaloneEditorRef} activeFormats={standaloneActiveFormats} />
-                )}
-                <ModeToggle mode={editMode} onModeChange={setEditMode} />
-                {isDirty && <span className="save-indicator">Saving...</span>}
+          <ContentToolbar
+            onOptionsClick={() => setShowOptionsModal(true)}
+            showSummarize={canSummarize || summarizingPaths.size > 0}
+            isSummarizing={summarizingPaths.size > 0}
+            onSummarizeClick={() => setShowSummarizeModal(true)}
+            showAgent={showAgent}
+            onAgentToggle={toggleAgent}
+          />
+          <div className="content-body">
+            {error ? (
+              <p className="error-message">{error}</p>
+            ) : selectedNode?.entity && activeMember ? (
+              <EntityViewer
+                entity={selectedNode.entity}
+                activeMember={activeMember}
+                content={fileContent}
+                onTabChange={handleTabChange}
+                editMode={editMode}
+                onEditModeChange={setEditMode}
+                editContent={editContent}
+                onEditContentChange={handleEditContentChange}
+                isDirty={isDirty}
+                showAgent={showAgent}
+                onAgentToggle={toggleAgent}
+              />
+            ) : selectedNode && isPdfFile(selectedNode.name) && !selectedNode.entity ? (
+              <PdfViewer filePath={selectedNode.path} />
+            ) : fileContent !== null && selectedNode ? (
+              <div className="standalone-markdown">
+                <div className="standalone-markdown-toolbar">
+                  {/* Show formatting toolbar in edit mode */}
+                  {isEditing && (
+                    <FormatToolbar
+                      editorRef={standaloneEditorRef}
+                      activeFormats={standaloneActiveFormats}
+                      showAgentButton
+                      isAgentActive={showAgent}
+                      onAgentToggle={toggleAgent}
+                    />
+                  )}
+                  <ModeToggle mode={editMode} onModeChange={setEditMode} />
+                  {isDirty && <span className="save-indicator">Saving...</span>}
+                </div>
+                <div className="standalone-markdown-content">
+                  {editMode === 'view' ? (
+                    <MarkdownViewer content={fileContent} />
+                  ) : (
+                    <MarkdownEditor
+                      ref={standaloneEditorRef}
+                      content={editContent ?? fileContent}
+                      filePath={selectedNode.path}
+                      mode={editMode}
+                      onModeChange={setEditMode}
+                      onContentChange={handleEditContentChange}
+                      isDirty={isDirty}
+                      showToolbar={false}
+                      onSelectionChange={handleStandaloneSelectionChange}
+                    />
+                  )}
+                </div>
               </div>
-              <div className="standalone-markdown-content">
-                {editMode === 'view' ? (
-                  <MarkdownViewer content={fileContent} />
-                ) : (
-                  <MarkdownEditor
-                    ref={standaloneEditorRef}
-                    content={editContent ?? fileContent}
-                    filePath={selectedNode.path}
-                    mode={editMode}
-                    onModeChange={setEditMode}
-                    onContentChange={handleEditContentChange}
-                    isDirty={isDirty}
-                    showToolbar={false}
-                    onSelectionChange={handleStandaloneSelectionChange}
-                  />
-                )}
-              </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </section>
         <aside
           className="agent-sidebar"
@@ -425,6 +425,12 @@ function App() {
         onSubmit={handleSummarize}
         entityBaseName={summarizeBaseName}
         existingVariants={existingVariants}
+      />
+      <OptionsModal
+        isOpen={showOptionsModal}
+        onClose={() => setShowOptionsModal(false)}
+        currentFolderPath={folderPath}
+        onFolderChange={handleFolderChange}
       />
     </div>
   )
