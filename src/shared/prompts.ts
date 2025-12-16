@@ -56,12 +56,23 @@ Multiple items can be added to a single draft file.
 After creating drafts, invite the user to check the Task Suggestions and/or Event Suggestions for todos and events respectively. DO NOT REFERENCE ANY FOLDER STRUCTURE as these are hidden from the user.
 
 
-## IMPORTANT: Summary Request of MARKDOWN DOCUMENTS [T1, T3]
-THIS DOES NOT APPLY TO PDF INPUT.
-If the user asks you to modify (e.g. summarise, refine) their CURRENTLY OPEN markdown file:
-1. You must FIRST copy and paste their version to the SAME PATH but with a .raw suffix, e.g.
-   original.md --> original.raw.md
-2. Then, you can EDIT the original.md in-place based on user's instructions.
+## IMPORTANT: Organise/Refine Request [T3]
+
+When the user asks to organise, refine, or restructure the currently open file:
+
+1. **Check file type first** - If the currently open file is NOT a markdown file (.md), respond:
+   "I can only organise markdown files. The currently open file is not a markdown document."
+   Note: DO NOT REJECT [T1] TASKS.
+
+2. **Ask for confirmation** - Before making changes, confirm:
+   "I'll reorganise [filename]. This will restructure the content while preserving your original in a .raw tab. Proceed?"
+
+3. **After completing the task**, inform the user:
+   "Done! Your original version is now available in the 'raw' tab if you need to refer to it."
+
+The backup process:
+- Copy the original content to the SAME PATH with a .raw suffix (e.g., notes.md → notes.raw.md)
+- Then edit the original file in-place based on user's instructions
 
 ## IMPORTANT: Memory about user [T1, T2, T3]
 Before running a request, check against .markerdown\\agent-memory.md for ANY info about the user.
@@ -74,59 +85,16 @@ export function getSummarizePrompt(
   pdfPath: string,
   outputPath: string,
   userPrompt: string,
-  memoryContext: string,
   todosContext: string,
   eventsContext: string
 ): string {
-  const todoSection = todosContext ? `\n\n### Current Todos\n${todosContext}` : ''
-  const eventSection = eventsContext ? `\n\n### Current Events\n${eventsContext}` : ''
+  const todoSection = todosContext ? `\n\n### Current Todos (already tracked)\n${todosContext}` : ''
+  const eventSection = eventsContext ? `\n\n### Current Events (already tracked)\n${eventsContext}` : ''
   const contextSection = todoSection || eventSection
-    ? `\n\n## Existing Tracked Items${todoSection}${eventSection}\n\nIf the PDF contains tasks or events not already tracked above, create draft files as described below.\n`
+    ? `\n\n## Existing Tracked Items${todoSection}${eventSection}`
     : ''
 
-  return `${memoryContext}Read the PDF at "${pdfPath}". Then create a markdown file at "${outputPath}" with the following:
+  return `Read the file at "${pdfPath}". THIS IS A [T1] TASK. Create a markdown summary at "${outputPath}" with the following:
 
-${userPrompt}${contextSection}
-
-## Task and Event Detection
-If you find tasks, assignments, deadlines, or events in the PDF that are not already in the tracked items above:
-
-${DRAFT_FORMAT_INSTRUCTIONS}
-
-Only include fields that are known. After creating drafts, mention that you've added suggestions for the user to review.`
-}
-
-export function getAgentSystemPrompt(memoryContext: string, todosContext: string, eventsContext: string): string {
-  return `You are a helpful assistant that answers questions about the files in this directory.
-When you need information, use your tools to list directories and read files.
-Do not read PDF files unless the user tells you which one.
-Do not tell the user you cannot fulfil their requirement - read/search first.
-Be concise but thorough in your answers.
-Do not tell the user that you will now read the files - just do it.
-Do not suggest a follow-up task for no reason.
-
-## Todo and Event Management
-
-The user has a todo list and event calendar. You can help manage these.
-
-### Current Todos
-${todosContext || '(No todos yet)'}
-
-### Current Events
-${eventsContext || '(No events yet)'}
-
-### Adding New Todos or Events
-When the user mentions a task, deadline, assignment, or something they need to do - OR when you read content that contains tasks or events that are not already tracked - create a suggestion draft file.
-
-${DRAFT_FORMAT_INSTRUCTIONS}
-
-Only include fields that are known. If no due date is mentioned, omit the Due line.
-Multiple items can be added to a single draft file.
-After creating a draft, tell the user you've added suggestions and they can review them in "Task Suggestions" or "Event Suggestions" in the sidebar.
-
-### User Requests
-If the user explicitly asks you to add a todo or event, create the draft file immediately.
-If you notice tasks/events while reading their files and they're not already in the lists above, proactively create drafts and inform the user.
-
-${memoryContext}`
+${userPrompt}${contextSection}`
 }

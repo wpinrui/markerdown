@@ -5,7 +5,7 @@ import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '@shared/types'
-import { getSummarizePrompt, getAgentSystemPrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
+import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -23,7 +23,6 @@ function closeWatcher() {
 
 const isDev = process.env.NODE_ENV !== 'production'
 const settingsPath = path.join(app.getPath('userData'), 'settings.json')
-const AGENT_MEMORY_FILE = 'Agent Memory.md'
 const MARKERDOWN_DIR = '.markerdown'
 const TODOS_FILE = 'todos.md'
 const EVENTS_FILE = 'events.md'
@@ -42,15 +41,6 @@ function stripMessagePrefix(text: string | undefined): string | undefined {
   return text
 }
 
-async function readAgentMemory(workingDir: string): Promise<string | null> {
-  try {
-    const memoryPath = path.join(workingDir, AGENT_MEMORY_FILE)
-    return await fs.promises.readFile(memoryPath, 'utf-8')
-  } catch {
-    return null
-  }
-}
-
 async function readMarkerdownFile(workingDir: string, filename: string): Promise<string | null> {
   try {
     const filePath = path.join(workingDir, MARKERDOWN_DIR, filename)
@@ -58,11 +48,6 @@ async function readMarkerdownFile(workingDir: string, filename: string): Promise
   } catch {
     return null
   }
-}
-
-function formatMemoryContext(agentMemory: string | null): string {
-  if (!agentMemory) return ''
-  return `User context:\n${agentMemory}\n\n`
 }
 
 async function ensureClaudeMd(workingDir: string): Promise<void> {
@@ -293,12 +278,12 @@ ipcMain.handle('claude:summarize', async (_event, request: SummarizeRequest): Pr
   // Ensure claude.md exists for Claude Code integration
   await ensureClaudeMd(workingDir)
 
-  const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
   const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
   const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
 
   return new Promise((resolve) => {
-    const fullPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, memoryContext, todosContext ?? '', eventsContext ?? '')
+    const taskPrompt = getSummarizePrompt(pdfPath, outputPath, prompt, todosContext ?? '', eventsContext ?? '')
+    const fullPrompt = `${CLAUDE_MD_PREFIX} ${taskPrompt}`
 
     const args = [
       '--print',
@@ -364,16 +349,11 @@ ipcMain.handle('agent:chat', async (_event, request: AgentChatRequest): Promise<
     '--setting-sources', 'user',
   ]
 
-  // For new sessions, use --session-id with system prompt; for existing sessions, use --resume
+  // For new sessions, use --session-id; for existing sessions, use --resume
   if (existingSessionId) {
     args.push('--resume', sessionId)
   } else {
-    const memoryContext = formatMemoryContext(await readAgentMemory(workingDir))
-    const todosContext = await readMarkerdownFile(workingDir, TODOS_FILE)
-    const eventsContext = await readMarkerdownFile(workingDir, EVENTS_FILE)
-    const systemPrompt = getAgentSystemPrompt(memoryContext, todosContext ?? '', eventsContext ?? '')
     args.push('--session-id', sessionId)
-    args.push('--system-prompt', systemPrompt)
     // Track this as our chat session
     await addChatSessionId(workingDir, sessionId)
   }
