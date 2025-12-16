@@ -257,13 +257,13 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
         const editor = editorRef.current
         if (!editor) return
 
-        // Convert relative path to absolute file:// URL
+        // Convert relative path to absolute path with custom protocol
         const markdownDir = filePath.substring(0, filePath.lastIndexOf('\\'))
         const absolutePath = `${markdownDir}\\${relativePath.replace(/\//g, '\\')}`
-        const fileUrl = `file:///${absolutePath.replace(/\\/g, '/')}`
+        const imageUrl = `local-image://${absolutePath}`
 
         editor.action(callCommand(insertImageCommand.key, {
-          src: fileUrl,
+          src: imageUrl,
           alt: 'image'
         }))
       }, [filePath]),

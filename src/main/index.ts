@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
@@ -96,6 +96,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       plugins: true,
+      webSecurity: true,
     },
   })
 
@@ -112,7 +113,20 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  // Register custom protocol to serve local images
+  protocol.registerFileProtocol('local-image', (request, callback) => {
+    const url = request.url.replace('local-image://', '')
+    try {
+      return callback(decodeURIComponent(url))
+    } catch (error) {
+      console.error('Error loading local image:', error)
+      return callback({ error: -2 }) // FILE_NOT_FOUND
+    }
+  })
+
+  createWindow()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
