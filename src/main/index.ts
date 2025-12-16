@@ -188,7 +188,11 @@ ipcMain.handle('fs:watchFolder', (_event, folderPath: string) => {
   closeWatcher()
 
   watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    ignored: (filePath: string) => {
+      // Allow .markerdown folder, ignore other dotfiles
+      if (filePath.includes('.markerdown')) return false
+      return /(^|[\/\\])\./.test(filePath)
+    },
     persistent: true,
     ignoreInitial: true,
   })

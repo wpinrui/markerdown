@@ -135,6 +135,25 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
     loadEvents()
   }, [loadEvents])
 
+  // Watch for file changes
+  useEffect(() => {
+    if (!workingDir) return
+
+    const sep = workingDir.includes('\\') ? '\\' : '/'
+    const eventsPath = `${workingDir}${sep}.markerdown${sep}events.md`
+
+    const unsubscribe = window.electronAPI.onFileChange((event) => {
+      // Normalize paths for comparison
+      const changedPath = event.path.replace(/\\/g, '/')
+      const watchPath = eventsPath.replace(/\\/g, '/')
+      if (changedPath === watchPath) {
+        loadEvents()
+      }
+    })
+
+    return unsubscribe
+  }, [workingDir, loadEvents])
+
   const handleDelete = async (id: string) => {
     const newEvents = events.filter((e) => e.id !== id)
     setEvents(newEvents)

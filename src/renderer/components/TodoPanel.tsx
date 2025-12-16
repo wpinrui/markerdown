@@ -126,6 +126,25 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
     loadTodos()
   }, [loadTodos])
 
+  // Watch for file changes
+  useEffect(() => {
+    if (!workingDir) return
+
+    const sep = workingDir.includes('\\') ? '\\' : '/'
+    const todosPath = `${workingDir}${sep}.markerdown${sep}todos.md`
+
+    const unsubscribe = window.electronAPI.onFileChange((event) => {
+      // Normalize paths for comparison
+      const changedPath = event.path.replace(/\\/g, '/')
+      const watchPath = todosPath.replace(/\\/g, '/')
+      if (changedPath === watchPath) {
+        loadTodos()
+      }
+    })
+
+    return unsubscribe
+  }, [workingDir, loadTodos])
+
   const handleToggleComplete = async (id: string) => {
     const newTodos = todos.map((t) =>
       t.id === id ? { ...t, completed: !t.completed } : t
