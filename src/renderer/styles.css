@@ -983,16 +983,6 @@ body {
   color: white;
 }
 
-.agent-toggle-btn .shortcut {
-  font-size: 11px;
-  color: #808080;
-  margin-left: 4px;
-}
-
-.agent-toggle-btn.active .shortcut {
-  color: rgba(255, 255, 255, 0.7);
-}
-
 /* Agent History Dropdown */
 .agent-history-container {
   position: relative;
