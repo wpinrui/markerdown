@@ -15,6 +15,7 @@ import { NewNoteModal } from './components/NewNoteModal'
 import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { RenameModal } from './components/RenameModal'
+import { NewMemberModal } from './components/NewMemberModal'
 import { SidebarSearch } from './components/SidebarSearch'
 import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
@@ -69,6 +70,9 @@ function App() {
   const [renameTarget, setRenameTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
   // After rename, store the new path to re-select once tree refreshes
   const [pendingSelectionPath, setPendingSelectionPath] = useState<string | null>(null)
+
+  // New member modal state
+  const [showNewMemberModal, setShowNewMemberModal] = useState(false)
 
   // Right pane state (agent/todos/events)
   const [activePane, setActivePane] = useState<PaneType | null>(null)
@@ -926,12 +930,14 @@ function App() {
   const { fileName: selectedFileName, fileType: selectedFileType } = getSelectedFileInfo()
 
   // Handle creating new entity member
-  const handleCreateMember = async () => {
+  const handleCreateMember = () => {
     if (!selectedNode || !folderPath) return
+    setShowNewMemberModal(true)
+  }
 
-    // Prompt for variant name
-    const variantName = prompt('Enter variant name (e.g., "summary", "notes"):')
-    if (!variantName) return
+  // Handle new member modal submit
+  const handleNewMemberSubmit = async (variantName: string) => {
+    if (!selectedNode || !folderPath) return
 
     const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(selectedNode.name))
     const dirPath = getDirname(selectedNode.path)
@@ -1128,6 +1134,12 @@ function App() {
         member={renameTarget?.member}
         entity={renameTarget?.node?.entity ?? selectedNode?.entity}
         existingNames={renameTarget?.node ? getSiblingNames(renameTarget.node) : []}
+      />
+      <NewMemberModal
+        isOpen={showNewMemberModal}
+        onClose={() => setShowNewMemberModal(false)}
+        onSubmit={handleNewMemberSubmit}
+        baseName={summarizeBaseName}
       />
     </div>
   )
