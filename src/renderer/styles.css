@@ -2601,8 +2601,8 @@ audio.media-player {
   border: 1px solid #454545;
   border-radius: 8px;
   padding: 0;
-  min-width: 380px;
-  max-width: 500px;
+  min-width: 1000px;
+  height: 90%;
   color: #d4d4d4;
   position: fixed;
   top: 50%;
