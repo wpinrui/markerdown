@@ -2500,6 +2500,10 @@ audio.media-player {
   min-width: 360px;
   max-width: 450px;
   color: #d4d4d4;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .delete-confirm-modal::backdrop {
@@ -2600,6 +2604,10 @@ audio.media-player {
   min-width: 380px;
   max-width: 500px;
   color: #d4d4d4;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .rename-modal::backdrop {
