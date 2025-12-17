@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { INVALID_FILENAME_CHARS_REGEX } from '@shared/pathUtils'
 
 interface NewMemberModalProps {
   isOpen: boolean
@@ -41,7 +42,7 @@ export function NewMemberModal({
   const validationError = useMemo(() => {
     const value = inputValue.trim()
     if (!value) return null
-    if (/[<>:"/\\|?*]/.test(value)) {
+    if (INVALID_FILENAME_CHARS_REGEX.test(value)) {
       return 'Name contains invalid characters'
     }
     return null

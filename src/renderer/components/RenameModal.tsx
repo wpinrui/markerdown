@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { getBasename, getExtension, stripExtension } from '@shared/pathUtils'
+import { getBasename, getExtension, stripExtension, INVALID_FILENAME_CHARS_REGEX } from '@shared/pathUtils'
 import type { TreeNode, EntityMember, Entity } from '@shared/types'
 
 type RenameMode = 'entity' | 'file' | 'member'
@@ -119,7 +119,7 @@ export function RenameModal({
     }
 
     // Check for invalid characters
-    if (/[<>:"/\\|?*]/.test(value)) {
+    if (INVALID_FILENAME_CHARS_REGEX.test(value)) {
       return { type: 'error' as const, message: 'Name contains invalid characters' }
     }
 
