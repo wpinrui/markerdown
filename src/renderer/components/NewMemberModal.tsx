@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 interface NewMemberModalProps {
   isOpen: boolean
@@ -37,7 +37,17 @@ export function NewMemberModal({
     }
   }, [isOpen])
 
-  const canSubmit = inputValue.trim() !== ''
+  // Validation
+  const validationError = useMemo(() => {
+    const value = inputValue.trim()
+    if (!value) return null
+    if (/[<>:"/\\|?*]/.test(value)) {
+      return 'Name contains invalid characters'
+    }
+    return null
+  }, [inputValue])
+
+  const canSubmit = inputValue.trim() !== '' && !validationError
 
   const handleSubmit = () => {
     if (!canSubmit) return
@@ -58,7 +68,7 @@ export function NewMemberModal({
           <input
             ref={inputRef}
             type="text"
-            className="rename-input"
+            className={`rename-input ${validationError ? 'error' : ''}`}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
@@ -67,6 +77,9 @@ export function NewMemberModal({
             }}
             placeholder='e.g., "summary", "notes"'
           />
+          {validationError && (
+            <div className="rename-validation error">{validationError}</div>
+          )}
         </div>
         {canSubmit && (
           <div className="rename-preview">
