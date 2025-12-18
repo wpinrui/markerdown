@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, Edit2, MapPin } from 'lucide-react'
+import { MARKERDOWN_DIR } from '@shared/types'
 import type { EventItem } from '@shared/types'
 import { NewEventModal } from './NewEventModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
@@ -111,7 +112,7 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
   const loadEvents = useCallback(async () => {
     if (!workingDir) return
 
-    const filePath = `${workingDir}/.markerdown/events.md`
+    const filePath = `${workingDir}/${MARKERDOWN_DIR}/events.md`
     const content = await window.electronAPI.readFile(filePath)
     if (content) {
       setEvents(parseEvents(content))
@@ -124,7 +125,7 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
   const saveEvents = useCallback(async (newEvents: EventItem[]) => {
     if (!workingDir) return
 
-    const dirPath = `${workingDir}/.markerdown`
+    const dirPath = `${workingDir}/${MARKERDOWN_DIR}`
     const filePath = `${dirPath}/events.md`
 
     // Ensure directory exists
@@ -142,7 +143,7 @@ export function EventPanel({ workingDir, style }: EventPanelProps) {
     if (!workingDir) return
 
     // Normalize to forward slashes for comparison (works on all platforms)
-    const watchPath = `${workingDir}/.markerdown/events.md`.replace(/\\/g, '/')
+    const watchPath = `${workingDir}/${MARKERDOWN_DIR}/events.md`.replace(/\\/g, '/')
 
     const unsubscribe = window.electronAPI.onFileChange((event) => {
       const changedPath = event.path.replace(/\\/g, '/')

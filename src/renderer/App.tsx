@@ -22,7 +22,7 @@ import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension } from '@shared/pathUtils'
-import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
 
@@ -241,8 +241,8 @@ function App() {
       // Check for suggestion draft files and inject them at the top
       const suggestionNodes: TreeNode[] = []
       const sep = folderPath.includes('\\') ? '\\' : '/'
-      const todosDraftPath = `${folderPath}${sep}.markerdown${sep}todos-draft.md`
-      const eventsDraftPath = `${folderPath}${sep}.markerdown${sep}events-draft.md`
+      const todosDraftPath = `${folderPath}${sep}${MARKERDOWN_DIR}${sep}todos-draft.md`
+      const eventsDraftPath = `${folderPath}${sep}${MARKERDOWN_DIR}${sep}events-draft.md`
 
       const [todosDraftExists, eventsDraftExists] = await Promise.all([
         window.electronAPI.exists(todosDraftPath),
@@ -322,7 +322,7 @@ function App() {
 
     const unsubscribe = window.electronAPI.onFileChange((event: FileChangeEvent) => {
       // Check if this is a draft file change (need to refresh tree for suggestion items)
-      const isDraftFile = event.path.includes('.markerdown') &&
+      const isDraftFile = event.path.includes(MARKERDOWN_DIR) &&
         (event.path.endsWith('todos-draft.md') || event.path.endsWith('events-draft.md'))
 
       if (isStructureChange(event.event) || isDraftFile) {
@@ -429,7 +429,7 @@ function App() {
     const suggestionType = selectedNode.isSuggestion
     const draftPath = selectedNode.path
     const sep = folderPath.includes('\\') ? '\\' : '/'
-    const mainFilePath = `${folderPath}${sep}.markerdown${sep}${suggestionType}.md`
+    const mainFilePath = `${folderPath}${sep}${MARKERDOWN_DIR}${sep}${suggestionType}.md`
 
     try {
       // Read draft content
@@ -445,7 +445,7 @@ function App() {
         : `${draftContent.trim()}\n`
 
       // Ensure .markerdown directory exists
-      const markerdownDir = `${folderPath}${sep}.markerdown`
+      const markerdownDir = `${folderPath}${sep}${MARKERDOWN_DIR}`
       await window.electronAPI.mkdir(markerdownDir)
 
       // Write updated main file

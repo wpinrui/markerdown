@@ -5,6 +5,9 @@ import {
   getAudioExtension,
   MARKDOWN_EXTENSION,
   PDF_EXTENSION,
+  IMAGES_DIR,
+  CLAUDE_DIR,
+  MARKERDOWN_DIR,
 } from './types'
 import type { FileEntry, TreeNode, Entity, EntityMember, EntityMemberType } from './types'
 
@@ -109,13 +112,18 @@ export async function buildFileTree(
 ): Promise<TreeNode[]> {
   const entries = await readDirectory(dirPath)
 
-  // Separate files and directories, filtering out .markerdown folder and optionally claude.md
+  // Separate files and directories, filtering out hidden folders and optionally claude.md
   const files = entries.filter((e) => {
     if (e.isDirectory) return false
     if (!options?.showClaudeMd && e.name === 'claude.md') return false
     return true
   })
-  const dirs = entries.filter((e) => e.isDirectory && e.name !== '.markerdown')
+  const dirs = entries.filter((e) => {
+    if (!e.isDirectory) return false
+    // Hide internal folders
+    if (e.name === MARKERDOWN_DIR || e.name === IMAGES_DIR || e.name === CLAUDE_DIR) return false
+    return true
+  })
 
   // Parse entity info for markdown, PDF, video and audio files
   const entityFiles: Array<{

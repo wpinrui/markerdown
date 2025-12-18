@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, Edit2 } from 'lucide-react'
+import { MARKERDOWN_DIR } from '@shared/types'
 import type { TodoItem } from '@shared/types'
 import { NewTodoModal } from './NewTodoModal'
 import { formatDateForDisplay } from '../utils/dateUtils'
@@ -102,7 +103,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
   const loadTodos = useCallback(async () => {
     if (!workingDir) return
 
-    const filePath = `${workingDir}/.markerdown/todos.md`
+    const filePath = `${workingDir}/${MARKERDOWN_DIR}/todos.md`
     const content = await window.electronAPI.readFile(filePath)
     if (content) {
       setTodos(parseTodos(content))
@@ -115,7 +116,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
   const saveTodos = useCallback(async (newTodos: TodoItem[]) => {
     if (!workingDir) return
 
-    const dirPath = `${workingDir}/.markerdown`
+    const dirPath = `${workingDir}/${MARKERDOWN_DIR}`
     const filePath = `${dirPath}/todos.md`
 
     // Ensure directory exists
@@ -133,7 +134,7 @@ export function TodoPanel({ workingDir, style }: TodoPanelProps) {
     if (!workingDir) return
 
     // Normalize to forward slashes for comparison (works on all platforms)
-    const watchPath = `${workingDir}/.markerdown/todos.md`.replace(/\\/g, '/')
+    const watchPath = `${workingDir}/${MARKERDOWN_DIR}/todos.md`.replace(/\\/g, '/')
 
     const unsubscribe = window.electronAPI.onFileChange((event) => {
       const changedPath = event.path.replace(/\\/g, '/')
