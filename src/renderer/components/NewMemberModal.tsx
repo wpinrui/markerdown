@@ -47,7 +47,7 @@ export function NewMemberModal({
     if (INVALID_FILENAME_CHARS_REGEX.test(value)) {
       return 'Name contains invalid characters'
     }
-    if (existingVariants.includes(value)) {
+    if (existingVariants.map((v) => v.toLowerCase()).includes(value.toLowerCase())) {
       return 'A variant with this name already exists'
     }
     return null
