@@ -142,7 +142,7 @@ function createNewNoteWindow(): Promise<{ name: string; parentPath: string | nul
     newNoteResolve = resolve
 
     newNoteWindow = new BrowserWindow({
-      width: 500,
+      width: 600,
       height: 700,
       parent: mainWindow ?? undefined,
       modal: true,
