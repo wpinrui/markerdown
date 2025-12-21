@@ -749,6 +749,16 @@ function App() {
           } else {
             newSelectionPath = newPath
           }
+
+          // Rename sidecar folder if it exists
+          if (node.hasSidecar && node.sidecarName) {
+            const oldSidecarPath = `${dir}/${node.sidecarName}`
+            const newSidecarPath = `${dir}/${newName}`
+            const folderResult = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
+            if (!folderResult.success) {
+              setError(`Failed to rename folder: ${folderResult.error}`)
+            }
+          }
         }
       }
 
