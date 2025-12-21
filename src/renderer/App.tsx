@@ -693,6 +693,18 @@ function App() {
 
     let newSelectionPath: string | null = null
 
+    // Helper to rename sidecar folder if it exists
+    const renameSidecarIfExists = async (node: TreeNode, dir: string, newName: string) => {
+      if (node.hasSidecar && node.sidecarName) {
+        const oldSidecarPath = `${dir}/${node.sidecarName}`
+        const newSidecarPath = `${dir}/${newName}`
+        const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
+        if (!result.success) {
+          setError(`Failed to rename folder: ${result.error}`)
+        }
+      }
+    }
+
     try {
       // Renaming a specific entity member suffix
       if (renameTarget.member && selectedNode?.entity) {
@@ -732,14 +744,7 @@ function App() {
           }
 
           // Rename sidecar folder if it exists
-          if (node.hasSidecar && node.sidecarName) {
-            const oldSidecarPath = `${dir}/${node.sidecarName}`
-            const newSidecarPath = `${dir}/${newName}`
-            const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
-            if (!result.success) {
-              setError(`Failed to rename folder: ${result.error}`)
-            }
-          }
+          await renameSidecarIfExists(node, dir, newName)
 
           // New entity path uses the default member's new path
           const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
@@ -762,14 +767,7 @@ function App() {
           }
 
           // Rename sidecar folder if it exists
-          if (node.hasSidecar && node.sidecarName) {
-            const oldSidecarPath = `${dir}/${node.sidecarName}`
-            const newSidecarPath = `${dir}/${newName}`
-            const folderResult = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
-            if (!folderResult.success) {
-              setError(`Failed to rename folder: ${folderResult.error}`)
-            }
-          }
+          await renameSidecarIfExists(node, dir, newName)
         }
       }
 
