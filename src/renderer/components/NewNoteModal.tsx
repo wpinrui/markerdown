@@ -22,17 +22,13 @@ function getAllNodeNames(nodes: TreeNode[]): string[] {
   return result
 }
 
-// Get all folder-like nodes (directories, sidecars, and markdown files) for parent selection
+// Get all nodes (directories and files) for parent selection
 function getSelectableParents(nodes: TreeNode[], depth = 0): Array<{ node: TreeNode; depth: number }> {
   const result: Array<{ node: TreeNode; depth: number }> = []
   for (const node of nodes) {
-    const isMarkdown = !node.isDirectory && node.name.toLowerCase().endsWith('.md')
-    // Allow selecting directories, files with sidecars, or markdown files (which can become parents)
-    if (node.isDirectory || node.hasSidecar || isMarkdown) {
-      result.push({ node, depth })
-      if (node.children) {
-        result.push(...getSelectableParents(node.children, depth + 1))
-      }
+    result.push({ node, depth })
+    if (node.children) {
+      result.push(...getSelectableParents(node.children, depth + 1))
     }
   }
   return result
@@ -76,18 +72,10 @@ function findParentPath(nodes: TreeNode[], targetPath: string, currentParent: st
   return undefined
 }
 
-// Get the containing folder path of a node
-function getContainingFolder(node: TreeNode | null, nodes: TreeNode[]): string | null {
+// Get the containing folder path of a node - any selected node becomes the default parent
+function getContainingFolder(node: TreeNode | null): string | null {
   if (!node) return null
-
-  const isMarkdown = !node.isDirectory && node.name.toLowerCase().endsWith('.md')
-  // If the node is a directory, has a sidecar, or is a markdown file, use it as parent
-  if (node.isDirectory || node.hasSidecar || isMarkdown) {
-    return node.path
-  }
-
-  // Otherwise, find the parent of this node
-  return findParentPath(nodes, node.path) ?? null
+  return node.path
 }
 
 // Ensure filename has .md extension
@@ -100,7 +88,9 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
   const [parentPath, setParentPath] = useState<string | null>(null)
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set())
   const [showParentDropdown, setShowParentDropdown] = useState(false)
+  const [parentSearch, setParentSearch] = useState('')
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const parentSearchRef = useRef<HTMLInputElement>(null)
 
   // Open/close dialog using showModal for proper backdrop support
   useEffect(() => {
@@ -117,9 +107,10 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
   // Calculate default name on open
   useEffect(() => {
     if (isOpen) {
-      const defaultParent = getContainingFolder(selectedNode, treeNodes)
+      const defaultParent = getContainingFolder(selectedNode)
       setParentPath(defaultParent)
       setSelectedChildren(new Set())
+      setParentSearch('')
 
       // Generate default name
       let counter = 1
@@ -184,9 +175,15 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
     setParentPath(path)
     setSelectedChildren(new Set())
     setShowParentDropdown(false)
+    setParentSearch('')
   }, [])
 
   const selectableParents = useMemo(() => getSelectableParents(treeNodes), [treeNodes])
+  const filteredParents = useMemo(() => {
+    if (!parentSearch.trim()) return selectableParents
+    const search = parentSearch.toLowerCase()
+    return selectableParents.filter(({ node }) => node.name.toLowerCase().includes(search))
+  }, [selectableParents, parentSearch])
   const availableChildren = useMemo(() => getDirectChildren(treeNodes, parentPath), [treeNodes, parentPath])
 
   // Get display name for parent
@@ -195,6 +192,13 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
     const parent = selectableParents.find(entry => entry.node.path === parentPath)
     return parent?.node.name ?? '(Root)'
   }, [parentPath, selectableParents])
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (showParentDropdown && parentSearchRef.current) {
+      parentSearchRef.current.focus()
+    }
+  }, [showParentDropdown])
 
   return (
     <dialog ref={dialogRef} className="new-note-modal">
@@ -235,24 +239,45 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
             </button>
             {showParentDropdown && (
               <div className="new-note-dropdown">
-                <button
-                  type="button"
-                  className={`new-note-dropdown-item ${parentPath === null ? 'selected' : ''}`}
-                  onClick={() => handleSelectParent(null)}
-                >
-                  (Root)
-                </button>
-                {selectableParents.map(({ node, depth }) => (
-                  <button
-                    key={node.path}
-                    type="button"
-                    className={`new-note-dropdown-item ${parentPath === node.path ? 'selected' : ''}`}
-                    style={{ paddingLeft: `${12 + depth * 16}px` }}
-                    onClick={() => handleSelectParent(node.path)}
-                  >
-                    {node.name}
-                  </button>
-                ))}
+                <input
+                  ref={parentSearchRef}
+                  type="text"
+                  className="new-note-dropdown-search"
+                  placeholder="Search..."
+                  value={parentSearch}
+                  onChange={(e) => setParentSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowParentDropdown(false)
+                      setParentSearch('')
+                    }
+                  }}
+                />
+                <div className="new-note-dropdown-list">
+                  {!parentSearch.trim() && (
+                    <button
+                      type="button"
+                      className={`new-note-dropdown-item ${parentPath === null ? 'selected' : ''}`}
+                      onClick={() => handleSelectParent(null)}
+                    >
+                      (Root)
+                    </button>
+                  )}
+                  {filteredParents.map(({ node, depth }) => (
+                    <button
+                      key={node.path}
+                      type="button"
+                      className={`new-note-dropdown-item ${parentPath === node.path ? 'selected' : ''}`}
+                      style={{ paddingLeft: `${12 + (parentSearch.trim() ? 0 : depth) * 16}px` }}
+                      onClick={() => handleSelectParent(node.path)}
+                    >
+                      {node.name}
+                    </button>
+                  ))}
+                  {filteredParents.length === 0 && parentSearch.trim() && (
+                    <div className="new-note-dropdown-empty">No matches</div>
+                  )}
+                </div>
               </div>
             )}
           </div>
