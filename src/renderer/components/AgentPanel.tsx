@@ -7,6 +7,23 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24
 const MIN_TEXTAREA_HEIGHT = 44 // Roughly 2 rows
 const MAX_TEXTAREA_HEIGHT = 200
 
+function formatSessionDate(timestamp: string): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / MS_PER_DAY)
+
+  if (diffDays === 0) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  } else if (diffDays === 1) {
+    return 'Yesterday'
+  } else if (diffDays < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' })
+  } else {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  }
+}
+
 // Memoized message list to prevent re-renders when input changes
 interface MessageListProps {
   messages: AgentMessage[]
@@ -244,23 +261,6 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showHistory])
-
-  const formatSessionDate = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / MS_PER_DAY)
-
-    if (diffDays === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    } else if (diffDays === 1) {
-      return 'Yesterday'
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' })
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-    }
-  }
 
   if (!workingDir) {
     return (
