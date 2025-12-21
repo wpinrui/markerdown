@@ -1,11 +1,9 @@
 import { isMarkdownFile, isPdfFile, isVideoFile, isAudioFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
+import { normalizePath } from '@shared/pathUtils'
 
 const INDENT_PX = 16
 const BASE_PADDING_PX = 8
-
-// Normalize path separators to forward slashes for comparison
-const normalizePath = (p: string) => p.replace(/\\/g, '/')
 
 interface TreeViewProps {
   nodes: TreeNode[]
