@@ -711,7 +711,7 @@ function App() {
         const member = renameTarget.member
         const entity = selectedNode.entity
         const dir = getDirname(member.path)
-        const ext = member.type === 'pdf' ? '.pdf' : '.md'
+        const ext = getExtension(member.path)
         const newFileName = newName ? `${entity.baseName}.${newName}${ext}` : `${entity.baseName}${ext}`
         const newPath = `${dir}/${newFileName}`
 
