@@ -608,11 +608,23 @@ function App() {
         if (!result.success) {
           setError(`Failed to delete file: ${result.error}`)
         }
-        // Clear selection if we deleted the active member
-        if (activeMember?.path === deleteTarget.member.path) {
-          setActiveMember(null)
-          setSelectedNode(null)
-          setFileContent(null)
+        // If we deleted the active member, switch to the default member of the entity
+        if (activeMember?.path === deleteTarget.member.path && selectedNode?.entity) {
+          const remainingMembers = selectedNode.entity.members.filter(
+            (m) => m.path !== deleteTarget.member!.path
+          )
+          if (remainingMembers.length > 0) {
+            // Find default member or use first remaining
+            const defaultMember = remainingMembers.find((m) => m.type === 'markdown' && m.variant === null)
+              ?? remainingMembers[0]
+            // Set pending to re-select after tree refresh
+            setPendingMemberPath(defaultMember.path)
+          } else {
+            // No members left, clear selection
+            setActiveMember(null)
+            setSelectedNode(null)
+            setFileContent(null)
+          }
         }
       }
       // Deleting a tree node
@@ -989,10 +1001,9 @@ function App() {
       return
     }
 
-    // Refresh tree and select the new file
-    setTimeout(() => {
-      refreshTree()
-    }, TREE_REFRESH_DELAY_MS)
+    // Set pending member path to select the new member after tree refresh
+    setPendingMemberPath(newFilePath)
+    refreshTree()
   }
 
   // Render markdown content (viewer or editor) - shared between entity and standalone
