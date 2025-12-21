@@ -45,15 +45,6 @@ body {
   padding: 0;
 }
 
-.new-note-header {
-  padding: 16px 20px;
-  font-size: 16px;
-  font-weight: 600;
-  border-bottom: 1px solid #3c3c3c;
-  background-color: #252526;
-  -webkit-app-region: drag;
-}
-
 .new-note-body {
   flex: 1;
   padding: 20px;

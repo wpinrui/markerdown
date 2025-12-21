@@ -207,7 +207,6 @@ export function NewNoteWindow() {
 
   return (
     <div className="new-note-window">
-      <div className="new-note-header">New Note</div>
       <div className="new-note-body">
         {/* Name input */}
         <div className="new-note-input-group">
