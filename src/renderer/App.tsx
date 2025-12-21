@@ -985,6 +985,15 @@ function App() {
       }
     }
 
+    // Expand the parent so the new note is visible
+    if (parentPath) {
+      setExpandedPaths((prev) => {
+        const next = new Set(prev)
+        next.add(normalizePath(parentPath))
+        return next
+      })
+    }
+
     // Refresh tree (watcher should handle this, but force refresh to be safe)
     refreshTree()
 
