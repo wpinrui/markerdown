@@ -70,6 +70,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
   const [hasInput, setHasInput] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const mirrorRef = useRef<HTMLDivElement>(null)
   const historyRef = useRef<HTMLDivElement>(null)
   const isCancelledRef = useRef(false)
 
@@ -128,7 +129,9 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     if (!userMessage || isLoading || !workingDir) return
 
     textarea.value = ''
-    textarea.style.height = `${MIN_TEXTAREA_HEIGHT}px`
+    if (mirrorRef.current) {
+      mirrorRef.current.textContent = ' '
+    }
     setHasInput(false)
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
@@ -181,19 +184,30 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     }
   }, [handleSubmit])
 
-  // Handle input changes - resize textarea and update hasInput for button state
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const textarea = e.target
-    const hasContent = textarea.value.trim().length > 0
+  // Native input listener for auto-grow (bypasses React's synthetic event system)
+  const inputTimeoutRef = useRef<number | null>(null)
 
-    // Only update state if hasInput actually changed (avoids unnecessary re-renders)
-    setHasInput((prev) => (prev !== hasContent ? hasContent : prev))
+  useEffect(() => {
+    const textarea = inputRef.current
+    const mirror = mirrorRef.current
+    if (!textarea || !mirror) return
 
-    // Auto-resize textarea
-    textarea.style.height = 'auto'
-    const newHeight = Math.min(Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT), MAX_TEXTAREA_HEIGHT)
-    textarea.style.height = `${newHeight}px`
-  }, [])
+    const handleInput = () => {
+      // Sync value to mirror div for CSS-based auto-grow (add space to prevent collapse on empty)
+      mirror.textContent = textarea.value + ' '
+
+      // Debounce hasInput state update
+      if (inputTimeoutRef.current) {
+        clearTimeout(inputTimeoutRef.current)
+      }
+      inputTimeoutRef.current = window.setTimeout(() => {
+        setHasInput(textarea.value.length > 0)
+      }, 100)
+    }
+
+    textarea.addEventListener('input', handleInput)
+    return () => textarea.removeEventListener('input', handleInput)
+  }, [workingDir])
 
   const handleCancel = useCallback(() => {
     cancelCurrentRequest()
@@ -318,15 +332,16 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
         <div ref={messagesEndRef} />
       </div>
       <div className="agent-input-area">
-        <textarea
-          ref={inputRef}
-          className="agent-input"
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a question..."
-          disabled={isLoading}
-          style={{ height: MIN_TEXTAREA_HEIGHT, minHeight: MIN_TEXTAREA_HEIGHT, maxHeight: MAX_TEXTAREA_HEIGHT }}
-        />
+        <div className="agent-input-wrap">
+          <div ref={mirrorRef} className="agent-input-mirror"> </div>
+          <textarea
+            ref={inputRef}
+            className="agent-input"
+            onKeyDown={handleKeyDown}
+            placeholder="Ask a question..."
+            disabled={isLoading}
+          />
+        </div>
         <div className="agent-input-actions">
           {isLoading ? (
             <button className="agent-cancel-btn" onClick={handleCancel}>
