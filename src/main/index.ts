@@ -4,7 +4,7 @@ import * as fs from 'fs'
 import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
-import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '../shared/types'
+import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage, TreeNode, NewNoteResult } from '../shared/types'
 import { IMAGES_DIR, MARKERDOWN_DIR } from '../shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
@@ -13,8 +13,13 @@ import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
 
 let mainWindow: BrowserWindow | null = null
+let newNoteWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
 let agentProcess: ChildProcess | null = null
+
+// Data to pass to new note window
+let newNoteData: NewNoteRequest | null = null
+let newNoteResolve: ((result: NewNoteResult | null) => void) | null = null
 
 function closeWatcher() {
   if (watcher) {
@@ -124,6 +129,48 @@ function createWindow() {
     closeWatcher()
     cancelAgent()
     mainWindow = null
+  })
+}
+
+function createNewNoteWindow(): Promise<{ name: string; parentPath: string | null; childrenPaths: string[] } | null> {
+  return new Promise((resolve) => {
+    // Close existing window if any
+    if (newNoteWindow) {
+      newNoteWindow.close()
+    }
+
+    newNoteResolve = resolve
+
+    newNoteWindow = new BrowserWindow({
+      width: 600,
+      height: 700,
+      parent: mainWindow ?? undefined,
+      modal: true,
+      autoHideMenuBar: true,
+      resizable: true,
+      minimizable: false,
+      maximizable: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload-new-note.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    })
+
+    if (isDev) {
+      newNoteWindow.loadURL('http://localhost:5173/new-note.html')
+    } else {
+      newNoteWindow.loadFile(path.join(__dirname, '../renderer/new-note.html'))
+    }
+
+    newNoteWindow.on('closed', () => {
+      newNoteWindow = null
+      // If window closed without submit, resolve with null
+      if (newNoteResolve) {
+        newNoteResolve(null)
+        newNoteResolve = null
+      }
+    })
   })
 }
 
@@ -705,4 +752,39 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
     console.error('Error loading session:', error)
     return { messages: [] }
   }
+})
+
+// New Note Window IPC Handlers
+interface NewNoteRequest {
+  treeNodes: TreeNode[]
+  selectedPath: string | null
+}
+
+ipcMain.handle('dialog:openNewNote', async (_event, request: NewNoteRequest) => {
+  newNoteData = request
+  const result = await createNewNoteWindow()
+  newNoteData = null
+  return result
+})
+
+ipcMain.handle('new-note:getInitialData', async () => {
+  return newNoteData ?? { treeNodes: [], selectedPath: null }
+})
+
+function closeNewNoteWindow(result: NewNoteResult | null) {
+  if (newNoteResolve) {
+    newNoteResolve(result)
+    newNoteResolve = null
+  }
+  if (newNoteWindow) {
+    newNoteWindow.close()
+  }
+}
+
+ipcMain.on('new-note:submit', (_event, result: NewNoteResult) => {
+  closeNewNoteWindow(result)
+})
+
+ipcMain.on('new-note:cancel', () => {
+  closeNewNoteWindow(null)
 })

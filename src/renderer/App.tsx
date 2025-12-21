@@ -11,7 +11,6 @@ import { EventPanel } from './components/EventPanel'
 import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar, PaneType } from './components/TopToolbar'
 import { SidebarToolbar } from './components/SidebarToolbar'
-import { NewNoteModal } from './components/NewNoteModal'
 import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { RenameModal } from './components/RenameModal'
@@ -24,7 +23,7 @@ import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
-import { Edit3, Trash2, FolderOpen } from 'lucide-react'
+import { Edit3, Trash2, FolderOpen, FilePlus } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
@@ -58,7 +57,6 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [showOptionsModal, setShowOptionsModal] = useState(false)
-  const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
   const [showClaudeMd, setShowClaudeMd] = useState(false)
 
@@ -819,54 +817,6 @@ function App() {
       .map((n) => n.name)
   }, [treeNodes])
 
-  // Build context menu items based on node type
-  const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
-    const items: ContextMenuItem[] = []
-
-    // Directories get Delete and Reveal in Explorer
-    if (node.isDirectory) {
-      items.push({
-        label: 'Delete',
-        icon: Trash2,
-        onClick: () => setDeleteTarget({ node }),
-        danger: true,
-      })
-      items.push({
-        label: 'Reveal in Explorer',
-        icon: FolderOpen,
-        onClick: () => handleRevealInExplorer(node),
-      })
-      return items
-    }
-
-    // Don't show context menu for suggestion drafts
-    if (node.isSuggestion) {
-      return items
-    }
-
-    // Files and entities get Rename, Delete, Reveal
-    items.push({
-      label: 'Rename',
-      icon: Edit3,
-      onClick: () => setRenameTarget({ node }),
-    })
-
-    items.push({
-      label: 'Delete',
-      icon: Trash2,
-      onClick: () => setDeleteTarget({ node }),
-      danger: true,
-    })
-
-    items.push({
-      label: 'Reveal in Explorer',
-      icon: FolderOpen,
-      onClick: () => handleRevealInExplorer(node),
-    })
-
-    return items
-  }, [handleRevealInExplorer])
-
   // Build context menu items for entity tab members
   const getTabContextMenuItems = useCallback((member: EntityMember): ContextMenuItem[] => {
     const items: ContextMenuItem[] = []
@@ -893,7 +843,7 @@ function App() {
   }, [])
 
   // Create new note handler
-  const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
+  const handleCreateNote = useCallback(async (name: string, parentPath: string | null, childrenPaths: string[]) => {
     if (!folderPath) return
 
     // Helper to move a file/folder and report errors
@@ -913,8 +863,19 @@ function App() {
         if (parentNode.isDirectory) {
           targetDir = parentNode.path
         } else if (parentNode.hasSidecar && parentNode.sidecarName) {
-          // For sidecar files, the children go in the folder with same base name
+          // For files with existing sidecars, use the sidecar folder
           targetDir = `${getDirname(parentNode.path)}/${parentNode.sidecarName}`
+        } else {
+          // For files without sidecars, create a sidecar folder
+          const parentDir = getDirname(parentNode.path)
+          const parentBaseName = stripExtension(getBasename(parentNode.path))
+          targetDir = `${parentDir}/${parentBaseName}`
+          // Create the sidecar folder
+          const mkdirResult = await window.electronAPI.mkdir(targetDir)
+          if (!mkdirResult.success) {
+            setError(`Failed to create folder: ${mkdirResult.error}`)
+            return
+          }
         }
       }
     }
@@ -976,6 +937,15 @@ function App() {
       }
     }
 
+    // Expand the parent so the new note is visible
+    if (parentPath) {
+      setExpandedPaths((prev) => {
+        const next = new Set(prev)
+        next.add(normalizePath(parentPath))
+        return next
+      })
+    }
+
     // Refresh tree (watcher should handle this, but force refresh to be safe)
     refreshTree()
 
@@ -997,7 +967,75 @@ function App() {
         console.error('Failed to refresh tree after note creation:', err)
       }
     }, TREE_REFRESH_DELAY_MS)
-  }
+  }, [folderPath, treeNodes, showClaudeMd, refreshTree])
+
+  // Open new note dialog helper (avoids duplicating the openNewNote + handleCreateNote pattern)
+  const openNewNoteDialog = useCallback(async (selectedPath: string | null) => {
+    const result = await window.electronAPI.openNewNote(treeNodes, selectedPath)
+    if (result) {
+      handleCreateNote(result.name, result.parentPath, result.childrenPaths)
+    }
+  }, [treeNodes, handleCreateNote])
+
+  // Build context menu items based on node type
+  const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = []
+
+    const newChildNoteItem: ContextMenuItem = {
+      label: 'New Child Note',
+      icon: FilePlus,
+      onClick: () => {
+        setContextMenu(null)
+        openNewNoteDialog(node.path)
+      },
+    }
+
+    // Directories get New Child Note, Delete and Reveal in Explorer
+    if (node.isDirectory) {
+      items.push(newChildNoteItem)
+      items.push({
+        label: 'Delete',
+        icon: Trash2,
+        onClick: () => setDeleteTarget({ node }),
+        danger: true,
+      })
+      items.push({
+        label: 'Reveal in Explorer',
+        icon: FolderOpen,
+        onClick: () => handleRevealInExplorer(node),
+      })
+      return items
+    }
+
+    // Don't show context menu for suggestion drafts
+    if (node.isSuggestion) {
+      return items
+    }
+
+    // Files and entities get New Child Note, Rename, Delete, Reveal
+    items.push(newChildNoteItem)
+
+    items.push({
+      label: 'Rename',
+      icon: Edit3,
+      onClick: () => setRenameTarget({ node }),
+    })
+
+    items.push({
+      label: 'Delete',
+      icon: Trash2,
+      onClick: () => setDeleteTarget({ node }),
+      danger: true,
+    })
+
+    items.push({
+      label: 'Reveal in Explorer',
+      icon: FolderOpen,
+      onClick: () => handleRevealInExplorer(node),
+    })
+
+    return items
+  }, [handleRevealInExplorer, openNewNoteDialog])
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
@@ -1090,7 +1128,7 @@ function App() {
               )}
             </div>
             <SidebarToolbar
-              onNewNote={() => setShowNewNoteModal(true)}
+              onNewNote={() => openNewNoteDialog(selectedNode?.path ?? null)}
               onOpenFolder={handleOpenInExplorer}
               onOpenOptions={() => setShowOptionsModal(true)}
             />
@@ -1193,13 +1231,6 @@ function App() {
             console.error('Failed to save showClaudeMd setting:', err)
           })
         }}
-      />
-      <NewNoteModal
-        isOpen={showNewNoteModal}
-        onClose={() => setShowNewNoteModal(false)}
-        onSubmit={handleCreateNote}
-        treeNodes={treeNodes}
-        selectedNode={selectedNode}
       />
       {contextMenu && (
         <ContextMenu

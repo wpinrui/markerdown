@@ -1,8 +1,10 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
-import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory } from '@shared/types'
+import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, TreeNode, NewNoteResult } from '../shared/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),
+  openNewNote: (treeNodes: TreeNode[], selectedPath: string | null): Promise<NewNoteResult | null> =>
+    ipcRenderer.invoke('dialog:openNewNote', { treeNodes, selectedPath }),
   readDirectory: (dirPath: string): Promise<FileEntry[]> =>
     ipcRenderer.invoke('fs:readDirectory', dirPath),
   readFile: (filePath: string): Promise<string | null> =>

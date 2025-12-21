@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ChevronRight, ChevronDown, Check } from 'lucide-react'
 import type { TreeNode } from '@shared/types'
 
-interface NewNoteModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (name: string, parentPath: string | null, childrenPaths: string[]) => void
-  treeNodes: TreeNode[]
-  selectedNode: TreeNode | null
+declare global {
+  interface Window {
+    newNoteAPI: {
+      getInitialData: () => Promise<{ treeNodes: TreeNode[]; selectedPath: string | null }>
+      submit: (name: string, parentPath: string | null, childrenPaths: string[]) => void
+      cancel: () => void
+    }
+  }
 }
 
 // Flatten tree to get all node names for validation
@@ -22,16 +24,13 @@ function getAllNodeNames(nodes: TreeNode[]): string[] {
   return result
 }
 
-// Get all folder-like nodes (directories and sidecars) for parent selection
+// Get all nodes (directories and files) for parent selection
 function getSelectableParents(nodes: TreeNode[], depth = 0): Array<{ node: TreeNode; depth: number }> {
   const result: Array<{ node: TreeNode; depth: number }> = []
   for (const node of nodes) {
-    // Allow selecting directories or files with sidecars (they have children)
-    if (node.isDirectory || node.hasSidecar) {
-      result.push({ node, depth })
-      if (node.children) {
-        result.push(...getSelectableParents(node.children, depth + 1))
-      }
+    result.push({ node, depth })
+    if (node.children) {
+      result.push(...getSelectableParents(node.children, depth + 1))
     }
   }
   return result
@@ -43,7 +42,6 @@ function getDirectChildren(nodes: TreeNode[], parentPath: string | null): TreeNo
     return nodes
   }
 
-  // Find the parent node and return its children
   const findChildren = (searchNodes: TreeNode[]): TreeNode[] | null => {
     for (const node of searchNodes) {
       if (node.path === parentPath) {
@@ -60,78 +58,51 @@ function getDirectChildren(nodes: TreeNode[], parentPath: string | null): TreeNo
   return findChildren(nodes) ?? []
 }
 
-// Find the parent path of the selected node
-// Returns the parent path if found, null if at root level, undefined if not found
-function findParentPath(nodes: TreeNode[], targetPath: string, currentParent: string | null = null): string | null | undefined {
-  for (const node of nodes) {
-    if (node.path === targetPath) {
-      return currentParent
-    }
-    if (node.children) {
-      const found = findParentPath(node.children, targetPath, node.path)
-      if (found !== undefined) return found
-    }
-  }
-  return undefined
-}
-
-// Get the containing folder path of a node
-function getContainingFolder(node: TreeNode | null, nodes: TreeNode[]): string | null {
-  if (!node) return null
-
-  // If the node is a directory or has a sidecar, use it as parent
-  if (node.isDirectory || node.hasSidecar) {
-    return node.path
-  }
-
-  // Otherwise, find the parent of this node
-  return findParentPath(nodes, node.path) ?? null
-}
-
 // Ensure filename has .md extension
 function ensureMdExtension(filename: string): string {
   return filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`
 }
 
-export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNode }: NewNoteModalProps) {
+export function NewNoteWindow() {
+  const [treeNodes, setTreeNodes] = useState<TreeNode[]>([])
   const [name, setName] = useState('')
   const [parentPath, setParentPath] = useState<string | null>(null)
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set())
   const [showParentDropdown, setShowParentDropdown] = useState(false)
-  const dialogRef = useRef<HTMLDialogElement>(null)
+  const [parentSearch, setParentSearch] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const parentSearchRef = useRef<HTMLInputElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
-  // Open/close dialog using showModal for proper backdrop support
+  // Load initial data from main process
   useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
+    async function loadData() {
+      try {
+        const data = await window.newNoteAPI.getInitialData()
+        setTreeNodes(data.treeNodes)
+        setParentPath(data.selectedPath)
 
-    if (isOpen && !dialog.open) {
-      dialog.showModal()
-    } else if (!isOpen && dialog.open) {
-      dialog.close()
-    }
-  }, [isOpen])
+        // Generate default name
+        let counter = 1
+        let defaultName = `Untitled${counter}.md`
+        const existingNames = new Set(getAllNodeNames(data.treeNodes))
+        while (existingNames.has(defaultName.toLowerCase())) {
+          counter++
+          defaultName = `Untitled${counter}.md`
+        }
+        setName(defaultName)
+        setIsLoading(false)
 
-  // Calculate default name on open
-  useEffect(() => {
-    if (isOpen) {
-      const defaultParent = getContainingFolder(selectedNode, treeNodes)
-      setParentPath(defaultParent)
-      setSelectedChildren(new Set())
-
-      // Generate default name
-      let counter = 1
-      let defaultName = `Untitled${counter}.md`
-
-      const existingNames = new Set(getAllNodeNames(treeNodes))
-      while (existingNames.has(defaultName.toLowerCase())) {
-        counter++
-        defaultName = `Untitled${counter}.md`
+        // Focus name input after load
+        setTimeout(() => nameInputRef.current?.select(), 50)
+      } catch (err) {
+        console.error('Failed to load initial data:', err)
+        // Close the window on error
+        window.newNoteAPI.cancel()
       }
-
-      setName(defaultName)
     }
-  }, [isOpen, treeNodes, selectedNode])
+    loadData()
+  }, [])
 
   // Validation
   const validation = useMemo(() => {
@@ -140,8 +111,6 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
     }
 
     const normalizedName = ensureMdExtension(name).toLowerCase()
-
-    // Check for duplicate at same parent level
     const siblings = getDirectChildren(treeNodes, parentPath)
     const siblingNames = siblings.map(sibling => sibling.name.toLowerCase())
 
@@ -149,7 +118,6 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
       return { type: 'error' as const, message: 'A file with this name already exists here' }
     }
 
-    // Check for duplicate elsewhere
     const allNames = getAllNodeNames(treeNodes)
     if (allNames.includes(normalizedName)) {
       return { type: 'warning' as const, message: 'A file with this name exists in another location' }
@@ -160,11 +128,14 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
 
   const canSubmit = validation?.type !== 'error' && name.trim()
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!canSubmit) return
-    onSubmit(ensureMdExtension(name), parentPath, Array.from(selectedChildren))
-    onClose()
-  }
+    window.newNoteAPI.submit(ensureMdExtension(name), parentPath, Array.from(selectedChildren))
+  }, [canSubmit, name, parentPath, selectedChildren])
+
+  const handleCancel = useCallback(() => {
+    window.newNoteAPI.cancel()
+  }, [])
 
   const handleChildToggle = useCallback((path: string) => {
     setSelectedChildren(prev => {
@@ -182,35 +153,65 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
     setParentPath(path)
     setSelectedChildren(new Set())
     setShowParentDropdown(false)
+    setParentSearch('')
   }, [])
 
   const selectableParents = useMemo(() => getSelectableParents(treeNodes), [treeNodes])
+  const filteredParents = useMemo(() => {
+    if (!parentSearch.trim()) return selectableParents
+    const search = parentSearch.toLowerCase()
+    return selectableParents.filter(({ node }) => node.name.toLowerCase().includes(search))
+  }, [selectableParents, parentSearch])
   const availableChildren = useMemo(() => getDirectChildren(treeNodes, parentPath), [treeNodes, parentPath])
 
-  // Get display name for parent
   const parentDisplayName = useMemo(() => {
     if (parentPath === null) return '(Root)'
     const parent = selectableParents.find(entry => entry.node.path === parentPath)
     return parent?.node.name ?? '(Root)'
   }, [parentPath, selectableParents])
 
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (showParentDropdown && parentSearchRef.current) {
+      parentSearchRef.current.focus()
+    }
+  }, [showParentDropdown])
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showParentDropdown) {
+          setShowParentDropdown(false)
+          setParentSearch('')
+        } else {
+          handleCancel()
+        }
+      } else if (e.key === 'Enter' && !showParentDropdown && canSubmit) {
+        handleSubmit()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showParentDropdown, canSubmit, handleSubmit, handleCancel])
+
+  if (isLoading) {
+    return <div className="new-note-loading">Loading...</div>
+  }
+
   return (
-    <dialog ref={dialogRef} className="new-note-modal">
-      <div className="new-note-modal-header">New Note</div>
-      <div className="new-note-modal-body">
+    <div className="new-note-window">
+      <div className="new-note-body">
         {/* Name input */}
         <div className="new-note-input-group">
           <label className="new-note-label">Name</label>
           <input
+            ref={nameInputRef}
             type="text"
             className={`new-note-input ${validation?.type === 'error' ? 'error' : validation?.type === 'warning' ? 'warning' : ''}`}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canSubmit) handleSubmit()
-              if (e.key === 'Escape') onClose()
-            }}
           />
           {validation && (
             <div className={`new-note-validation ${validation.type}`}>
@@ -233,24 +234,39 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
             </button>
             {showParentDropdown && (
               <div className="new-note-dropdown">
-                <button
-                  type="button"
-                  className={`new-note-dropdown-item ${parentPath === null ? 'selected' : ''}`}
-                  onClick={() => handleSelectParent(null)}
-                >
-                  (Root)
-                </button>
-                {selectableParents.map(({ node, depth }) => (
-                  <button
-                    key={node.path}
-                    type="button"
-                    className={`new-note-dropdown-item ${parentPath === node.path ? 'selected' : ''}`}
-                    style={{ paddingLeft: `${12 + depth * 16}px` }}
-                    onClick={() => handleSelectParent(node.path)}
-                  >
-                    {node.name}
-                  </button>
-                ))}
+                <input
+                  ref={parentSearchRef}
+                  type="text"
+                  className="new-note-dropdown-search"
+                  placeholder="Search..."
+                  value={parentSearch}
+                  onChange={(e) => setParentSearch(e.target.value)}
+                />
+                <div className="new-note-dropdown-list">
+                  {!parentSearch.trim() && (
+                    <button
+                      type="button"
+                      className={`new-note-dropdown-item ${parentPath === null ? 'selected' : ''}`}
+                      onClick={() => handleSelectParent(null)}
+                    >
+                      (Root)
+                    </button>
+                  )}
+                  {filteredParents.map(({ node, depth }) => (
+                    <button
+                      key={node.path}
+                      type="button"
+                      className={`new-note-dropdown-item ${parentPath === node.path ? 'selected' : ''}`}
+                      style={{ paddingLeft: `${12 + (parentSearch.trim() ? 0 : depth) * 16}px` }}
+                      onClick={() => handleSelectParent(node.path)}
+                    >
+                      {node.name}
+                    </button>
+                  ))}
+                  {filteredParents.length === 0 && parentSearch.trim() && (
+                    <div className="new-note-dropdown-empty">No matches</div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -278,8 +294,8 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
           </div>
         )}
       </div>
-      <div className="new-note-modal-footer">
-        <button type="button" className="new-note-cancel-btn" onClick={onClose}>
+      <div className="new-note-footer">
+        <button type="button" className="new-note-cancel-btn" onClick={handleCancel}>
           Cancel
         </button>
         <button
@@ -291,6 +307,6 @@ export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNod
           Create
         </button>
       </div>
-    </dialog>
+    </div>
   )
 }

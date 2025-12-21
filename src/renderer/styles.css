@@ -1713,9 +1713,37 @@ audio.media-player {
   background-color: #2d2d2d;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
+  max-height: 250px;
+  display: flex;
+  flex-direction: column;
   z-index: 10;
+}
+
+.new-note-dropdown-search {
+  padding: 8px 12px;
+  background-color: #3c3c3c;
+  border: none;
+  border-bottom: 1px solid #555;
+  color: #d4d4d4;
+  font-size: 13px;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.new-note-dropdown-search::placeholder {
+  color: #888;
+}
+
+.new-note-dropdown-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.new-note-dropdown-empty {
+  padding: 12px;
+  color: #888;
+  font-size: 13px;
+  text-align: center;
 }
 
 .new-note-dropdown-item {
