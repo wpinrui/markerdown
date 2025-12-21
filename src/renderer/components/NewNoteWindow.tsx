@@ -122,14 +122,14 @@ export function NewNoteWindow() {
 
   const canSubmit = validation?.type !== 'error' && name.trim()
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!canSubmit) return
     window.newNoteAPI.submit(ensureMdExtension(name), parentPath, Array.from(selectedChildren))
-  }
+  }, [canSubmit, name, parentPath, selectedChildren])
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     window.newNoteAPI.cancel()
-  }
+  }, [])
 
   const handleChildToggle = useCallback((path: string) => {
     setSelectedChildren(prev => {
@@ -187,7 +187,7 @@ export function NewNoteWindow() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showParentDropdown, canSubmit])
+  }, [showParentDropdown, canSubmit, handleSubmit, handleCancel])
 
   if (isLoading) {
     return <div className="new-note-loading">Loading...</div>

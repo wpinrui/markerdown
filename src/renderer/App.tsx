@@ -973,19 +973,21 @@ function App() {
   const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
     const items: ContextMenuItem[] = []
 
+    const newChildNoteItem: ContextMenuItem = {
+      label: 'New Child Note',
+      icon: FilePlus,
+      onClick: async () => {
+        setContextMenu(null)
+        const result = await window.electronAPI.openNewNote(treeNodes, node.path)
+        if (result) {
+          handleCreateNote(result.name, result.parentPath, result.childrenPaths)
+        }
+      },
+    }
+
     // Directories get New Child Note, Delete and Reveal in Explorer
     if (node.isDirectory) {
-      items.push({
-        label: 'New Child Note',
-        icon: FilePlus,
-        onClick: async () => {
-          setContextMenu(null)
-          const result = await window.electronAPI.openNewNote(treeNodes, node.path)
-          if (result) {
-            handleCreateNote(result.name, result.parentPath, result.childrenPaths)
-          }
-        },
-      })
+      items.push(newChildNoteItem)
       items.push({
         label: 'Delete',
         icon: Trash2,
@@ -1006,17 +1008,7 @@ function App() {
     }
 
     // Files and entities get New Child Note, Rename, Delete, Reveal
-    items.push({
-      label: 'New Child Note',
-      icon: FilePlus,
-      onClick: async () => {
-        setContextMenu(null)
-        const result = await window.electronAPI.openNewNote(treeNodes, node.path)
-        if (result) {
-          handleCreateNote(result.name, result.parentPath, result.childrenPaths)
-        }
-      },
-    })
+    items.push(newChildNoteItem)
 
     items.push({
       label: 'Rename',
