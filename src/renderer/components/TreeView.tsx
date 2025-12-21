@@ -4,6 +4,9 @@ import type { TreeNode } from '@shared/types'
 const INDENT_PX = 16
 const BASE_PADDING_PX = 8
 
+// Normalize path separators to forward slashes for comparison
+const normalizePath = (p: string) => p.replace(/\\/g, '/')
+
 interface TreeViewProps {
   nodes: TreeNode[]
   selectedPath: string | null
@@ -46,7 +49,7 @@ interface TreeItemProps {
 }
 
 function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu }: TreeItemProps) {
-  const expanded = expandedPaths.has(node.path)
+  const expanded = expandedPaths.has(normalizePath(node.path))
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
   const isMarkdown = isMarkdownFile(node.name)

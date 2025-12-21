@@ -599,12 +599,13 @@ function App() {
   }, [])
 
   const handleToggleExpand = useCallback((path: string) => {
+    const normalized = normalizePath(path)
     setExpandedPaths((prev) => {
       const next = new Set(prev)
-      if (next.has(path)) {
-        next.delete(path)
+      if (next.has(normalized)) {
+        next.delete(normalized)
       } else {
-        next.add(path)
+        next.add(normalized)
       }
       return next
     })
@@ -782,8 +783,8 @@ function App() {
 
       // Preserve expansion state: if old path was expanded, expand the new path
       if (renameTarget.node && newSelectionPath) {
-        const oldPath = renameTarget.node.path
-        const newPath = newSelectionPath
+        const oldPath = normalizePath(renameTarget.node.path)
+        const newPath = normalizePath(newSelectionPath)
         setExpandedPaths((prev) => {
           if (prev.has(oldPath)) {
             const next = new Set(prev)
