@@ -54,6 +54,7 @@ const TREE_REFRESH_DELAY_MS = 100
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([])
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null)
   const [activeMember, setActiveMember] = useState<EntityMember | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
@@ -597,6 +598,18 @@ function App() {
     setContextMenu(null)
   }, [])
 
+  const handleToggleExpand = useCallback((path: string) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }, [])
+
   const handleRevealInExplorer = useCallback(async (node: TreeNode) => {
     // Get the path to reveal - for entities use the first member's path
     const pathToReveal = node.entity?.members[0]?.path ?? node.path
@@ -765,6 +778,21 @@ function App() {
       // Store pending selection to re-select after tree refresh
       if (newSelectionPath) {
         setPendingSelectionPath(newSelectionPath)
+      }
+
+      // Preserve expansion state: if old path was expanded, expand the new path
+      if (renameTarget.node && newSelectionPath) {
+        const oldPath = renameTarget.node.path
+        const newPath = newSelectionPath
+        setExpandedPaths((prev) => {
+          if (prev.has(oldPath)) {
+            const next = new Set(prev)
+            next.delete(oldPath)
+            next.add(newPath)
+            return next
+          }
+          return prev
+        })
       }
 
       // File watcher will refresh tree automatically
@@ -1056,7 +1084,9 @@ function App() {
                 <TreeView
                   nodes={filteredTreeNodes}
                   selectedPath={selectedNode?.path ?? null}
+                  expandedPaths={expandedPaths}
                   onSelect={handleSelectNode}
+                  onToggleExpand={handleToggleExpand}
                   summarizingPaths={summarizingPaths}
                   onContextMenu={handleTreeContextMenu}
                 />

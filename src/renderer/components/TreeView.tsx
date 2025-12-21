@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { isMarkdownFile, isPdfFile, isVideoFile, isAudioFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
 
@@ -8,12 +7,14 @@ const BASE_PADDING_PX = 8
 interface TreeViewProps {
   nodes: TreeNode[]
   selectedPath: string | null
+  expandedPaths: Set<string>
   onSelect: (node: TreeNode) => void
+  onToggleExpand: (path: string) => void
   summarizingPaths?: Set<string>
   onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
 }
 
-export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onContextMenu }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu }: TreeViewProps) {
   return (
     <div className="tree-view">
       {nodes.map((node) => (
@@ -22,7 +23,9 @@ export function TreeView({ nodes, selectedPath, onSelect, summarizingPaths, onCo
           node={node}
           depth={0}
           selectedPath={selectedPath}
+          expandedPaths={expandedPaths}
           onSelect={onSelect}
+          onToggleExpand={onToggleExpand}
           summarizingPaths={summarizingPaths}
           onContextMenu={onContextMenu}
         />
@@ -35,13 +38,15 @@ interface TreeItemProps {
   node: TreeNode
   depth: number
   selectedPath: string | null
+  expandedPaths: Set<string>
   onSelect: (node: TreeNode) => void
+  onToggleExpand: (path: string) => void
   summarizingPaths?: Set<string>
   onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
 }
 
-function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onContextMenu }: TreeItemProps) {
-  const [expanded, setExpanded] = useState(false)
+function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu }: TreeItemProps) {
+  const expanded = expandedPaths.has(node.path)
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
   const isMarkdown = isMarkdownFile(node.name)
@@ -55,7 +60,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onCon
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setExpanded(!expanded)
+    onToggleExpand(node.path)
   }
 
   const handleRowClick = () => {
@@ -67,7 +72,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onCon
 
   const handleRowDoubleClick = () => {
     if (hasChildren) {
-      setExpanded(!expanded)
+      onToggleExpand(node.path)
     }
   }
 
@@ -147,7 +152,9 @@ function TreeItem({ node, depth, selectedPath, onSelect, summarizingPaths, onCon
               node={child}
               depth={depth + 1}
               selectedPath={selectedPath}
+              expandedPaths={expandedPaths}
               onSelect={onSelect}
+              onToggleExpand={onToggleExpand}
               summarizingPaths={summarizingPaths}
               onContextMenu={onContextMenu}
             />
