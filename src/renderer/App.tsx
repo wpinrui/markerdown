@@ -31,10 +31,14 @@ const DEFAULT_SIDEBAR_WIDTH = 280
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 500
 
-// Find a node by path in the tree
+// Normalize path separators to forward slashes for comparison
+const normalizePath = (p: string) => p.replace(/\\/g, '/')
+
+// Find a node by path in the tree (path-separator agnostic)
 function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
+  const normalizedTarget = normalizePath(targetPath)
   for (const node of nodes) {
-    if (node.path === targetPath) return node
+    if (normalizePath(node.path) === normalizedTarget) return node
     if (node.children) {
       const found = findNodeByPath(node.children, targetPath)
       if (found) return found
@@ -70,6 +74,8 @@ function App() {
   const [renameTarget, setRenameTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
   // After rename, store the new path to re-select once tree refreshes
   const [pendingSelectionPath, setPendingSelectionPath] = useState<string | null>(null)
+  // For member rename, store the new member path to set as active after refresh
+  const [pendingMemberPath, setPendingMemberPath] = useState<string | null>(null)
 
   // New member modal state
   const [showNewMemberModal, setShowNewMemberModal] = useState(false)
@@ -284,9 +290,8 @@ function App() {
   useEffect(() => {
     if (!pendingSelectionPath || treeNodes.length === 0) return
 
-    // Find the node with the new path (try both forward and backslash variants)
-    const node = findNodeByPath(treeNodes, pendingSelectionPath) ??
-      findNodeByPath(treeNodes, pendingSelectionPath.replace(/\//g, '\\'))
+    // Find the node with the new path (findNodeByPath is path-separator agnostic)
+    const node = findNodeByPath(treeNodes, pendingSelectionPath)
 
     if (node) {
       setSelectedNode(node)
@@ -300,14 +305,54 @@ function App() {
         if (isMarkdownFile(memberPath)) {
           window.electronAPI.readFile(memberPath).then((content) => {
             if (content !== null) setFileContent(content)
+          }).catch((err) => {
+            console.error('Failed to read file after rename:', err)
           })
         }
       }
+      // Clear pending selection only after successfully finding the node
+      setPendingSelectionPath(null)
+    }
+  }, [treeNodes, pendingSelectionPath])
+
+  // Handle pending member selection after member rename
+  useEffect(() => {
+    if (!pendingMemberPath || treeNodes.length === 0) return
+
+    const normalizedPendingPath = normalizePath(pendingMemberPath)
+
+    // Find the entity node that contains the renamed member
+    const findEntityWithMember = (nodes: TreeNode[]): { node: TreeNode; member: EntityMember } | null => {
+      for (const node of nodes) {
+        if (node.entity) {
+          const member = node.entity.members.find((m) => normalizePath(m.path) === normalizedPendingPath)
+          if (member) {
+            return { node, member }
+          }
+        }
+        if (node.children) {
+          const found = findEntityWithMember(node.children)
+          if (found) return found
+        }
+      }
+      return null
     }
 
-    // Clear pending selection
-    setPendingSelectionPath(null)
-  }, [treeNodes, pendingSelectionPath])
+    const result = findEntityWithMember(treeNodes)
+    if (result) {
+      setSelectedNode(result.node)
+      setActiveMember(result.member)
+      // Load file content for the member
+      if (result.member.type === 'markdown') {
+        window.electronAPI.readFile(result.member.path).then((content) => {
+          if (content !== null) setFileContent(content)
+        }).catch((err) => {
+          console.error('Failed to read file after member rename:', err)
+        })
+      }
+      setPendingMemberPath(null)
+    }
+  }, [treeNodes, pendingMemberPath])
 
   // Watch folder for changes
   const activeFilePathRef = useRef<string | null>(null)
@@ -569,11 +614,23 @@ function App() {
         if (!result.success) {
           setError(`Failed to delete file: ${result.error}`)
         }
-        // Clear selection if we deleted the active member
-        if (activeMember?.path === deleteTarget.member.path) {
-          setActiveMember(null)
-          setSelectedNode(null)
-          setFileContent(null)
+        // If we deleted the active member, switch to the default member of the entity
+        if (activeMember?.path === deleteTarget.member.path && selectedNode?.entity) {
+          const remainingMembers = selectedNode.entity.members.filter(
+            (m) => m.path !== deleteTarget.member!.path
+          )
+          if (remainingMembers.length > 0) {
+            // Find default member or use first remaining
+            const defaultMember = remainingMembers.find((m) => m.type === 'markdown' && m.variant === null)
+              ?? remainingMembers[0]
+            // Set pending to re-select after tree refresh
+            setPendingMemberPath(defaultMember.path)
+          } else {
+            // No members left, clear selection
+            setActiveMember(null)
+            setSelectedNode(null)
+            setFileContent(null)
+          }
         }
       }
       // Deleting a tree node
@@ -639,8 +696,8 @@ function App() {
         if (!result.success) {
           setError(`Failed to rename: ${result.error}`)
         } else {
-          // Keep same entity selected, just update active member path
-          newSelectionPath = selectedNode.path
+          // Track the new member path to set as active after tree refresh
+          setPendingMemberPath(newPath)
         }
       }
       // Renaming a tree node (entity or file)
@@ -950,10 +1007,9 @@ function App() {
       return
     }
 
-    // Refresh tree and select the new file
-    setTimeout(() => {
-      refreshTree()
-    }, TREE_REFRESH_DELAY_MS)
+    // Set pending member path to select the new member after tree refresh
+    setPendingMemberPath(newFilePath)
+    refreshTree()
   }
 
   // Render markdown content (viewer or editor) - shared between entity and standalone
