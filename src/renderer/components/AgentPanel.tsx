@@ -1,9 +1,55 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import type { AgentMessage, AgentSession } from '@shared/types'
 import { StyledMarkdown } from '../markdownConfig'
 
 const MAX_DISPLAYED_SESSIONS = 20
 const MS_PER_DAY = 1000 * 60 * 60 * 24
+
+function formatSessionDate(timestamp: string): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / MS_PER_DAY)
+
+  if (diffDays === 0) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  } else if (diffDays === 1) {
+    return 'Yesterday'
+  } else if (diffDays < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' })
+  } else {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  }
+}
+
+// Memoized message list to prevent re-renders when input changes
+interface MessageListProps {
+  messages: AgentMessage[]
+  isLoading: boolean
+}
+
+const MessageList = memo(function MessageList({ messages, isLoading }: MessageListProps) {
+  return (
+    <>
+      {messages.map((msg, i) => (
+        <div key={i} className={`agent-message agent-message-${msg.role}`}>
+          <div className="agent-message-content">
+            {msg.role === 'assistant' ? (
+              <StyledMarkdown content={msg.content} />
+            ) : (
+              msg.content
+            )}
+          </div>
+        </div>
+      ))}
+      {isLoading && (
+        <div className="agent-message agent-message-assistant">
+          <div className="agent-typing">Thinking...</div>
+        </div>
+      )}
+    </>
+  )
+})
 
 interface AgentPanelProps {
   workingDir: string | null
@@ -14,14 +60,15 @@ interface AgentPanelProps {
 
 export function AgentPanel({ workingDir, currentFilePath, onClose, style }: AgentPanelProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([])
-  const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [sessions, setSessions] = useState<AgentSession[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const [hasInput, setHasInput] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const mirrorRef = useRef<HTMLDivElement>(null)
   const historyRef = useRef<HTMLDivElement>(null)
   const isCancelledRef = useRef(false)
 
@@ -73,10 +120,17 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
   }, [])
 
   const handleSubmit = useCallback(async () => {
-    if (!input.trim() || isLoading || !workingDir) return
+    const textarea = inputRef.current
+    if (!textarea) return
 
-    const userMessage = input.trim()
-    setInput('')
+    const userMessage = textarea.value.trim()
+    if (!userMessage || isLoading || !workingDir) return
+
+    textarea.value = ''
+    if (mirrorRef.current) {
+      mirrorRef.current.textContent = ' '
+    }
+    setHasInput(false)
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
     isCancelledRef.current = false
@@ -119,29 +173,68 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     } finally {
       setIsLoading(false)
     }
-  }, [input, isLoading, workingDir, sessionId, reloadSession])
+  }, [isLoading, workingDir, sessionId, currentFilePath, reloadSession])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }
+  }, [handleSubmit])
 
-  const handleCancel = () => {
+  // Native input listener for auto-grow (bypasses React's synthetic event system)
+  const inputTimeoutRef = useRef<number | null>(null)
+  const mirrorTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const textarea = inputRef.current
+    const mirror = mirrorRef.current
+    if (!textarea || !mirror) return
+
+    const handleInput = () => {
+      // Debounce mirror update to avoid layout thrashing
+      if (mirrorTimeoutRef.current) {
+        cancelAnimationFrame(mirrorTimeoutRef.current)
+      }
+      mirrorTimeoutRef.current = requestAnimationFrame(() => {
+        mirror.textContent = textarea.value + ' '
+      })
+
+      // Debounce hasInput state update
+      if (inputTimeoutRef.current) {
+        clearTimeout(inputTimeoutRef.current)
+      }
+      inputTimeoutRef.current = window.setTimeout(() => {
+        setHasInput(textarea.value.length > 0)
+      }, 100)
+    }
+
+    textarea.addEventListener('input', handleInput)
+    return () => {
+      textarea.removeEventListener('input', handleInput)
+      if (inputTimeoutRef.current) {
+        clearTimeout(inputTimeoutRef.current)
+      }
+      if (mirrorTimeoutRef.current) {
+        cancelAnimationFrame(mirrorTimeoutRef.current)
+      }
+    }
+  }, [workingDir])
+
+  const handleCancel = useCallback(() => {
     cancelCurrentRequest()
     setIsLoading(false)
-  }
+  }, [cancelCurrentRequest])
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     cancelCurrentRequest()
     setMessages([])
     setSessionId(null)
     setIsLoading(false)
     setShowHistory(false)
-  }
+  }, [cancelCurrentRequest])
 
-  const handleToggleHistory = async () => {
+  const handleToggleHistory = useCallback(async () => {
     if (showHistory) {
       setShowHistory(false)
       return
@@ -159,9 +252,9 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     } finally {
       setLoadingSessions(false)
     }
-  }
+  }, [showHistory, workingDir])
 
-  const handleLoadSession = async (session: AgentSession) => {
+  const handleLoadSession = useCallback(async (session: AgentSession) => {
     if (!workingDir) return
 
     cancelCurrentRequest()
@@ -178,7 +271,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [workingDir, cancelCurrentRequest])
 
   // Close history dropdown when clicking outside
   useEffect(() => {
@@ -193,23 +286,6 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showHistory])
-
-  const formatSessionDate = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / MS_PER_DAY)
-
-    if (diffDays === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    } else if (diffDays === 1) {
-      return 'Yesterday'
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' })
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-    }
-  }
 
   if (!workingDir) {
     return (
@@ -264,35 +340,20 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
         </div>
       </div>
       <div className="agent-messages">
-        {messages.map((msg, i) => (
-          <div key={i} className={`agent-message agent-message-${msg.role}`}>
-            <div className="agent-message-content">
-              {msg.role === 'assistant' ? (
-                <StyledMarkdown content={msg.content} />
-              ) : (
-                msg.content
-              )}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="agent-message agent-message-assistant">
-            <div className="agent-typing">Thinking...</div>
-          </div>
-        )}
+        <MessageList messages={messages} isLoading={isLoading} />
         <div ref={messagesEndRef} />
       </div>
       <div className="agent-input-area">
-        <textarea
-          ref={inputRef}
-          className="agent-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a question..."
-          disabled={isLoading}
-          rows={2}
-        />
+        <div className="agent-input-wrap">
+          <div ref={mirrorRef} className="agent-input-mirror"> </div>
+          <textarea
+            ref={inputRef}
+            className="agent-input"
+            onKeyDown={handleKeyDown}
+            placeholder="Ask a question..."
+            disabled={isLoading}
+          />
+        </div>
         <div className="agent-input-actions">
           {isLoading ? (
             <button className="agent-cancel-btn" onClick={handleCancel}>
@@ -302,7 +363,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
             <button
               className="agent-send-btn"
               onClick={handleSubmit}
-              disabled={!input.trim()}
+              disabled={!hasInput}
             >
               Send
             </button>
