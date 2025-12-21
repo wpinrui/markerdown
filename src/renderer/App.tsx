@@ -31,10 +31,14 @@ const DEFAULT_SIDEBAR_WIDTH = 280
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 500
 
-// Find a node by path in the tree
+// Normalize path separators to forward slashes for comparison
+const normalizePath = (p: string) => p.replace(/\\/g, '/')
+
+// Find a node by path in the tree (path-separator agnostic)
 function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
+  const normalizedTarget = normalizePath(targetPath)
   for (const node of nodes) {
-    if (node.path === targetPath) return node
+    if (normalizePath(node.path) === normalizedTarget) return node
     if (node.children) {
       const found = findNodeByPath(node.children, targetPath)
       if (found) return found
@@ -286,9 +290,8 @@ function App() {
   useEffect(() => {
     if (!pendingSelectionPath || treeNodes.length === 0) return
 
-    // Find the node with the new path (try both forward and backslash variants)
-    const node = findNodeByPath(treeNodes, pendingSelectionPath) ??
-      findNodeByPath(treeNodes, pendingSelectionPath.replace(/\//g, '\\'))
+    // Find the node with the new path (findNodeByPath is path-separator agnostic)
+    const node = findNodeByPath(treeNodes, pendingSelectionPath)
 
     if (node) {
       setSelectedNode(node)
@@ -316,14 +319,13 @@ function App() {
   useEffect(() => {
     if (!pendingMemberPath || treeNodes.length === 0) return
 
-    // Normalize path separators for comparison
-    const normalizedPendingPath = pendingMemberPath.replace(/\\/g, '/')
+    const normalizedPendingPath = normalizePath(pendingMemberPath)
 
     // Find the entity node that contains the renamed member
     const findEntityWithMember = (nodes: TreeNode[]): { node: TreeNode; member: EntityMember } | null => {
       for (const node of nodes) {
         if (node.entity) {
-          const member = node.entity.members.find((m) => m.path.replace(/\\/g, '/') === normalizedPendingPath)
+          const member = node.entity.members.find((m) => normalizePath(m.path) === normalizedPendingPath)
           if (member) {
             return { node, member }
           }
