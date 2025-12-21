@@ -4,8 +4,6 @@ import { StyledMarkdown } from '../markdownConfig'
 
 const MAX_DISPLAYED_SESSIONS = 20
 const MS_PER_DAY = 1000 * 60 * 60 * 24
-const MIN_TEXTAREA_HEIGHT = 44 // Roughly 2 rows
-const MAX_TEXTAREA_HEIGHT = 200
 
 function formatSessionDate(timestamp: string): string {
   const date = new Date(timestamp)
@@ -212,7 +210,15 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     }
 
     textarea.addEventListener('input', handleInput)
-    return () => textarea.removeEventListener('input', handleInput)
+    return () => {
+      textarea.removeEventListener('input', handleInput)
+      if (inputTimeoutRef.current) {
+        clearTimeout(inputTimeoutRef.current)
+      }
+      if (mirrorTimeoutRef.current) {
+        cancelAnimationFrame(mirrorTimeoutRef.current)
+      }
+    }
   }, [workingDir])
 
   const handleCancel = useCallback(() => {
