@@ -1,9 +1,40 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import type { AgentMessage, AgentSession } from '@shared/types'
 import { StyledMarkdown } from '../markdownConfig'
 
 const MAX_DISPLAYED_SESSIONS = 20
 const MS_PER_DAY = 1000 * 60 * 60 * 24
+const MIN_TEXTAREA_HEIGHT = 44 // Roughly 2 rows
+const MAX_TEXTAREA_HEIGHT = 200
+
+// Memoized message list to prevent re-renders when input changes
+interface MessageListProps {
+  messages: AgentMessage[]
+  isLoading: boolean
+}
+
+const MessageList = memo(function MessageList({ messages, isLoading }: MessageListProps) {
+  return (
+    <>
+      {messages.map((msg, i) => (
+        <div key={i} className={`agent-message agent-message-${msg.role}`}>
+          <div className="agent-message-content">
+            {msg.role === 'assistant' ? (
+              <StyledMarkdown content={msg.content} />
+            ) : (
+              msg.content
+            )}
+          </div>
+        </div>
+      ))}
+      {isLoading && (
+        <div className="agent-message agent-message-assistant">
+          <div className="agent-typing">Thinking...</div>
+        </div>
+      )}
+    </>
+  )
+})
 
 interface AgentPanelProps {
   workingDir: string | null
@@ -121,27 +152,47 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     }
   }, [input, isLoading, workingDir, sessionId, reloadSession])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }
+  }, [handleSubmit])
 
-  const handleCancel = () => {
+  // Auto-resize textarea based on content
+  const resizeTextarea = useCallback(() => {
+    const textarea = inputRef.current
+    if (!textarea) return
+
+    // Reset height to auto to get accurate scrollHeight
+    textarea.style.height = 'auto'
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT), MAX_TEXTAREA_HEIGHT)
+    textarea.style.height = `${newHeight}px`
+  }, [])
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+  }, [])
+
+  // Resize textarea when input changes
+  useEffect(() => {
+    resizeTextarea()
+  }, [input, resizeTextarea])
+
+  const handleCancel = useCallback(() => {
     cancelCurrentRequest()
     setIsLoading(false)
-  }
+  }, [cancelCurrentRequest])
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     cancelCurrentRequest()
     setMessages([])
     setSessionId(null)
     setIsLoading(false)
     setShowHistory(false)
-  }
+  }, [cancelCurrentRequest])
 
-  const handleToggleHistory = async () => {
+  const handleToggleHistory = useCallback(async () => {
     if (showHistory) {
       setShowHistory(false)
       return
@@ -159,9 +210,9 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     } finally {
       setLoadingSessions(false)
     }
-  }
+  }, [showHistory, workingDir])
 
-  const handleLoadSession = async (session: AgentSession) => {
+  const handleLoadSession = useCallback(async (session: AgentSession) => {
     if (!workingDir) return
 
     cancelCurrentRequest()
@@ -178,7 +229,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [workingDir, cancelCurrentRequest])
 
   // Close history dropdown when clicking outside
   useEffect(() => {
@@ -264,22 +315,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
         </div>
       </div>
       <div className="agent-messages">
-        {messages.map((msg, i) => (
-          <div key={i} className={`agent-message agent-message-${msg.role}`}>
-            <div className="agent-message-content">
-              {msg.role === 'assistant' ? (
-                <StyledMarkdown content={msg.content} />
-              ) : (
-                msg.content
-              )}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="agent-message agent-message-assistant">
-            <div className="agent-typing">Thinking...</div>
-          </div>
-        )}
+        <MessageList messages={messages} isLoading={isLoading} />
         <div ref={messagesEndRef} />
       </div>
       <div className="agent-input-area">
@@ -287,11 +323,11 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
           ref={inputRef}
           className="agent-input"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="Ask a question..."
           disabled={isLoading}
-          rows={2}
+          style={{ height: MIN_TEXTAREA_HEIGHT, minHeight: MIN_TEXTAREA_HEIGHT, maxHeight: MAX_TEXTAREA_HEIGHT }}
         />
         <div className="agent-input-actions">
           {isLoading ? (

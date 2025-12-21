@@ -1054,6 +1054,7 @@ audio.media-player {
   font-family: inherit;
   font-size: 13px;
   resize: none;
+  overflow-y: auto;
 }
 
 .agent-input:focus {
