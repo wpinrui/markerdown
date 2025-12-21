@@ -302,6 +302,8 @@ function App() {
         if (isMarkdownFile(memberPath)) {
           window.electronAPI.readFile(memberPath).then((content) => {
             if (content !== null) setFileContent(content)
+          }).catch((err) => {
+            console.error('Failed to read file after rename:', err)
           })
         }
       }
@@ -342,6 +344,8 @@ function App() {
       if (result.member.type === 'markdown') {
         window.electronAPI.readFile(result.member.path).then((content) => {
           if (content !== null) setFileContent(content)
+        }).catch((err) => {
+          console.error('Failed to read file after member rename:', err)
         })
       }
       setPendingMemberPath(null)
