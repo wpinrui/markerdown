@@ -58,18 +58,6 @@ function getDirectChildren(nodes: TreeNode[], parentPath: string | null): TreeNo
   return findChildren(nodes) ?? []
 }
 
-// Find node by path
-function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
-  for (const node of nodes) {
-    if (node.path === targetPath) return node
-    if (node.children) {
-      const found = findNodeByPath(node.children, targetPath)
-      if (found) return found
-    }
-  }
-  return null
-}
-
 // Ensure filename has .md extension
 function ensureMdExtension(filename: string): string {
   return filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`
