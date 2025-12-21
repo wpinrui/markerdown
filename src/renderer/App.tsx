@@ -303,10 +303,9 @@ function App() {
           })
         }
       }
+      // Clear pending selection only after successfully finding the node
+      setPendingSelectionPath(null)
     }
-
-    // Clear pending selection
-    setPendingSelectionPath(null)
   }, [treeNodes, pendingSelectionPath])
 
   // Watch folder for changes
