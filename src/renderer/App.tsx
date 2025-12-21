@@ -721,13 +721,12 @@ function App() {
           }
 
           // Rename sidecar folder if it exists
-          if (node.hasSidecar) {
-            const oldSidecarPath = `${dir}/${node.entity.baseName}`
+          if (node.hasSidecar && node.sidecarName) {
+            const oldSidecarPath = `${dir}/${node.sidecarName}`
             const newSidecarPath = `${dir}/${newName}`
             const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
             if (!result.success) {
-              // Sidecar folder might not exist, ignore error
-              console.warn('Failed to rename sidecar folder:', result.error)
+              setError(`Failed to rename folder: ${result.error}`)
             }
           }
 
@@ -880,9 +879,9 @@ function App() {
       if (parentNode) {
         if (parentNode.isDirectory) {
           targetDir = parentNode.path
-        } else if (parentNode.hasSidecar) {
+        } else if (parentNode.hasSidecar && parentNode.sidecarName) {
           // For sidecar files, the children go in the folder with same base name
-          targetDir = `${getDirname(parentNode.path)}/${stripMdExtension(parentNode.name)}`
+          targetDir = `${getDirname(parentNode.path)}/${parentNode.sidecarName}`
         }
       }
     }
@@ -919,19 +918,19 @@ function App() {
             await moveItem(member.path, `${sidecarDir}/${memberName}`, memberName)
           }
           // Also move entity's sidecar folder if it has children
-          if (childNode.hasSidecar && childNode.children) {
-            const entityBaseName = childNode.entity.baseName
-            const entitySidecarPath = `${getDirname(childNode.path)}/${entityBaseName}`
-            await moveItem(entitySidecarPath, `${sidecarDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+          if (childNode.hasSidecar && childNode.sidecarName && childNode.children) {
+            const sidecarName = childNode.sidecarName
+            const entitySidecarPath = `${getDirname(childNode.path)}/${sidecarName}`
+            await moveItem(entitySidecarPath, `${sidecarDir}/${sidecarName}`, `folder ${sidecarName}`)
           }
-        } else if (childNode?.hasSidecar && childNode.children) {
+        } else if (childNode?.hasSidecar && childNode.sidecarName && childNode.children) {
           // Move markdown file with sidecar
           const childName = getBasename(childPath)
-          const baseName = stripMdExtension(childName)
+          const sidecarName = childNode.sidecarName
           const childDir = getDirname(childPath)
 
           await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
-          await moveItem(`${childDir}/${baseName}`, `${sidecarDir}/${baseName}`, `folder ${baseName}`)
+          await moveItem(`${childDir}/${sidecarName}`, `${sidecarDir}/${sidecarName}`, `folder ${sidecarName}`)
         } else if (childNode?.isDirectory) {
           // Move entire directory
           const dirName = getBasename(childPath)

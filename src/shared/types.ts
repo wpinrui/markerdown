@@ -81,6 +81,7 @@ export interface TreeNode {
   path: string
   isDirectory: boolean
   hasSidecar: boolean // true if this .md file has a matching folder
+  sidecarName?: string // actual folder name (may differ in case from baseName)
   entity?: Entity // if this node represents an entity (grouped files)
   children?: TreeNode[]
   isSuggestion?: 'todos' | 'events' // if this is a suggestion draft file
