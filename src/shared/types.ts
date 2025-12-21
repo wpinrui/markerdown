@@ -158,8 +158,15 @@ export interface EventItem {
   createdAt: string
 }
 
+export interface NewNoteResult {
+  name: string
+  parentPath: string | null
+  childrenPaths: string[]
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
+  openNewNote: (treeNodes: TreeNode[], selectedPath: string | null) => Promise<NewNoteResult | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
   readFile: (filePath: string) => Promise<string | null>
   writeFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>

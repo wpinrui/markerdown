@@ -11,7 +11,6 @@ import { EventPanel } from './components/EventPanel'
 import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar, PaneType } from './components/TopToolbar'
 import { SidebarToolbar } from './components/SidebarToolbar'
-import { NewNoteModal } from './components/NewNoteModal'
 import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { RenameModal } from './components/RenameModal'
@@ -58,7 +57,6 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [showSummarizeModal, setShowSummarizeModal] = useState(false)
   const [showOptionsModal, setShowOptionsModal] = useState(false)
-  const [showNewNoteModal, setShowNewNoteModal] = useState(false)
   const [summarizingPaths, setSummarizingPaths] = useState<Set<string>>(new Set())
   const [showClaudeMd, setShowClaudeMd] = useState(false)
 
@@ -1090,7 +1088,15 @@ function App() {
               )}
             </div>
             <SidebarToolbar
-              onNewNote={() => setShowNewNoteModal(true)}
+              onNewNote={async () => {
+                const result = await window.electronAPI.openNewNote(
+                  treeNodes,
+                  selectedNode?.path ?? null
+                )
+                if (result) {
+                  handleCreateNote(result.name, result.parentPath, result.childrenPaths)
+                }
+              }}
               onOpenFolder={handleOpenInExplorer}
               onOpenOptions={() => setShowOptionsModal(true)}
             />
@@ -1193,13 +1199,6 @@ function App() {
             console.error('Failed to save showClaudeMd setting:', err)
           })
         }}
-      />
-      <NewNoteModal
-        isOpen={showNewNoteModal}
-        onClose={() => setShowNewNoteModal(false)}
-        onSubmit={handleCreateNote}
-        treeNodes={treeNodes}
-        selectedNode={selectedNode}
       />
       {contextMenu && (
         <ContextMenu
