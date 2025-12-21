@@ -764,10 +764,9 @@ function App() {
             setError(`Failed to rename: ${result.error}`)
           } else {
             newSelectionPath = newPath
+            // Rename sidecar folder if it exists (only if file rename succeeded)
+            await renameSidecarIfExists(node, dir, newName)
           }
-
-          // Rename sidecar folder if it exists
-          await renameSidecarIfExists(node, dir, newName)
         }
       }
 
