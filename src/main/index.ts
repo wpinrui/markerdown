@@ -4,7 +4,7 @@ import * as fs from 'fs'
 import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
-import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage } from '../shared/types'
+import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage, TreeNode, NewNoteResult } from '../shared/types'
 import { IMAGES_DIR, MARKERDOWN_DIR } from '../shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
@@ -18,8 +18,8 @@ let watcher: FSWatcher | null = null
 let agentProcess: ChildProcess | null = null
 
 // Data to pass to new note window
-let newNoteData: { treeNodes: unknown[]; selectedPath: string | null } | null = null
-let newNoteResolve: ((result: { name: string; parentPath: string | null; childrenPaths: string[] } | null) => void) | null = null
+let newNoteData: NewNoteRequest | null = null
+let newNoteResolve: ((result: NewNoteResult | null) => void) | null = null
 
 function closeWatcher() {
   if (watcher) {
@@ -756,7 +756,7 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
 
 // New Note Window IPC Handlers
 interface NewNoteRequest {
-  treeNodes: unknown[]
+  treeNodes: TreeNode[]
   selectedPath: string | null
 }
 
@@ -771,7 +771,7 @@ ipcMain.handle('new-note:getInitialData', async () => {
   return newNoteData ?? { treeNodes: [], selectedPath: null }
 })
 
-ipcMain.on('new-note:submit', (_event, result: { name: string; parentPath: string | null; childrenPaths: string[] }) => {
+function closeNewNoteWindow(result: NewNoteResult | null) {
   if (newNoteResolve) {
     newNoteResolve(result)
     newNoteResolve = null
@@ -779,14 +779,12 @@ ipcMain.on('new-note:submit', (_event, result: { name: string; parentPath: strin
   if (newNoteWindow) {
     newNoteWindow.close()
   }
+}
+
+ipcMain.on('new-note:submit', (_event, result: NewNoteResult) => {
+  closeNewNoteWindow(result)
 })
 
 ipcMain.on('new-note:cancel', () => {
-  if (newNoteResolve) {
-    newNoteResolve(null)
-    newNoteResolve = null
-  }
-  if (newNoteWindow) {
-    newNoteWindow.close()
-  }
+  closeNewNoteWindow(null)
 })
