@@ -62,12 +62,12 @@ interface AgentPanelProps {
 
 export function AgentPanel({ workingDir, currentFilePath, onClose, style }: AgentPanelProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([])
-  const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [sessions, setSessions] = useState<AgentSession[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const [hasInput, setHasInput] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const historyRef = useRef<HTMLDivElement>(null)
@@ -121,10 +121,15 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
   }, [])
 
   const handleSubmit = useCallback(async () => {
-    if (!input.trim() || isLoading || !workingDir) return
+    const textarea = inputRef.current
+    if (!textarea) return
 
-    const userMessage = input.trim()
-    setInput('')
+    const userMessage = textarea.value.trim()
+    if (!userMessage || isLoading || !workingDir) return
+
+    textarea.value = ''
+    textarea.style.height = `${MIN_TEXTAREA_HEIGHT}px`
+    setHasInput(false)
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
     isCancelledRef.current = false
@@ -167,7 +172,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     } finally {
       setIsLoading(false)
     }
-  }, [input, isLoading, workingDir, sessionId, reloadSession])
+  }, [isLoading, workingDir, sessionId, currentFilePath, reloadSession])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -176,25 +181,19 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     }
   }, [handleSubmit])
 
-  // Auto-resize textarea based on content
-  const resizeTextarea = useCallback(() => {
-    const textarea = inputRef.current
-    if (!textarea) return
+  // Handle input changes - resize textarea and update hasInput for button state
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const textarea = e.target
+    const hasContent = textarea.value.trim().length > 0
 
-    // Reset height to auto to get accurate scrollHeight
+    // Only update state if hasInput actually changed (avoids unnecessary re-renders)
+    setHasInput((prev) => (prev !== hasContent ? hasContent : prev))
+
+    // Auto-resize textarea
     textarea.style.height = 'auto'
     const newHeight = Math.min(Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT), MAX_TEXTAREA_HEIGHT)
     textarea.style.height = `${newHeight}px`
   }, [])
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value)
-  }, [])
-
-  // Resize textarea when input changes
-  useEffect(() => {
-    resizeTextarea()
-  }, [input, resizeTextarea])
 
   const handleCancel = useCallback(() => {
     cancelCurrentRequest()
@@ -322,7 +321,6 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
         <textarea
           ref={inputRef}
           className="agent-input"
-          value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="Ask a question..."
@@ -338,7 +336,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
             <button
               className="agent-send-btn"
               onClick={handleSubmit}
-              disabled={!input.trim()}
+              disabled={!hasInput}
             >
               Send
             </button>
