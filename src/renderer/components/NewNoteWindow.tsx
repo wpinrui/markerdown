@@ -77,23 +77,29 @@ export function NewNoteWindow() {
   // Load initial data from main process
   useEffect(() => {
     async function loadData() {
-      const data = await window.newNoteAPI.getInitialData()
-      setTreeNodes(data.treeNodes)
-      setParentPath(data.selectedPath)
+      try {
+        const data = await window.newNoteAPI.getInitialData()
+        setTreeNodes(data.treeNodes)
+        setParentPath(data.selectedPath)
 
-      // Generate default name
-      let counter = 1
-      let defaultName = `Untitled${counter}.md`
-      const existingNames = new Set(getAllNodeNames(data.treeNodes))
-      while (existingNames.has(defaultName.toLowerCase())) {
-        counter++
-        defaultName = `Untitled${counter}.md`
+        // Generate default name
+        let counter = 1
+        let defaultName = `Untitled${counter}.md`
+        const existingNames = new Set(getAllNodeNames(data.treeNodes))
+        while (existingNames.has(defaultName.toLowerCase())) {
+          counter++
+          defaultName = `Untitled${counter}.md`
+        }
+        setName(defaultName)
+        setIsLoading(false)
+
+        // Focus name input after load
+        setTimeout(() => nameInputRef.current?.select(), 50)
+      } catch (err) {
+        console.error('Failed to load initial data:', err)
+        // Close the window on error
+        window.newNoteAPI.cancel()
       }
-      setName(defaultName)
-      setIsLoading(false)
-
-      // Focus name input after load
-      setTimeout(() => nameInputRef.current?.select(), 50)
     }
     loadData()
   }, [])

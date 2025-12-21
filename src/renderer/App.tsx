@@ -843,7 +843,7 @@ function App() {
   }, [])
 
   // Create new note handler
-  const handleCreateNote = async (name: string, parentPath: string | null, childrenPaths: string[]) => {
+  const handleCreateNote = useCallback(async (name: string, parentPath: string | null, childrenPaths: string[]) => {
     if (!folderPath) return
 
     // Helper to move a file/folder and report errors
@@ -967,7 +967,15 @@ function App() {
         console.error('Failed to refresh tree after note creation:', err)
       }
     }, TREE_REFRESH_DELAY_MS)
-  }
+  }, [folderPath, treeNodes, showClaudeMd, refreshTree])
+
+  // Open new note dialog helper (avoids duplicating the openNewNote + handleCreateNote pattern)
+  const openNewNoteDialog = useCallback(async (selectedPath: string | null) => {
+    const result = await window.electronAPI.openNewNote(treeNodes, selectedPath)
+    if (result) {
+      handleCreateNote(result.name, result.parentPath, result.childrenPaths)
+    }
+  }, [treeNodes, handleCreateNote])
 
   // Build context menu items based on node type
   const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
@@ -976,12 +984,9 @@ function App() {
     const newChildNoteItem: ContextMenuItem = {
       label: 'New Child Note',
       icon: FilePlus,
-      onClick: async () => {
+      onClick: () => {
         setContextMenu(null)
-        const result = await window.electronAPI.openNewNote(treeNodes, node.path)
-        if (result) {
-          handleCreateNote(result.name, result.parentPath, result.childrenPaths)
-        }
+        openNewNoteDialog(node.path)
       },
     }
 
@@ -1030,7 +1035,7 @@ function App() {
     })
 
     return items
-  }, [handleRevealInExplorer, treeNodes, handleCreateNote])
+  }, [handleRevealInExplorer, openNewNoteDialog])
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
@@ -1123,15 +1128,7 @@ function App() {
               )}
             </div>
             <SidebarToolbar
-              onNewNote={async () => {
-                const result = await window.electronAPI.openNewNote(
-                  treeNodes,
-                  selectedNode?.path ?? null
-                )
-                if (result) {
-                  handleCreateNote(result.name, result.parentPath, result.childrenPaths)
-                }
-              }}
+              onNewNote={() => openNewNoteDialog(selectedNode?.path ?? null)}
               onOpenFolder={handleOpenInExplorer}
               onOpenOptions={() => setShowOptionsModal(true)}
             />
