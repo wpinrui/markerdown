@@ -911,8 +911,19 @@ function App() {
         if (parentNode.isDirectory) {
           targetDir = parentNode.path
         } else if (parentNode.hasSidecar && parentNode.sidecarName) {
-          // For sidecar files, the children go in the folder with same base name
+          // For files with existing sidecars, use the sidecar folder
           targetDir = `${getDirname(parentNode.path)}/${parentNode.sidecarName}`
+        } else {
+          // For files without sidecars, create a sidecar folder
+          const parentDir = getDirname(parentNode.path)
+          const parentBaseName = stripExtension(getBasename(parentNode.path))
+          targetDir = `${parentDir}/${parentBaseName}`
+          // Create the sidecar folder
+          const mkdirResult = await window.electronAPI.mkdir(targetDir)
+          if (!mkdirResult.success) {
+            setError(`Failed to create folder: ${mkdirResult.error}`)
+            return
+          }
         }
       }
     }
