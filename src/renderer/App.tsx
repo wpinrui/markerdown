@@ -23,7 +23,7 @@ import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
-import { Edit3, Trash2, FolderOpen } from 'lucide-react'
+import { Edit3, Trash2, FolderOpen, FilePlus } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
@@ -817,54 +817,6 @@ function App() {
       .map((n) => n.name)
   }, [treeNodes])
 
-  // Build context menu items based on node type
-  const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
-    const items: ContextMenuItem[] = []
-
-    // Directories get Delete and Reveal in Explorer
-    if (node.isDirectory) {
-      items.push({
-        label: 'Delete',
-        icon: Trash2,
-        onClick: () => setDeleteTarget({ node }),
-        danger: true,
-      })
-      items.push({
-        label: 'Reveal in Explorer',
-        icon: FolderOpen,
-        onClick: () => handleRevealInExplorer(node),
-      })
-      return items
-    }
-
-    // Don't show context menu for suggestion drafts
-    if (node.isSuggestion) {
-      return items
-    }
-
-    // Files and entities get Rename, Delete, Reveal
-    items.push({
-      label: 'Rename',
-      icon: Edit3,
-      onClick: () => setRenameTarget({ node }),
-    })
-
-    items.push({
-      label: 'Delete',
-      icon: Trash2,
-      onClick: () => setDeleteTarget({ node }),
-      danger: true,
-    })
-
-    items.push({
-      label: 'Reveal in Explorer',
-      icon: FolderOpen,
-      onClick: () => handleRevealInExplorer(node),
-    })
-
-    return items
-  }, [handleRevealInExplorer])
-
   // Build context menu items for entity tab members
   const getTabContextMenuItems = useCallback((member: EntityMember): ContextMenuItem[] => {
     const items: ContextMenuItem[] = []
@@ -1016,6 +968,77 @@ function App() {
       }
     }, TREE_REFRESH_DELAY_MS)
   }
+
+  // Build context menu items based on node type
+  const getContextMenuItems = useCallback((node: TreeNode): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = []
+
+    // Directories get New Child Note, Delete and Reveal in Explorer
+    if (node.isDirectory) {
+      items.push({
+        label: 'New Child Note',
+        icon: FilePlus,
+        onClick: async () => {
+          setContextMenu(null)
+          const result = await window.electronAPI.openNewNote(treeNodes, node.path)
+          if (result) {
+            handleCreateNote(result.name, result.parentPath, result.childrenPaths)
+          }
+        },
+      })
+      items.push({
+        label: 'Delete',
+        icon: Trash2,
+        onClick: () => setDeleteTarget({ node }),
+        danger: true,
+      })
+      items.push({
+        label: 'Reveal in Explorer',
+        icon: FolderOpen,
+        onClick: () => handleRevealInExplorer(node),
+      })
+      return items
+    }
+
+    // Don't show context menu for suggestion drafts
+    if (node.isSuggestion) {
+      return items
+    }
+
+    // Files and entities get New Child Note, Rename, Delete, Reveal
+    items.push({
+      label: 'New Child Note',
+      icon: FilePlus,
+      onClick: async () => {
+        setContextMenu(null)
+        const result = await window.electronAPI.openNewNote(treeNodes, node.path)
+        if (result) {
+          handleCreateNote(result.name, result.parentPath, result.childrenPaths)
+        }
+      },
+    })
+
+    items.push({
+      label: 'Rename',
+      icon: Edit3,
+      onClick: () => setRenameTarget({ node }),
+    })
+
+    items.push({
+      label: 'Delete',
+      icon: Trash2,
+      onClick: () => setDeleteTarget({ node }),
+      danger: true,
+    })
+
+    items.push({
+      label: 'Reveal in Explorer',
+      icon: FolderOpen,
+      onClick: () => handleRevealInExplorer(node),
+    })
+
+    return items
+  }, [handleRevealInExplorer, treeNodes, handleCreateNote])
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
