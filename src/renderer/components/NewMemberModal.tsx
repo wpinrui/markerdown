@@ -6,6 +6,7 @@ interface NewMemberModalProps {
   onClose: () => void
   onSubmit: (variantName: string) => void
   baseName: string
+  existingVariants: string[]
 }
 
 export function NewMemberModal({
@@ -13,6 +14,7 @@ export function NewMemberModal({
   onClose,
   onSubmit,
   baseName,
+  existingVariants,
 }: NewMemberModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -45,8 +47,11 @@ export function NewMemberModal({
     if (INVALID_FILENAME_CHARS_REGEX.test(value)) {
       return 'Name contains invalid characters'
     }
+    if (existingVariants.map((v) => v.toLowerCase()).includes(value.toLowerCase())) {
+      return 'A variant with this name already exists'
+    }
     return null
-  }, [inputValue])
+  }, [inputValue, existingVariants])
 
   const canSubmit = inputValue.trim() !== '' && !validationError
 

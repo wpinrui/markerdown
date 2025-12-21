@@ -1140,6 +1140,7 @@ function App() {
         onClose={() => setShowNewMemberModal(false)}
         onSubmit={handleNewMemberSubmit}
         baseName={summarizeBaseName}
+        existingVariants={existingVariants}
       />
     </div>
   )
