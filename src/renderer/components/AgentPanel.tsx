@@ -186,6 +186,7 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
 
   // Native input listener for auto-grow (bypasses React's synthetic event system)
   const inputTimeoutRef = useRef<number | null>(null)
+  const mirrorTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     const textarea = inputRef.current
@@ -193,8 +194,13 @@ export function AgentPanel({ workingDir, currentFilePath, onClose, style }: Agen
     if (!textarea || !mirror) return
 
     const handleInput = () => {
-      // Sync value to mirror div for CSS-based auto-grow (add space to prevent collapse on empty)
-      mirror.textContent = textarea.value + ' '
+      // Debounce mirror update to avoid layout thrashing
+      if (mirrorTimeoutRef.current) {
+        cancelAnimationFrame(mirrorTimeoutRef.current)
+      }
+      mirrorTimeoutRef.current = requestAnimationFrame(() => {
+        mirror.textContent = textarea.value + ' '
+      })
 
       // Debounce hasInput state update
       if (inputTimeoutRef.current) {
