@@ -30,11 +30,11 @@ const MIME_TYPES: Record<string, string> = {
 }
 
 export function isMarkdownFile(name: string): boolean {
-  return name.endsWith(MARKDOWN_EXTENSION)
+  return name.toLowerCase().endsWith(MARKDOWN_EXTENSION)
 }
 
 export function isPdfFile(name: string): boolean {
-  return name.endsWith(PDF_EXTENSION)
+  return name.toLowerCase().endsWith(PDF_EXTENSION)
 }
 
 export function getVideoExtension(name: string): string | null {

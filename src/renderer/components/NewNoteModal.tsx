@@ -90,7 +90,7 @@ function getContainingFolder(node: TreeNode | null, nodes: TreeNode[]): string |
 
 // Ensure filename has .md extension
 function ensureMdExtension(filename: string): string {
-  return filename.endsWith('.md') ? filename : `${filename}.md`
+  return filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`
 }
 
 export function NewNoteModal({ isOpen, onClose, onSubmit, treeNodes, selectedNode }: NewNoteModalProps) {

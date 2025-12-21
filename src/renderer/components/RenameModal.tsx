@@ -101,10 +101,10 @@ export function RenameModal({
 
     if (mode === 'member') {
       // Suffix can be empty (becomes default member)
-      // Check for conflicts with other variants
-      if (entity) {
+      // Check for conflicts with other variants of the same file type
+      if (entity && member) {
         const otherVariants = entity.members
-          .filter((m) => m.path !== member?.path)
+          .filter((m) => m.path !== member.path && m.type === member.type)
           .map((m) => m.variant ?? '')
         if (otherVariants.includes(value)) {
           return { type: 'error' as const, message: 'A variant with this suffix already exists' }
