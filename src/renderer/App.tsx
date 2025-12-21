@@ -70,6 +70,8 @@ function App() {
   const [renameTarget, setRenameTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
   // After rename, store the new path to re-select once tree refreshes
   const [pendingSelectionPath, setPendingSelectionPath] = useState<string | null>(null)
+  // For member rename, store the new member path to set as active after refresh
+  const [pendingMemberPath, setPendingMemberPath] = useState<string | null>(null)
 
   // New member modal state
   const [showNewMemberModal, setShowNewMemberModal] = useState(false)
@@ -307,6 +309,44 @@ function App() {
       setPendingSelectionPath(null)
     }
   }, [treeNodes, pendingSelectionPath])
+
+  // Handle pending member selection after member rename
+  useEffect(() => {
+    if (!pendingMemberPath || treeNodes.length === 0) return
+
+    // Normalize path separators for comparison
+    const normalizedPendingPath = pendingMemberPath.replace(/\\/g, '/')
+
+    // Find the entity node that contains the renamed member
+    const findEntityWithMember = (nodes: TreeNode[]): { node: TreeNode; member: EntityMember } | null => {
+      for (const node of nodes) {
+        if (node.entity) {
+          const member = node.entity.members.find((m) => m.path.replace(/\\/g, '/') === normalizedPendingPath)
+          if (member) {
+            return { node, member }
+          }
+        }
+        if (node.children) {
+          const found = findEntityWithMember(node.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    const result = findEntityWithMember(treeNodes)
+    if (result) {
+      setSelectedNode(result.node)
+      setActiveMember(result.member)
+      // Load file content for the member
+      if (result.member.type === 'markdown') {
+        window.electronAPI.readFile(result.member.path).then((content) => {
+          if (content !== null) setFileContent(content)
+        })
+      }
+      setPendingMemberPath(null)
+    }
+  }, [treeNodes, pendingMemberPath])
 
   // Watch folder for changes
   const activeFilePathRef = useRef<string | null>(null)
@@ -638,8 +678,8 @@ function App() {
         if (!result.success) {
           setError(`Failed to rename: ${result.error}`)
         } else {
-          // Keep same entity selected, just update active member path
-          newSelectionPath = selectedNode.path
+          // Track the new member path to set as active after tree refresh
+          setPendingMemberPath(newPath)
         }
       }
       // Renaming a tree node (entity or file)
