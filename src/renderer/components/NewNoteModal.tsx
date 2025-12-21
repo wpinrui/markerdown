@@ -22,12 +22,13 @@ function getAllNodeNames(nodes: TreeNode[]): string[] {
   return result
 }
 
-// Get all folder-like nodes (directories and sidecars) for parent selection
+// Get all folder-like nodes (directories, sidecars, and markdown files) for parent selection
 function getSelectableParents(nodes: TreeNode[], depth = 0): Array<{ node: TreeNode; depth: number }> {
   const result: Array<{ node: TreeNode; depth: number }> = []
   for (const node of nodes) {
-    // Allow selecting directories or files with sidecars (they have children)
-    if (node.isDirectory || node.hasSidecar) {
+    const isMarkdown = !node.isDirectory && node.name.toLowerCase().endsWith('.md')
+    // Allow selecting directories, files with sidecars, or markdown files (which can become parents)
+    if (node.isDirectory || node.hasSidecar || isMarkdown) {
       result.push({ node, depth })
       if (node.children) {
         result.push(...getSelectableParents(node.children, depth + 1))
@@ -79,8 +80,9 @@ function findParentPath(nodes: TreeNode[], targetPath: string, currentParent: st
 function getContainingFolder(node: TreeNode | null, nodes: TreeNode[]): string | null {
   if (!node) return null
 
-  // If the node is a directory or has a sidecar, use it as parent
-  if (node.isDirectory || node.hasSidecar) {
+  const isMarkdown = !node.isDirectory && node.name.toLowerCase().endsWith('.md')
+  // If the node is a directory, has a sidecar, or is a markdown file, use it as parent
+  if (node.isDirectory || node.hasSidecar || isMarkdown) {
     return node.path
   }
 
