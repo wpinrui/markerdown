@@ -21,7 +21,7 @@ import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
-import { getBasename, getDirname, getExtension, stripExtension } from '@shared/pathUtils'
+import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
 import { Edit3, Trash2, FolderOpen } from 'lucide-react'
@@ -30,9 +30,6 @@ const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 500
-
-// Normalize path separators to forward slashes for comparison
-const normalizePath = (p: string) => p.replace(/\\/g, '/')
 
 // Find a node by path in the tree (path-separator agnostic)
 function findNodeByPath(nodes: TreeNode[], targetPath: string): TreeNode | null {
@@ -54,6 +51,7 @@ const TREE_REFRESH_DELAY_MS = 100
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([])
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null)
   const [activeMember, setActiveMember] = useState<EntityMember | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
@@ -597,6 +595,19 @@ function App() {
     setContextMenu(null)
   }, [])
 
+  const handleToggleExpand = useCallback((path: string) => {
+    const normalized = normalizePath(path)
+    setExpandedPaths((prev) => {
+      const next = new Set(prev)
+      if (next.has(normalized)) {
+        next.delete(normalized)
+      } else {
+        next.add(normalized)
+      }
+      return next
+    })
+  }, [])
+
   const handleRevealInExplorer = useCallback(async (node: TreeNode) => {
     // Get the path to reveal - for entities use the first member's path
     const pathToReveal = node.entity?.members[0]?.path ?? node.path
@@ -682,6 +693,18 @@ function App() {
 
     let newSelectionPath: string | null = null
 
+    // Helper to rename sidecar folder if it exists
+    const renameSidecarIfExists = async (node: TreeNode, dir: string, newName: string) => {
+      if (node.hasSidecar && node.sidecarName) {
+        const oldSidecarPath = `${dir}/${node.sidecarName}`
+        const newSidecarPath = `${dir}/${newName}`
+        const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
+        if (!result.success) {
+          setError(`Failed to rename folder: ${result.error}`)
+        }
+      }
+    }
+
     try {
       // Renaming a specific entity member suffix
       if (renameTarget.member && selectedNode?.entity) {
@@ -721,15 +744,7 @@ function App() {
           }
 
           // Rename sidecar folder if it exists
-          if (node.hasSidecar) {
-            const oldSidecarPath = `${dir}/${node.entity.baseName}`
-            const newSidecarPath = `${dir}/${newName}`
-            const result = await window.electronAPI.move(oldSidecarPath, newSidecarPath)
-            if (!result.success) {
-              // Sidecar folder might not exist, ignore error
-              console.warn('Failed to rename sidecar folder:', result.error)
-            }
-          }
+          await renameSidecarIfExists(node, dir, newName)
 
           // New entity path uses the default member's new path
           const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
@@ -749,6 +764,8 @@ function App() {
             setError(`Failed to rename: ${result.error}`)
           } else {
             newSelectionPath = newPath
+            // Rename sidecar folder if it exists (only if file rename succeeded)
+            await renameSidecarIfExists(node, dir, newName)
           }
         }
       }
@@ -756,6 +773,21 @@ function App() {
       // Store pending selection to re-select after tree refresh
       if (newSelectionPath) {
         setPendingSelectionPath(newSelectionPath)
+      }
+
+      // Preserve expansion state: if old path was expanded, expand the new path
+      if (renameTarget.node && newSelectionPath) {
+        const oldPath = normalizePath(renameTarget.node.path)
+        const newPath = normalizePath(newSelectionPath)
+        setExpandedPaths((prev) => {
+          if (prev.has(oldPath)) {
+            const next = new Set(prev)
+            next.delete(oldPath)
+            next.add(newPath)
+            return next
+          }
+          return prev
+        })
       }
 
       // File watcher will refresh tree automatically
@@ -880,9 +912,9 @@ function App() {
       if (parentNode) {
         if (parentNode.isDirectory) {
           targetDir = parentNode.path
-        } else if (parentNode.hasSidecar) {
+        } else if (parentNode.hasSidecar && parentNode.sidecarName) {
           // For sidecar files, the children go in the folder with same base name
-          targetDir = `${getDirname(parentNode.path)}/${stripMdExtension(parentNode.name)}`
+          targetDir = `${getDirname(parentNode.path)}/${parentNode.sidecarName}`
         }
       }
     }
@@ -919,19 +951,19 @@ function App() {
             await moveItem(member.path, `${sidecarDir}/${memberName}`, memberName)
           }
           // Also move entity's sidecar folder if it has children
-          if (childNode.hasSidecar && childNode.children) {
-            const entityBaseName = childNode.entity.baseName
-            const entitySidecarPath = `${getDirname(childNode.path)}/${entityBaseName}`
-            await moveItem(entitySidecarPath, `${sidecarDir}/${entityBaseName}`, `folder ${entityBaseName}`)
+          if (childNode.hasSidecar && childNode.sidecarName && childNode.children) {
+            const sidecarName = childNode.sidecarName
+            const entitySidecarPath = `${getDirname(childNode.path)}/${sidecarName}`
+            await moveItem(entitySidecarPath, `${sidecarDir}/${sidecarName}`, `folder ${sidecarName}`)
           }
-        } else if (childNode?.hasSidecar && childNode.children) {
+        } else if (childNode?.hasSidecar && childNode.sidecarName && childNode.children) {
           // Move markdown file with sidecar
           const childName = getBasename(childPath)
-          const baseName = stripMdExtension(childName)
+          const sidecarName = childNode.sidecarName
           const childDir = getDirname(childPath)
 
           await moveItem(childPath, `${sidecarDir}/${childName}`, childName)
-          await moveItem(`${childDir}/${baseName}`, `${sidecarDir}/${baseName}`, `folder ${baseName}`)
+          await moveItem(`${childDir}/${sidecarName}`, `${sidecarDir}/${sidecarName}`, `folder ${sidecarName}`)
         } else if (childNode?.isDirectory) {
           // Move entire directory
           const dirName = getBasename(childPath)
@@ -1047,7 +1079,9 @@ function App() {
                 <TreeView
                   nodes={filteredTreeNodes}
                   selectedPath={selectedNode?.path ?? null}
+                  expandedPaths={expandedPaths}
                   onSelect={handleSelectNode}
+                  onToggleExpand={handleToggleExpand}
                   summarizingPaths={summarizingPaths}
                   onContextMenu={handleTreeContextMenu}
                 />

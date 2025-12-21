@@ -152,8 +152,8 @@ export async function buildFileTree(
     }
   }
 
-  // Build a set of directory names for quick lookup
-  const dirNames = new Set(dirs.map((d) => d.name))
+  // Build a case-insensitive map of directory names for quick lookup (Windows is case-insensitive)
+  const dirNameMap = new Map(dirs.map((d) => [d.name.toLowerCase(), d.name]))
 
   const nodes: TreeNode[] = []
   const processedDirs = new Set<string>()
@@ -180,21 +180,24 @@ export async function buildFileTree(
         }
 
         // This is the entity's representative file - create the entity node
-        const hasSidecar = dirNames.has(entity.baseName)
+        // Use case-insensitive lookup for sidecar folder (Windows file system is case-insensitive)
+        const sidecarFolderName = dirNameMap.get(entity.baseName.toLowerCase())
+        const hasSidecar = !!sidecarFolderName
 
         const node: TreeNode = {
           name: file.name,
           path: representativePath,
           isDirectory: false,
           hasSidecar,
+          sidecarName: sidecarFolderName,
           entity,
         }
 
         // If there's a sidecar folder, recursively get its contents as children
         if (hasSidecar) {
-          const sidecarDir = dirs.find((d) => d.name === entity.baseName)!
+          const sidecarDir = dirs.find((d) => d.name === sidecarFolderName)!
           node.children = await buildFileTree(sidecarDir.path, readDirectory, options)
-          processedDirs.add(entity.baseName)
+          processedDirs.add(sidecarFolderName)
         }
 
         nodes.push(node)
@@ -205,19 +208,22 @@ export async function buildFileTree(
 
     // Regular file (not part of an entity)
     const baseName = file.fullBaseName
-    const hasSidecar = dirNames.has(baseName)
+    // Use case-insensitive lookup for sidecar folder (Windows file system is case-insensitive)
+    const sidecarFolderName = dirNameMap.get(baseName.toLowerCase())
+    const hasSidecar = !!sidecarFolderName
 
     const node: TreeNode = {
       name: file.name,
       path: file.path,
       isDirectory: false,
       hasSidecar,
+      sidecarName: sidecarFolderName,
     }
 
     if (hasSidecar) {
-      const sidecarDir = dirs.find((d) => d.name === baseName)!
+      const sidecarDir = dirs.find((d) => d.name === sidecarFolderName)!
       node.children = await buildFileTree(sidecarDir.path, readDirectory, options)
-      processedDirs.add(baseName)
+      processedDirs.add(sidecarFolderName)
     }
 
     nodes.push(node)

@@ -28,3 +28,8 @@ export function stripExtension(filename: string): string {
   const lastDot = filename.lastIndexOf('.')
   return lastDot !== -1 ? filename.substring(0, lastDot) : filename
 }
+
+/** Normalize path separators to forward slashes for consistent comparison */
+export function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/')
+}
