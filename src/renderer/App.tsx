@@ -711,7 +711,7 @@ function App() {
         const member = renameTarget.member
         const entity = selectedNode.entity
         const dir = getDirname(member.path)
-        const ext = member.type === 'pdf' ? '.pdf' : '.md'
+        const ext = getExtension(member.path)
         const newFileName = newName ? `${entity.baseName}.${newName}${ext}` : `${entity.baseName}${ext}`
         const newPath = `${dir}/${newFileName}`
 
@@ -732,7 +732,7 @@ function App() {
         if (node.entity) {
           for (const member of node.entity.members) {
             const oldName = getBasename(member.path)
-            const ext = member.type === 'pdf' ? '.pdf' : '.md'
+            const ext = getExtension(member.path)
             const variant = member.variant
             const newFileName = variant ? `${newName}.${variant}${ext}` : `${newName}${ext}`
             const newPath = `${dir}/${newFileName}`
@@ -748,7 +748,7 @@ function App() {
 
           // New entity path uses the default member's new path
           const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
-          const ext = defaultMember.type === 'pdf' ? '.pdf' : '.md'
+          const ext = getExtension(defaultMember.path)
           const variant = defaultMember.variant
           const newFileName = variant ? `${newName}.${variant}${ext}` : `${newName}${ext}`
           newSelectionPath = `${dir}/${newFileName}`
