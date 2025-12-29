@@ -846,6 +846,26 @@ function App() {
     handleReparent(draggedPath, targetNode)
   }, [handleReparent])
 
+  // Helper: copy external files to a destination folder
+  const copyExternalFilesToFolder = useCallback(async (filePaths: string[], destFolder: string) => {
+    for (const sourcePath of filePaths) {
+      const fileName = getBasename(sourcePath)
+      const destPath = `${destFolder}/${fileName}`
+
+      const exists = await window.electronAPI.exists(destPath)
+      if (exists) {
+        setError(`A file named "${fileName}" already exists in the target location`)
+        continue
+      }
+
+      const result = await window.electronAPI.copyFile(sourcePath, destPath)
+      if (!result.success) {
+        setError(`Failed to copy file: ${result.error}`)
+      }
+    }
+    refreshTree()
+  }, [refreshTree])
+
   // Handle external file drop onto a tree item
   const handleExternalFileDrop = useCallback(async (filePaths: string[], targetNode: TreeNode) => {
     if (!folderPath || filePaths.length === 0) return
@@ -862,51 +882,14 @@ function App() {
       return
     }
 
-    // Copy each file to the sidecar folder
-    for (const sourcePath of filePaths) {
-      const fileName = getBasename(sourcePath)
-      const destPath = `${sidecarPath}/${fileName}`
-
-      // Check if file already exists
-      const exists = await window.electronAPI.exists(destPath)
-      if (exists) {
-        setError(`A file named "${fileName}" already exists in the target location`)
-        continue
-      }
-
-      const result = await window.electronAPI.copyFile(sourcePath, destPath)
-      if (!result.success) {
-        setError(`Failed to copy file: ${result.error}`)
-      }
-    }
-
-    // Refresh tree and select the first copied file
-    refreshTree()
-  }, [folderPath, refreshTree])
+    await copyExternalFilesToFolder(filePaths, sidecarPath)
+  }, [folderPath, copyExternalFilesToFolder])
 
   // Handle external file drop to root level
   const handleExternalFileDropToRoot = useCallback(async (filePaths: string[]) => {
     if (!folderPath || filePaths.length === 0) return
-
-    for (const sourcePath of filePaths) {
-      const fileName = getBasename(sourcePath)
-      const destPath = `${folderPath}/${fileName}`
-
-      // Check if file already exists
-      const exists = await window.electronAPI.exists(destPath)
-      if (exists) {
-        setError(`A file named "${fileName}" already exists in the target location`)
-        continue
-      }
-
-      const result = await window.electronAPI.copyFile(sourcePath, destPath)
-      if (!result.success) {
-        setError(`Failed to copy file: ${result.error}`)
-      }
-    }
-
-    refreshTree()
-  }, [folderPath, refreshTree])
+    await copyExternalFilesToFolder(filePaths, folderPath)
+  }, [folderPath, copyExternalFilesToFolder])
 
   // Move a file to root level (out of its current sidecar folder)
   const handleMoveToRoot = useCallback(async (node: TreeNode) => {
