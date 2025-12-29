@@ -1,12 +1,13 @@
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
+import rehypeRaw from 'rehype-raw'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { LOCAL_IMAGE_PROTOCOL } from './utils/imageUtils'
 
 const REMARK_PLUGINS = [remarkGfm, remarkMath]
-const REHYPE_PLUGINS = [rehypeKatex]
+const REHYPE_PLUGINS = [rehypeRaw, rehypeKatex]
 
 interface StyledMarkdownProps {
   content: string
