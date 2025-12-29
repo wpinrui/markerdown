@@ -86,6 +86,7 @@ async function ensureClaudeMd(workingDir: string): Promise<void> {
 interface Settings {
   lastFolder?: string
   showClaudeMd?: boolean
+  expandedPaths?: string[]
 }
 
 function loadSettings(): Settings {
@@ -291,6 +292,16 @@ ipcMain.handle('settings:getShowClaudeMd', () => {
 ipcMain.handle('settings:setShowClaudeMd', (_event, show: boolean) => {
   const settings = loadSettings()
   settings.showClaudeMd = show
+  saveSettings(settings)
+})
+
+ipcMain.handle('settings:getExpandedPaths', () => {
+  return loadSettings().expandedPaths ?? []
+})
+
+ipcMain.handle('settings:setExpandedPaths', (_event, paths: string[]) => {
+  const settings = loadSettings()
+  settings.expandedPaths = paths
   saveSettings(settings)
 })
 

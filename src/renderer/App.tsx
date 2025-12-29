@@ -234,7 +234,21 @@ function App() {
     }).catch((err) => {
       console.error('Failed to load showClaudeMd setting:', err)
     })
+    window.electronAPI.getExpandedPaths().then((paths) => {
+      if (paths.length > 0) {
+        setExpandedPaths(new Set(paths))
+      }
+    }).catch((err) => {
+      console.error('Failed to load expanded paths:', err)
+    })
   }, [])
+
+  // Save expanded paths when they change
+  useEffect(() => {
+    window.electronAPI.setExpandedPaths([...expandedPaths]).catch((err) => {
+      console.error('Failed to save expanded paths:', err)
+    })
+  }, [expandedPaths])
 
   // Pane toggle helper
   const handlePaneToggle = useCallback((pane: PaneType) => {
