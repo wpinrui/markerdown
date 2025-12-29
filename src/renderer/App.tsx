@@ -1483,9 +1483,7 @@ function App() {
                     onDragEnter={handleDragEnterTarget}
                     onDragLeave={handleDragLeaveTarget}
                     onDrop={handleDrop}
-                    onDropToRoot={handleDropToRoot}
                     dropTargetPath={dropTargetPath}
-                    dropTargetIsRoot={dropTargetPath === '__ROOT__'}
                     draggedPath={draggedNode?.path ?? null}
                   />
                 ) : (

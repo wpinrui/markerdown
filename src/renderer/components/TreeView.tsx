@@ -19,56 +19,13 @@ interface TreeViewProps {
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
   onDrop?: (draggedPath: string, targetNode: TreeNode) => void
-  onDropToRoot?: (draggedPath: string) => void
   dropTargetPath?: string | null
-  dropTargetIsRoot?: boolean
   draggedPath?: string | null
 }
 
-export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, onDropToRoot, dropTargetPath, dropTargetIsRoot, draggedPath }: TreeViewProps) {
-  const handleRootDragOver = (e: React.DragEvent) => {
-    if (!draggedPath) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-
-  const handleRootDragEnter = (e: React.DragEvent) => {
-    if (!draggedPath) return
-    e.preventDefault()
-    onDragEnter?.('__ROOT__')
-  }
-
-  const handleRootDragLeave = (e: React.DragEvent) => {
-    const relatedTarget = e.relatedTarget as HTMLElement | null
-    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
-      onDragLeave?.()
-    }
-  }
-
-  const handleRootDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const draggedNodePath = e.dataTransfer.getData('text/plain')
-    if (!draggedNodePath) return
-    onDropToRoot?.(draggedNodePath)
-  }
-
-  const rootDropClasses = [
-    'tree-root-drop-zone',
-    dropTargetIsRoot && 'drop-target',
-  ].filter(Boolean).join(' ')
-
+export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeViewProps) {
   return (
     <div className="tree-view">
-      <div
-        className={rootDropClasses}
-        onDragOver={handleRootDragOver}
-        onDragEnter={handleRootDragEnter}
-        onDragLeave={handleRootDragLeave}
-        onDrop={handleRootDrop}
-      >
-        📁 Root
-      </div>
       {nodes.map((node) => (
         <TreeItem
           key={node.path}
