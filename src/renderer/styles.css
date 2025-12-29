@@ -297,6 +297,15 @@ body {
   color: #d4d4d4;
 }
 
+.sidebar-toolbar-btn.active {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.sidebar-toolbar-btn.active:hover {
+  background-color: #1177bb;
+}
+
 .content {
   flex: 1;
   display: flex;
@@ -389,6 +398,23 @@ body {
   background-color: rgba(14, 99, 156, 0.4);
   outline: 2px solid #0e639c;
   outline-offset: -2px;
+}
+
+/* Archived items - muted appearance */
+.tree-item-row.archived {
+  opacity: 0.5;
+}
+
+.tree-item-row.archived .tree-name {
+  font-style: italic;
+}
+
+.tree-item-row.archived:hover {
+  opacity: 0.7;
+}
+
+.tree-item-row.archived.selected {
+  opacity: 0.8;
 }
 
 .tree-chevron {
