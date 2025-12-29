@@ -158,55 +158,45 @@ function App() {
 
   // Handle content search result click - navigate to file
   const handleSearchResultClick = useCallback((filePath: string, _lineNumber: number) => {
-    // Find the node in the tree
     const node = findNodeByPath(treeNodes, filePath)
-    if (node) {
-      // Expand parent folders to show the node
-      const pathParts = filePath.split(/[/\\]/)
-      const pathsToExpand = new Set<string>()
-      let currentPath = ''
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        currentPath = currentPath ? `${currentPath}/${pathParts[i]}` : pathParts[i]
-        // Find matching expanded path (handle different separators)
-        for (const existingPath of [...expandedPaths, filePath]) {
-          if (normalizePath(existingPath).startsWith(normalizePath(currentPath))) {
-            const matchingPrefix = existingPath.substring(0, currentPath.length + (existingPath[currentPath.length] === '/' || existingPath[currentPath.length] === '\\' ? 0 : 0))
-            if (matchingPrefix) {
-              // Build the actual path from the tree
-              const parentNode = findNodeByPath(treeNodes, currentPath)
-              if (parentNode) {
-                pathsToExpand.add(parentNode.path)
-              }
-            }
-          }
-        }
-      }
+    if (!node) return
 
-      // Expand all parent directories
-      if (pathsToExpand.size > 0) {
-        setExpandedPaths((prev) => {
-          const next = new Set(prev)
-          for (const p of pathsToExpand) {
-            next.add(p)
-          }
-          return next
-        })
+    // Expand parent directories by walking up the path
+    const pathsToExpand: string[] = []
+    let parentPath = getDirname(filePath)
+    while (parentPath && parentPath !== filePath) {
+      const parentNode = findNodeByPath(treeNodes, parentPath)
+      if (parentNode?.isDirectory) {
+        pathsToExpand.push(parentNode.path)
       }
-
-      // Select the node
-      setSelectedNode(node)
-      if (node.entity) {
-        const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
-        setActiveMember(defaultMember)
-      } else {
-        setActiveMember(null)
-      }
-
-      // Update window title
-      const filename = node.entity?.baseName || getBasename(node.path)
-      window.electronAPI.setWindowTitle(`${filename} - Markerdown`).catch(console.error)
+      const nextParent = getDirname(parentPath)
+      if (nextParent === parentPath) break // Reached root
+      parentPath = nextParent
     }
-  }, [treeNodes, expandedPaths])
+
+    if (pathsToExpand.length > 0) {
+      setExpandedPaths((prev) => {
+        const next = new Set(prev)
+        for (const p of pathsToExpand) {
+          next.add(p)
+        }
+        return next
+      })
+    }
+
+    // Select the node
+    setSelectedNode(node)
+    if (node.entity) {
+      const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
+      setActiveMember(defaultMember)
+    } else {
+      setActiveMember(null)
+    }
+
+    // Update window title
+    const filename = node.entity?.baseName || getBasename(node.path)
+    window.electronAPI.setWindowTitle(`${filename} - Markerdown`).catch(console.error)
+  }, [treeNodes])
 
   // Editor state
   const [editMode, setEditMode] = useState<EditMode>('view')
