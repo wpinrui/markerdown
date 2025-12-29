@@ -1452,7 +1452,7 @@ function App() {
   const handleNewMemberSubmit = async (variantName: string) => {
     if (!selectedNode || !folderPath) return
 
-    const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(selectedNode.name))
+    const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(stripImageExtension(selectedNode.name)))
     const dirPath = getDirname(selectedNode.path)
     const newFilePath = `${dirPath}/${baseName}.${variantName}.md`
 
