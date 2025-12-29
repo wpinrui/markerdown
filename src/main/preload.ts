@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:delete', filePath),
   deleteDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('fs:deleteDir', dirPath),
+  copyFile: (sourcePath: string, destPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('fs:copyFile', sourcePath, destPath),
   saveImage: (markdownFilePath: string, imageData: string, extension: string): Promise<{ success: boolean; relativePath?: string; error?: string }> =>
     ipcRenderer.invoke('fs:saveImage', markdownFilePath, imageData, extension),
   onFileChange: (callback: (event: FileChangeEvent) => void): (() => void) => {
