@@ -716,7 +716,7 @@ function App() {
 
   // For entities, use entity members; for standalone files, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
-  // For entities, use baseName; for standalone files, strip .pdf/.md/.image extensions
+  // For entities, use baseName; for standalone files, strip .pdf/.md/image extensions
   const summarizeBaseName = selectedNode?.entity?.baseName
     ?? (selectedNode ? stripMdExtension(stripPdfExtension(stripImageExtension(selectedNode.name))) : '')
 
