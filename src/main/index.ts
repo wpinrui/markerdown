@@ -7,7 +7,6 @@ import chokidar, { FSWatcher } from 'chokidar'
 import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage, TreeNode, NewNoteResult, SearchResult, SearchMatch } from '../shared/types'
 import { IMAGES_DIR, MARKERDOWN_DIR } from '../shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
-import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
 import * as os from 'os'
 import * as readline from 'readline'
 import type { ChildProcess } from 'child_process'
@@ -178,13 +177,11 @@ function createNewNoteWindow(): Promise<{ name: string; parentPath: string | nul
 app.whenReady().then(() => {
   // Register custom protocol to serve local images
   protocol.registerFileProtocol('local-image', (request, callback) => {
-    const url = request.url.replace(LOCAL_IMAGE_PROTOCOL, '')
-    try {
-      return callback(decodeURIComponent(url))
-    } catch (error) {
-      console.error('Error loading local image:', error)
-      return callback({ error: -2 }) // FILE_NOT_FOUND
-    }
+    const url = new URL(request.url)
+    const filePath = decodeURIComponent(url.pathname)
+    // On Windows, pathname starts with / so we get /C:/... -> C:/...
+    const normalizedPath = process.platform === 'win32' ? filePath.slice(1) : filePath
+    callback(normalizedPath)
   })
 
   // Handle media:// protocol for local video/audio files
