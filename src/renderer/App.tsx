@@ -778,6 +778,24 @@ function App() {
     const sidecarPath = `${targetDir}/${targetBaseName}`
     const destPath = `${sidecarPath}/${draggedName}`
 
+    // Check if destination file already exists
+    const fileExists = await window.electronAPI.exists(destPath)
+    if (fileExists) {
+      setError(`A file named "${draggedName}" already exists in the target location`)
+      return
+    }
+
+    // If dragged node has a sidecar, check if sidecar destination exists
+    const hasSidecar = actualDraggedNode.hasSidecar && actualDraggedNode.sidecarName
+    const destSidecarPath = hasSidecar ? `${sidecarPath}/${actualDraggedNode.sidecarName}` : null
+    if (destSidecarPath) {
+      const sidecarExists = await window.electronAPI.exists(destSidecarPath)
+      if (sidecarExists) {
+        setError(`A folder named "${actualDraggedNode.sidecarName}" already exists in the target location`)
+        return
+      }
+    }
+
     // Create sidecar folder (recursive: true means it won't fail if it exists)
     const mkdirResult = await window.electronAPI.mkdir(sidecarPath)
     if (!mkdirResult.success) {
@@ -793,10 +811,13 @@ function App() {
     }
 
     // If the dragged node has a sidecar folder, move it too
-    if (actualDraggedNode.hasSidecar && actualDraggedNode.sidecarName) {
+    if (hasSidecar && destSidecarPath) {
       const draggedSidecarPath = `${getDirname(draggedNodePath)}/${actualDraggedNode.sidecarName}`
-      const destSidecarPath = `${sidecarPath}/${actualDraggedNode.sidecarName}`
-      await window.electronAPI.move(draggedSidecarPath, destSidecarPath)
+      const sidecarMoveResult = await window.electronAPI.move(draggedSidecarPath, destSidecarPath)
+      if (!sidecarMoveResult.success) {
+        setError(`File moved but sidecar folder failed to move: ${sidecarMoveResult.error}`)
+        return
+      }
     }
 
     // Set pending selection to the new path so it stays selected after refresh
@@ -827,6 +848,17 @@ function App() {
       return
     }
 
+    // If node has a sidecar, check if sidecar destination exists at root
+    const hasSidecar = node.hasSidecar && node.sidecarName
+    const destSidecarPath = hasSidecar ? `${folderPath}/${node.sidecarName}` : null
+    if (destSidecarPath) {
+      const sidecarExists = await window.electronAPI.exists(destSidecarPath)
+      if (sidecarExists) {
+        setError(`A folder named "${node.sidecarName}" already exists at the root level`)
+        return
+      }
+    }
+
     // Move the file to root
     const moveResult = await window.electronAPI.move(node.path, destPath)
     if (!moveResult.success) {
@@ -835,10 +867,13 @@ function App() {
     }
 
     // If the node has a sidecar folder, move it too
-    if (node.hasSidecar && node.sidecarName) {
+    if (hasSidecar && destSidecarPath) {
       const sidecarPath = `${getDirname(node.path)}/${node.sidecarName}`
-      const destSidecarPath = `${folderPath}/${node.sidecarName}`
-      await window.electronAPI.move(sidecarPath, destSidecarPath)
+      const sidecarMoveResult = await window.electronAPI.move(sidecarPath, destSidecarPath)
+      if (!sidecarMoveResult.success) {
+        setError(`File moved but sidecar folder failed to move: ${sidecarMoveResult.error}`)
+        return
+      }
     }
 
     // Set pending selection to the new path
