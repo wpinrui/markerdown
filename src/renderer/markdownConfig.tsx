@@ -1,4 +1,4 @@
-import Markdown from 'react-markdown'
+import Markdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeRaw from 'rehype-raw'
@@ -29,12 +29,33 @@ function allowLocalImageProtocol(url: string): string {
   return ''
 }
 
+// Custom link component that opens external URLs in the default browser
+const ExternalLink: Components['a'] = ({ href, children, ...props }) => {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+      e.preventDefault()
+      window.electronAPI.openExternal(href)
+    }
+  }
+
+  return (
+    <a href={href} onClick={handleClick} {...props}>
+      {children}
+    </a>
+  )
+}
+
+const MARKDOWN_COMPONENTS: Components = {
+  a: ExternalLink,
+}
+
 export function StyledMarkdown({ content }: StyledMarkdownProps) {
   return (
     <Markdown
       remarkPlugins={REMARK_PLUGINS}
       rehypePlugins={REHYPE_PLUGINS}
       urlTransform={allowLocalImageProtocol}
+      components={MARKDOWN_COMPONENTS}
     >
       {content}
     </Markdown>

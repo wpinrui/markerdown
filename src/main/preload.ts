@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unwatchFolder: (): Promise<void> => ipcRenderer.invoke('fs:unwatchFolder'),
   openInExplorer: (folderPath: string): Promise<void> =>
     ipcRenderer.invoke('shell:openInExplorer', folderPath),
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('shell:openExternal', url),
   mkdir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('fs:mkdir', dirPath),
   move: (sourcePath: string, destPath: string): Promise<{ success: boolean; error?: string }> =>

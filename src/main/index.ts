@@ -330,6 +330,12 @@ ipcMain.handle('shell:openInExplorer', async (_event, filePath: string) => {
   shell.showItemInFolder(filePath)
 })
 
+ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    await shell.openExternal(url)
+  }
+})
+
 ipcMain.handle('fs:mkdir', async (_event, dirPath: string) => {
   try {
     await fs.promises.mkdir(dirPath, { recursive: true })
