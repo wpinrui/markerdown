@@ -90,6 +90,9 @@ export function TopToolbar({
     if (member.type === 'pdf') {
       return member.variant ? `${member.variant} (PDF)` : 'PDF'
     }
+    if (member.type === 'image') {
+      return member.variant ? `${member.variant} (Image)` : 'Image'
+    }
     if (member.variant === null && entity) {
       return entity.baseName
     }
