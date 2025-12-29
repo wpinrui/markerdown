@@ -4,7 +4,7 @@ import * as fs from 'fs'
 import * as crypto from 'crypto'
 import { spawn } from 'child_process'
 import chokidar, { FSWatcher } from 'chokidar'
-import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage, TreeNode, NewNoteResult } from '../shared/types'
+import type { SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, AgentMessage, TreeNode, NewNoteResult, SearchResult, SearchMatch } from '../shared/types'
 import { IMAGES_DIR, MARKERDOWN_DIR } from '../shared/types'
 import { getSummarizePrompt, CLAUDE_MD_TEMPLATE } from '../shared/prompts'
 import { LOCAL_IMAGE_PROTOCOL } from '../shared/pathUtils'
@@ -757,6 +757,106 @@ ipcMain.handle('agent:loadSession', async (_event, workingDir: string, sessionId
   } catch (error) {
     console.error('Error loading session:', error)
     return { messages: [] }
+  }
+})
+
+// Content Search IPC Handler
+const MARKDOWN_EXT = '.md'
+const MAX_MATCHES_PER_FILE = 10
+const MAX_LINE_LENGTH = 200
+
+async function getAllMarkdownFiles(dirPath: string): Promise<string[]> {
+  const results: string[] = []
+
+  async function scan(currentPath: string): Promise<void> {
+    try {
+      const entries = await fs.promises.readdir(currentPath, { withFileTypes: true })
+
+      for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name)
+
+        // Skip hidden folders and files (except .markerdown if needed in future)
+        if (entry.name.startsWith('.')) continue
+
+        if (entry.isDirectory()) {
+          await scan(fullPath)
+        } else if (entry.name.toLowerCase().endsWith(MARKDOWN_EXT)) {
+          results.push(fullPath)
+        }
+      }
+    } catch {
+      // Skip directories we can't read
+    }
+  }
+
+  await scan(dirPath)
+  return results
+}
+
+function searchFileContent(content: string, query: string): SearchMatch[] {
+  const matches: SearchMatch[] = []
+  const lowerQuery = query.toLowerCase()
+  const lines = content.split('\n')
+
+  for (let i = 0; i < lines.length && matches.length < MAX_MATCHES_PER_FILE; i++) {
+    const line = lines[i]
+    const lowerLine = line.toLowerCase()
+    let searchStart = 0
+
+    while (searchStart < line.length && matches.length < MAX_MATCHES_PER_FILE) {
+      const matchIndex = lowerLine.indexOf(lowerQuery, searchStart)
+      if (matchIndex === -1) break
+
+      // Truncate long lines for display
+      const displayLine = line.length > MAX_LINE_LENGTH
+        ? line.slice(0, MAX_LINE_LENGTH) + '...'
+        : line
+
+      matches.push({
+        lineNumber: i + 1, // 1-indexed
+        lineContent: displayLine,
+        matchStart: matchIndex,
+        matchEnd: matchIndex + query.length,
+      })
+
+      searchStart = matchIndex + 1
+    }
+  }
+
+  return matches
+}
+
+ipcMain.handle('search:content', async (_event, folderPath: string, query: string): Promise<SearchResult[]> => {
+  if (!query.trim()) return []
+
+  try {
+    const markdownFiles = await getAllMarkdownFiles(folderPath)
+    const results: SearchResult[] = []
+
+    for (const filePath of markdownFiles) {
+      try {
+        const content = await fs.promises.readFile(filePath, 'utf-8')
+        const matches = searchFileContent(content, query)
+
+        if (matches.length > 0) {
+          results.push({
+            filePath,
+            fileName: path.basename(filePath),
+            matches,
+          })
+        }
+      } catch {
+        // Skip files we can't read
+      }
+    }
+
+    // Sort by number of matches (most matches first)
+    results.sort((a, b) => b.matches.length - a.matches.length)
+
+    return results
+  } catch (error) {
+    console.error('Error searching content:', error)
+    return []
   }
 })
 

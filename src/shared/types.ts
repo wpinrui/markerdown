@@ -164,6 +164,20 @@ export interface NewNoteResult {
   childrenPaths: string[]
 }
 
+// Content search types
+export interface SearchMatch {
+  lineNumber: number
+  lineContent: string
+  matchStart: number
+  matchEnd: number
+}
+
+export interface SearchResult {
+  filePath: string
+  fileName: string
+  matches: SearchMatch[]
+}
+
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
   openNewNote: (treeNodes: TreeNode[], selectedPath: string | null) => Promise<NewNoteResult | null>
@@ -193,6 +207,7 @@ export interface ElectronAPI {
   onAgentComplete: (callback: (error?: string) => void) => () => void
   getAgentSessions: (workingDir: string) => Promise<AgentSession[]>
   loadAgentSession: (workingDir: string, sessionId: string) => Promise<AgentSessionHistory>
+  searchContent: (folderPath: string, query: string) => Promise<SearchResult[]>
 }
 
 declare global {

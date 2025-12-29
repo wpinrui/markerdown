@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
-import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, TreeNode, NewNoteResult } from '../shared/types'
+import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, AgentChatRequest, AgentChatResponse, AgentSession, AgentSessionHistory, TreeNode, NewNoteResult, SearchResult } from '../shared/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),
@@ -58,4 +58,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('agent:getSessions', workingDir),
   loadAgentSession: (workingDir: string, sessionId: string): Promise<AgentSessionHistory> =>
     ipcRenderer.invoke('agent:loadSession', workingDir, sessionId),
+  searchContent: (folderPath: string, query: string): Promise<SearchResult[]> =>
+    ipcRenderer.invoke('search:content', folderPath, query),
 })
