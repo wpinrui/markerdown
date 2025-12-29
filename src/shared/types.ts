@@ -180,6 +180,7 @@ export interface ElectronAPI {
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
   openInExplorer: (folderPath: string) => Promise<void>
+  openExternal: (url: string) => Promise<void>
   mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
   move: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
