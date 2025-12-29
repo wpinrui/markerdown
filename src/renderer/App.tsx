@@ -46,6 +46,10 @@ const MIN_AGENT_PANEL_WIDTH = 250
 const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
 const TREE_REFRESH_DELAY_MS = 100
+const SCROLL_RESTORE_DELAY_MS = 50
+
+// Persist scroll positions across tab switches (session only)
+const scrollPositions = new Map<string, number>()
 
 function App() {
   const [folderPath, setFolderPath] = useState<string | null>(null)
@@ -131,6 +135,7 @@ function App() {
   const [isDirty, setIsDirty] = useState(false)
   const saveInProgressRef = useRef<Set<string>>(new Set())
   const editorRef = useRef<MarkdownEditorRef>(null)
+  const contentBodyRef = useRef<HTMLDivElement>(null)
   const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleFolderChange = (path: string) => {
@@ -434,6 +439,48 @@ function App() {
       cancelled = true
     }
   }, [selectedNode, activeMember])
+
+  // Save scroll position when switching away from a file
+  useEffect(() => {
+    const container = contentBodyRef.current
+    const filePath = activeFilePath
+    return () => {
+      // Save on cleanup (before file changes)
+      if (container && filePath) {
+        scrollPositions.set(filePath, container.scrollTop)
+      }
+    }
+  }, [activeFilePath])
+
+  // Restore scroll position after content loads
+  useEffect(() => {
+    if (!activeFilePath || fileContent === null) return
+    const container = contentBodyRef.current
+    if (!container) return
+
+    const savedPosition = scrollPositions.get(activeFilePath)
+    if (savedPosition !== undefined) {
+      const timer = setTimeout(() => {
+        if (contentBodyRef.current) {
+          contentBodyRef.current.scrollTop = savedPosition
+        }
+      }, SCROLL_RESTORE_DELAY_MS)
+      return () => clearTimeout(timer)
+    }
+  }, [activeFilePath, fileContent])
+
+  // Track scroll position as user scrolls
+  useEffect(() => {
+    const container = contentBodyRef.current
+    if (!container || !activeFilePath) return
+
+    const handleScroll = () => {
+      scrollPositions.set(activeFilePath, container.scrollTop)
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [activeFilePath])
 
   // Reset edit state helper
   const resetEditState = useCallback(() => {
@@ -1165,7 +1212,7 @@ function App() {
             onCreateMember={handleCreateMember}
           />
           <div className="content-body-wrapper">
-            <div className="content-body">
+            <div className="content-body" ref={contentBodyRef}>
               {error ? (
                 <p className="error-message">{error}</p>
               ) : selectedNode?.entity && activeMember ? (
