@@ -391,6 +391,25 @@ body {
   outline-offset: -2px;
 }
 
+/* Root drop zone */
+.tree-root-drop-zone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #808080;
+  border-bottom: 1px solid #3c3c3c;
+  cursor: default;
+}
+
+.tree-root-drop-zone.drop-target {
+  background-color: rgba(14, 99, 156, 0.4);
+  outline: 2px solid #0e639c;
+  outline-offset: -2px;
+  color: #ccc;
+}
+
 .tree-chevron {
   font-size: 10px;
   width: 16px;

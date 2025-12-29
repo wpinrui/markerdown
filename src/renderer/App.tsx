@@ -856,6 +856,59 @@ function App() {
     setContextMenu(null)
   }, [folderPath, moveNodeToFolder])
 
+  // Drop to root: move dragged file to root level
+  const handleDropToRoot = useCallback(async (draggedNodePath: string) => {
+    if (!folderPath) return
+
+    // Find the actual dragged node in the tree
+    const actualDraggedNode = findNodeByPath(treeNodes, draggedNodePath)
+    if (!actualDraggedNode) {
+      console.error('Could not find dragged node:', draggedNodePath)
+      return
+    }
+
+    // Check if already at root
+    const nodeDir = normalizePath(getDirname(draggedNodePath))
+    const rootDir = normalizePath(folderPath)
+    if (nodeDir === rootDir) {
+      // Already at root, nothing to do
+      setDraggedNode(null)
+      setDropTargetPath(null)
+      return
+    }
+
+    const result = await moveNodeToFolder(actualDraggedNode, folderPath)
+    if (result.success && result.destPath) {
+      setPendingSelectionPath(result.destPath)
+    }
+
+    // Clear drag state
+    setDraggedNode(null)
+    setDropTargetPath(null)
+  }, [folderPath, treeNodes, moveNodeToFolder])
+
+  // Sidebar tree drop handlers (for dropping on empty space)
+  const handleSidebarTreeDragOver = useCallback((e: React.DragEvent) => {
+    if (!draggedNode) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [draggedNode])
+
+  const handleSidebarTreeDragEnter = useCallback((e: React.DragEvent) => {
+    // Only set drop target if entering the sidebar-tree directly (not a child node)
+    const target = e.target as HTMLElement
+    if (target.classList.contains('sidebar-tree')) {
+      setDropTargetPath('__ROOT__')
+    }
+  }, [])
+
+  const handleSidebarTreeDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const draggedPath = e.dataTransfer.getData('text/plain')
+    if (!draggedPath) return
+    handleDropToRoot(draggedPath)
+  }, [handleDropToRoot])
+
   const handleToggleExpand = useCallback((path: string) => {
     const normalized = normalizePath(path)
     setExpandedPaths((prev) => {
@@ -1410,7 +1463,12 @@ function App() {
                 onResultClick={handleSearchResultClick}
               />
             ) : (
-              <div className="sidebar-tree">
+              <div
+                className="sidebar-tree"
+                onDragOver={handleSidebarTreeDragOver}
+                onDragEnter={handleSidebarTreeDragEnter}
+                onDrop={handleSidebarTreeDrop}
+              >
                 {folderPath ? (
                   <TreeView
                     nodes={filteredTreeNodes}
@@ -1425,7 +1483,9 @@ function App() {
                     onDragEnter={handleDragEnterTarget}
                     onDragLeave={handleDragLeaveTarget}
                     onDrop={handleDrop}
+                    onDropToRoot={handleDropToRoot}
                     dropTargetPath={dropTargetPath}
+                    dropTargetIsRoot={dropTargetPath === '__ROOT__'}
                     draggedPath={draggedNode?.path ?? null}
                   />
                 ) : (
