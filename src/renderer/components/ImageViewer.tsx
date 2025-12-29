@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { LOCAL_IMAGE_PROTOCOL } from '@shared/pathUtils'
 
 interface ImageViewerProps {
   filePath: string
@@ -14,7 +13,8 @@ export function ImageViewer({ filePath }: ImageViewerProps) {
   }, [filePath])
 
   // Use local-image:// protocol to serve local files (file:// is blocked by Electron security)
-  const imageUrl = `${LOCAL_IMAGE_PROTOCOL}${filePath.replace(/\\/g, '/')}`
+  // Must use localhost as host, otherwise C: gets parsed as hostname
+  const imageUrl = `local-image://localhost/${filePath.replace(/\\/g, '/')}`
 
   if (error) {
     return (

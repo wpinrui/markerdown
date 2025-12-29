@@ -1,4 +1,4 @@
-import { isMarkdownFile, isPdfFile, isVideoFile, isAudioFile } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isVideoFile, isAudioFile, isImageFile } from '@shared/types'
 import type { TreeNode } from '@shared/types'
 import { normalizePath } from '@shared/pathUtils'
 
@@ -81,9 +81,10 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
   const isPdf = isPdfFile(node.name)
   const isVideo = isVideoFile(node.name)
   const isAudio = isAudioFile(node.name)
+  const isImage = isImageFile(node.name)
   const isEntity = !!node.entity
   const isSuggestion = !!node.isSuggestion
-  const isSelectable = isMarkdown || isPdf || isVideo || isAudio || isEntity || isSuggestion
+  const isSelectable = isMarkdown || isPdf || isVideo || isAudio || isImage || isEntity || isSuggestion
 
   // Drag-to-reparent: only markdown files and entities can be dragged (not directories, not suggestions)
   const isDraggable = (isMarkdown || isEntity) && !node.isDirectory && !isSuggestion
@@ -203,6 +204,9 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     }
     if (isAudio) {
       return '🎵'
+    }
+    if (isImage) {
+      return '🖼️'
     }
     return '📎'
   }
