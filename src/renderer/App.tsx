@@ -846,6 +846,68 @@ function App() {
     handleReparent(draggedPath, targetNode)
   }, [handleReparent])
 
+  // Handle external file drop onto a tree item
+  const handleExternalFileDrop = useCallback(async (filePaths: string[], targetNode: TreeNode) => {
+    if (!folderPath || filePaths.length === 0) return
+
+    // Determine destination folder: the target's sidecar folder
+    const targetDir = getDirname(targetNode.path)
+    const targetBaseName = stripExtension(getBasename(targetNode.path))
+    const sidecarPath = `${targetDir}/${targetBaseName}`
+
+    // Ensure sidecar folder exists
+    const mkdirResult = await window.electronAPI.mkdir(sidecarPath)
+    if (!mkdirResult.success) {
+      setError(`Failed to create folder: ${mkdirResult.error}`)
+      return
+    }
+
+    // Copy each file to the sidecar folder
+    for (const sourcePath of filePaths) {
+      const fileName = getBasename(sourcePath)
+      const destPath = `${sidecarPath}/${fileName}`
+
+      // Check if file already exists
+      const exists = await window.electronAPI.exists(destPath)
+      if (exists) {
+        setError(`A file named "${fileName}" already exists in the target location`)
+        continue
+      }
+
+      const result = await window.electronAPI.copyFile(sourcePath, destPath)
+      if (!result.success) {
+        setError(`Failed to copy file: ${result.error}`)
+      }
+    }
+
+    // Refresh tree and select the first copied file
+    refreshTree()
+  }, [folderPath, refreshTree])
+
+  // Handle external file drop to root level
+  const handleExternalFileDropToRoot = useCallback(async (filePaths: string[]) => {
+    if (!folderPath || filePaths.length === 0) return
+
+    for (const sourcePath of filePaths) {
+      const fileName = getBasename(sourcePath)
+      const destPath = `${folderPath}/${fileName}`
+
+      // Check if file already exists
+      const exists = await window.electronAPI.exists(destPath)
+      if (exists) {
+        setError(`A file named "${fileName}" already exists in the target location`)
+        continue
+      }
+
+      const result = await window.electronAPI.copyFile(sourcePath, destPath)
+      if (!result.success) {
+        setError(`Failed to copy file: ${result.error}`)
+      }
+    }
+
+    refreshTree()
+  }, [folderPath, refreshTree])
+
   // Move a file to root level (out of its current sidecar folder)
   const handleMoveToRoot = useCallback(async (node: TreeNode) => {
     if (!folderPath) return
@@ -887,17 +949,30 @@ function App() {
 
   // Sidebar tree drop handlers (for dropping on empty space)
   const handleSidebarTreeDragOver = useCallback((e: React.DragEvent) => {
-    if (!draggedNode) return
+    // Allow both internal drags and external file drops
+    const isExternalFile = e.dataTransfer.types.includes('Files')
+    if (!draggedNode && !isExternalFile) return
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    e.dataTransfer.dropEffect = isExternalFile ? 'copy' : 'move'
   }, [draggedNode])
 
   const handleSidebarTreeDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
+
+    // Check for external files first
+    if (e.dataTransfer.files.length > 0) {
+      const filePaths = Array.from(e.dataTransfer.files).map((f) => f.path)
+      if (filePaths.length > 0 && filePaths[0]) {
+        handleExternalFileDropToRoot(filePaths)
+      }
+      return
+    }
+
+    // Internal drag
     const draggedPath = e.dataTransfer.getData('text/plain')
     if (!draggedPath) return
     handleDropToRoot(draggedPath)
-  }, [handleDropToRoot])
+  }, [handleDropToRoot, handleExternalFileDropToRoot])
 
   const handleToggleExpand = useCallback((path: string) => {
     const normalized = normalizePath(path)
@@ -1472,6 +1547,7 @@ function App() {
                     onDragEnter={handleDragEnterTarget}
                     onDragLeave={handleDragLeaveTarget}
                     onDrop={handleDrop}
+                    onExternalFileDrop={handleExternalFileDrop}
                     dropTargetPath={dropTargetPath}
                     draggedPath={draggedNode?.path ?? null}
                   />

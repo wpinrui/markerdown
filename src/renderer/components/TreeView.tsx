@@ -19,11 +19,12 @@ interface TreeViewProps {
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
   onDrop?: (draggedPath: string, targetNode: TreeNode) => void
+  onExternalFileDrop?: (filePaths: string[], targetNode: TreeNode) => void
   dropTargetPath: string | null
   draggedPath: string | null
 }
 
-export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, onExternalFileDrop, dropTargetPath, draggedPath }: TreeViewProps) {
   return (
     <div className="tree-view">
       {nodes.map((node) => (
@@ -42,6 +43,7 @@ export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggl
           onDragEnter={onDragEnter}
           onDragLeave={onDragLeave}
           onDrop={onDrop}
+          onExternalFileDrop={onExternalFileDrop}
           dropTargetPath={dropTargetPath}
           draggedPath={draggedPath}
         />
@@ -65,11 +67,12 @@ interface TreeItemProps {
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
   onDrop?: (draggedPath: string, targetNode: TreeNode) => void
+  onExternalFileDrop?: (filePaths: string[], targetNode: TreeNode) => void
   dropTargetPath: string | null
   draggedPath: string | null
 }
 
-function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeItemProps) {
+function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, onExternalFileDrop, dropTargetPath, draggedPath }: TreeItemProps) {
   const expanded = expandedPaths.has(normalizePath(node.path))
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
@@ -126,15 +129,18 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
 
   const handleDragOver = (e: React.DragEvent) => {
     if (!isValidDropTarget) return
-    // Prevent dropping on self
-    if (draggedPath === node.path) return
+    // Check if this is an external file drop
+    const isExternalFile = e.dataTransfer.types.includes('Files')
+    // Prevent dropping internal item on self
+    if (!isExternalFile && draggedPath === node.path) return
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    e.dataTransfer.dropEffect = isExternalFile ? 'copy' : 'move'
   }
 
   const handleDragEnter = (e: React.DragEvent) => {
     if (!isValidDropTarget) return
-    if (draggedPath === node.path) return
+    const isExternalFile = e.dataTransfer.types.includes('Files')
+    if (!isExternalFile && draggedPath === node.path) return
     e.preventDefault()
     onDragEnter?.(node.path)
   }
@@ -151,8 +157,18 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     e.preventDefault()
     e.stopPropagation()
     if (!isValidDropTarget) return
-    if (draggedPath === node.path) return
 
+    // Check for external files first
+    if (e.dataTransfer.files.length > 0) {
+      const filePaths = Array.from(e.dataTransfer.files).map((f) => f.path)
+      if (filePaths.length > 0 && filePaths[0]) {
+        onExternalFileDrop?.(filePaths, node)
+      }
+      return
+    }
+
+    // Internal drag
+    if (draggedPath === node.path) return
     const draggedNodePath = e.dataTransfer.getData('text/plain')
     if (!draggedNodePath || draggedNodePath === node.path) return
 
@@ -259,6 +275,7 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
               onDragEnter={onDragEnter}
               onDragLeave={onDragLeave}
               onDrop={onDrop}
+              onExternalFileDrop={onExternalFileDrop}
               dropTargetPath={dropTargetPath}
               draggedPath={draggedPath}
             />

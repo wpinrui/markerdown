@@ -387,6 +387,16 @@ ipcMain.handle('fs:deleteDir', async (_event, dirPath: string) => {
   }
 })
 
+ipcMain.handle('fs:copyFile', async (_event, sourcePath: string, destPath: string) => {
+  try {
+    await fs.promises.copyFile(sourcePath, destPath)
+    return { success: true }
+  } catch (error) {
+    console.error('Error copying file:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 ipcMain.handle('fs:saveImage', async (_event, markdownFilePath: string, imageData: string, extension: string) => {
   try {
     // Create .images folder next to the markdown file
