@@ -19,8 +19,8 @@ interface TreeViewProps {
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
   onDrop?: (draggedPath: string, targetNode: TreeNode) => void
-  dropTargetPath?: string | null
-  draggedPath?: string | null
+  dropTargetPath: string | null
+  draggedPath: string | null
 }
 
 export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeViewProps) {
@@ -65,8 +65,8 @@ interface TreeItemProps {
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
   onDrop?: (draggedPath: string, targetNode: TreeNode) => void
-  dropTargetPath?: string | null
-  draggedPath?: string | null
+  dropTargetPath: string | null
+  draggedPath: string | null
 }
 
 function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeItemProps) {
