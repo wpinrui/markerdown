@@ -892,7 +892,6 @@ function App() {
     e.dataTransfer.dropEffect = 'move'
   }, [draggedNode])
 
-
   const handleSidebarTreeDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     const draggedPath = e.dataTransfer.getData('text/plain')
