@@ -18,7 +18,7 @@ interface TreeViewProps {
   onDragEnd?: () => void
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
-  onDrop?: (draggedNode: TreeNode, targetNode: TreeNode) => void
+  onDrop?: (draggedPath: string, targetNode: TreeNode) => void
   dropTargetPath?: string | null
   draggedPath?: string | null
 }
@@ -64,7 +64,7 @@ interface TreeItemProps {
   onDragEnd?: () => void
   onDragEnter?: (targetPath: string) => void
   onDragLeave?: () => void
-  onDrop?: (draggedNode: TreeNode, targetNode: TreeNode) => void
+  onDrop?: (draggedPath: string, targetNode: TreeNode) => void
   dropTargetPath?: string | null
   draggedPath?: string | null
 }
@@ -156,11 +156,7 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     const draggedNodePath = e.dataTransfer.getData('text/plain')
     if (!draggedNodePath || draggedNodePath === node.path) return
 
-    // Find the dragged node - we pass it via the callback which has access to it
-    onDrop?.(
-      { path: draggedNodePath } as TreeNode, // Parent will find actual node
-      node
-    )
+    onDrop?.(draggedNodePath, node)
   }
 
   const handleDragEnd = () => {
