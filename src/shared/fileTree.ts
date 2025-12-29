@@ -3,6 +3,7 @@ import {
   isPdfFile,
   getVideoExtension,
   getAudioExtension,
+  getImageExtension,
   MARKDOWN_EXTENSION,
   PDF_EXTENSION,
   IMAGES_DIR,
@@ -31,6 +32,10 @@ function parseFileInfo(
   const audioExt = getAudioExtension(filename)
   if (audioExt) {
     return { fullBaseName: filename.slice(0, -audioExt.length), type: 'audio' }
+  }
+  const imageExt = getImageExtension(filename)
+  if (imageExt) {
+    return { fullBaseName: filename.slice(0, -imageExt.length), type: 'image' }
   }
   return null
 }
@@ -76,8 +81,8 @@ function groupFilesIntoEntities(
   const entities = new Map<string, Entity>()
   for (const [baseName, members] of entityGroups) {
     if (members.length >= 2) {
-      // Sort members: source files (pdf/video/audio) first, then default (null variant), then alphabetical
-      const isSourceType = (type: EntityMemberType) => type === 'pdf' || type === 'video' || type === 'audio'
+      // Sort members: source files (pdf/video/audio/image) first, then default (null variant), then alphabetical
+      const isSourceType = (type: EntityMemberType) => type === 'pdf' || type === 'video' || type === 'audio' || type === 'image'
       members.sort((a, b) => {
         if (isSourceType(a.type) && !isSourceType(b.type)) return -1
         if (!isSourceType(a.type) && isSourceType(b.type)) return 1
@@ -125,7 +130,7 @@ export async function buildFileTree(
     return true
   })
 
-  // Parse entity info for markdown, PDF, video and audio files
+  // Parse entity info for markdown, PDF, video, audio and image files
   const entityFiles: Array<{
     name: string
     path: string

@@ -8,7 +8,7 @@ export const CLAUDE_MD_TEMPLATE = `# Markerdown Instructions
 - Use specific dates (e.g., "Jul 17") not vague terms ("tomorrow")
 
 ## Tasks
-- T1: Summary (PDF/md to md)
+- T1: Summary (PDF/md/image to md)
 - T2: Chat (answer questions from md files)
 - T3: Refine (reorganise md)
 

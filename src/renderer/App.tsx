@@ -4,6 +4,7 @@ import { MarkdownViewer } from './components/MarkdownViewer'
 import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/MarkdownEditor'
 import { PdfViewer } from './components/PdfViewer'
 import { MediaViewer } from './components/MediaViewer'
+import { ImageViewer } from './components/ImageViewer'
 import { SummarizeModal } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
 import { TodoPanel } from './components/TodoPanel'
@@ -22,7 +23,7 @@ import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
-import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
+import { isMarkdownFile, isPdfFile, isMediaFile, isImageFile, getImageExtension, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode, SearchResult } from '@shared/types'
 import { Edit3, Trash2, FolderOpen, FilePlus, ArrowUpToLine } from 'lucide-react'
 
@@ -662,7 +663,9 @@ function App() {
   const isMdActive = activeMember?.type === 'markdown'
   const isStandaloneMd = selectedNode && isMarkdownFile(selectedNode.name) && !selectedNode.entity && !selectedNode.isSuggestion
   const isStandaloneMedia = selectedNode && isMediaFile(selectedNode.name) && !selectedNode.entity
-  const canSummarize = isPdfActive || isStandalonePdf || isMdActive || isStandaloneMd
+  const isImageActive = activeMember?.type === 'image'
+  const isStandaloneImage = selectedNode && isImageFile(selectedNode.name) && !selectedNode.entity
+  const canSummarize = isPdfActive || isStandalonePdf || isMdActive || isStandaloneMd || isImageActive || isStandaloneImage
 
   const getOutputPath = (sourcePath: string, outputFilename: string) =>
     `${getDirname(sourcePath)}/${outputFilename}`
@@ -672,6 +675,11 @@ function App() {
 
   const stripMdExtension = (filename: string) =>
     filename.toLowerCase().endsWith('.md') ? stripExtension(filename) : filename
+
+  const stripImageExtension = (filename: string) => {
+    const ext = getImageExtension(filename)
+    return ext ? filename.slice(0, -ext.length) : filename
+  }
 
   const handleSummarize = async (prompt: string, outputFilename: string) => {
     if (!selectedNode?.path) return
@@ -708,9 +716,9 @@ function App() {
 
   // For entities, use entity members; for standalone files, no existing variants
   const existingVariants = selectedNode?.entity?.members.map((m) => m.variant ?? '') ?? []
-  // For entities, use baseName; for standalone files, strip .pdf/.md extensions
+  // For entities, use baseName; for standalone files, strip .pdf/.md/image extensions
   const summarizeBaseName = selectedNode?.entity?.baseName
-    ?? (selectedNode ? stripMdExtension(stripPdfExtension(selectedNode.name)) : '')
+    ?? (selectedNode ? stripMdExtension(stripPdfExtension(stripImageExtension(selectedNode.name))) : '')
 
   const isEditing = editMode !== 'view'
 
@@ -1426,6 +1434,9 @@ function App() {
     if (isPdfFile(selectedNode.name)) {
       return { fileName: stripPdfExtension(selectedNode.name), fileType: 'pdf' }
     }
+    if (isImageFile(selectedNode.name)) {
+      return { fileName: stripImageExtension(selectedNode.name), fileType: 'image' }
+    }
     return { fileName: selectedNode.name, fileType: 'other' }
   }
 
@@ -1441,7 +1452,7 @@ function App() {
   const handleNewMemberSubmit = async (variantName: string) => {
     if (!selectedNode || !folderPath) return
 
-    const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(selectedNode.name))
+    const baseName = selectedNode.entity?.baseName ?? stripMdExtension(stripPdfExtension(stripImageExtension(selectedNode.name)))
     const dirPath = getDirname(selectedNode.path)
     const newFilePath = `${dirPath}/${baseName}.${variantName}.md`
 
@@ -1585,6 +1596,8 @@ function App() {
                   <PdfViewer filePath={activeMember.path} />
                 ) : activeMember.type === 'video' || activeMember.type === 'audio' ? (
                   <MediaViewer filePath={activeMember.path} />
+                ) : activeMember.type === 'image' ? (
+                  <ImageViewer filePath={activeMember.path} />
                 ) : fileContent !== null ? (
                   renderMarkdownContent(activeMember.path)
                 ) : (
@@ -1594,6 +1607,8 @@ function App() {
                 <PdfViewer filePath={selectedNode!.path} />
               ) : isStandaloneMedia ? (
                 <MediaViewer filePath={selectedNode!.path} />
+              ) : isStandaloneImage ? (
+                <ImageViewer filePath={selectedNode!.path} />
               ) : fileContent !== null && selectedNode ? (
                 renderMarkdownContent(selectedNode.path)
               ) : null}
