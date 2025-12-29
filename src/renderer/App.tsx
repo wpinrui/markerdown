@@ -740,6 +740,14 @@ function App() {
     setDropTargetPath(null)
   }, [])
 
+  const handleDragEnterTarget = useCallback((targetPath: string) => {
+    setDropTargetPath(targetPath)
+  }, [])
+
+  const handleDragLeaveTarget = useCallback(() => {
+    setDropTargetPath(null)
+  }, [])
+
   // Reparent: move dragged file into target's sidecar folder
   const handleReparent = useCallback(async (draggedNodePath: string, targetNode: TreeNode) => {
     if (!folderPath) return
@@ -751,12 +759,15 @@ function App() {
       return
     }
 
-    // Prevent dropping on self or on a child of the dragged node
+    // Prevent dropping on self
     if (normalizePath(draggedNodePath) === normalizePath(targetNode.path)) return
 
-    // Check if target is a descendant of dragged node (prevent cycles)
-    if (normalizePath(targetNode.path).startsWith(normalizePath(getDirname(draggedNodePath) + '/' + getBasename(draggedNodePath).replace('.md', '') + '/'))) {
-      return
+    // Prevent dropping onto a descendant of the dragged node (would create a cycle)
+    if (actualDraggedNode.hasSidecar && actualDraggedNode.sidecarName) {
+      const draggedSidecarPrefix = normalizePath(`${getDirname(draggedNodePath)}/${actualDraggedNode.sidecarName}/`)
+      if (normalizePath(targetNode.path).startsWith(draggedSidecarPrefix)) {
+        return
+      }
     }
 
     const draggedName = getBasename(draggedNodePath)
@@ -1405,6 +1416,8 @@ function App() {
                     onContextMenu={handleTreeContextMenu}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
+                    onDragEnter={handleDragEnterTarget}
+                    onDragLeave={handleDragLeaveTarget}
                     onDrop={handleDrop}
                     dropTargetPath={dropTargetPath}
                     draggedPath={draggedNode?.path ?? null}

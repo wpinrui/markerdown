@@ -16,12 +16,14 @@ interface TreeViewProps {
   // Drag-to-reparent props
   onDragStart?: (node: TreeNode) => void
   onDragEnd?: () => void
+  onDragEnter?: (targetPath: string) => void
+  onDragLeave?: () => void
   onDrop?: (draggedNode: TreeNode, targetNode: TreeNode) => void
   dropTargetPath?: string | null
   draggedPath?: string | null
 }
 
-export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDrop, dropTargetPath, draggedPath }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeViewProps) {
   return (
     <div className="tree-view">
       {nodes.map((node) => (
@@ -37,6 +39,8 @@ export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggl
           onContextMenu={onContextMenu}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
           onDrop={onDrop}
           dropTargetPath={dropTargetPath}
           draggedPath={draggedPath}
@@ -58,12 +62,14 @@ interface TreeItemProps {
   // Drag-to-reparent props
   onDragStart?: (node: TreeNode) => void
   onDragEnd?: () => void
+  onDragEnter?: (targetPath: string) => void
+  onDragLeave?: () => void
   onDrop?: (draggedNode: TreeNode, targetNode: TreeNode) => void
   dropTargetPath?: string | null
   draggedPath?: string | null
 }
 
-function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDrop, dropTargetPath, draggedPath }: TreeItemProps) {
+function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDrop, dropTargetPath, draggedPath }: TreeItemProps) {
   const expanded = expandedPaths.has(normalizePath(node.path))
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
@@ -130,10 +136,15 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     if (!isValidDropTarget) return
     if (draggedPath === node.path) return
     e.preventDefault()
+    onDragEnter?.(node.path)
   }
 
-  const handleDragLeave = (_e: React.DragEvent) => {
-    // Visual feedback is handled by dropTargetPath state in parent
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving this element entirely (not entering a child)
+    const relatedTarget = e.relatedTarget as HTMLElement | null
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      onDragLeave?.()
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -249,6 +260,8 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
               onContextMenu={onContextMenu}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
               onDrop={onDrop}
               dropTargetPath={dropTargetPath}
               draggedPath={draggedPath}
