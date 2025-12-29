@@ -48,6 +48,7 @@ const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
 const TREE_REFRESH_DELAY_MS = 100
 const SCROLL_RESTORE_DELAY_MS = 50
+const CONTENT_SEARCH_DEBOUNCE_MS = 300
 
 // Persist scroll positions across tab switches (session only)
 const scrollPositions = new Map<string, number>()
@@ -151,7 +152,7 @@ function App() {
       } finally {
         setIsSearching(false)
       }
-    }, 300) // Debounce content search
+    }, CONTENT_SEARCH_DEBOUNCE_MS)
 
     return () => clearTimeout(searchTimeout)
   }, [searchMode, folderPath, searchQuery])
