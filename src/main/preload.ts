@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getShowClaudeMd: (): Promise<boolean> => ipcRenderer.invoke('settings:getShowClaudeMd'),
   setShowClaudeMd: (show: boolean): Promise<void> =>
     ipcRenderer.invoke('settings:setShowClaudeMd', show),
+  getExpandedPaths: (): Promise<string[]> => ipcRenderer.invoke('settings:getExpandedPaths'),
+  setExpandedPaths: (paths: string[]): Promise<void> =>
+    ipcRenderer.invoke('settings:setExpandedPaths', paths),
   setWindowTitle: (title: string): Promise<void> =>
     ipcRenderer.invoke('window:setTitle', title),
   watchFolder: (folderPath: string): Promise<void> =>

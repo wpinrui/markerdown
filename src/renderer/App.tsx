@@ -206,6 +206,7 @@ function App() {
   const saveInProgressRef = useRef<Set<string>>(new Set())
   const editorRef = useRef<MarkdownEditorRef>(null)
   const contentBodyRef = useRef<HTMLDivElement>(null)
+  const hasLoadedExpandedPaths = useRef(false)
   const [activeFormats, setActiveFormats] = useState<ActiveFormats>(defaultFormats)
 
   const handleFolderChange = (path: string) => {
@@ -234,7 +235,22 @@ function App() {
     }).catch((err) => {
       console.error('Failed to load showClaudeMd setting:', err)
     })
+    window.electronAPI.getExpandedPaths().then((paths) => {
+      setExpandedPaths(new Set(paths))
+      hasLoadedExpandedPaths.current = true
+    }).catch((err) => {
+      console.error('Failed to load expanded paths:', err)
+      hasLoadedExpandedPaths.current = true
+    })
   }, [])
+
+  // Save expanded paths when they change (skip initial render before load completes)
+  useEffect(() => {
+    if (!hasLoadedExpandedPaths.current) return
+    window.electronAPI.setExpandedPaths([...expandedPaths]).catch((err) => {
+      console.error('Failed to save expanded paths:', err)
+    })
+  }, [expandedPaths])
 
   // Pane toggle helper
   const handlePaneToggle = useCallback((pane: PaneType) => {
