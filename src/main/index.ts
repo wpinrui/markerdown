@@ -305,6 +305,42 @@ ipcMain.handle('settings:setExpandedPaths', (_event, paths: string[]) => {
   saveSettings(settings)
 })
 
+// Archive system - stores archived paths in .markerdown/archive.json within the workspace
+const ARCHIVE_FILE = 'archive.json'
+
+function getArchivePath(folderPath: string): string {
+  return path.join(folderPath, MARKERDOWN_DIR, ARCHIVE_FILE)
+}
+
+async function loadArchivedPaths(folderPath: string): Promise<string[]> {
+  try {
+    const archivePath = getArchivePath(folderPath)
+    const content = await fs.promises.readFile(archivePath, 'utf-8')
+    const parsed: unknown = JSON.parse(content)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.filter((p): p is string => typeof p === 'string')
+  } catch {
+    return []
+  }
+}
+
+async function saveArchivedPaths(folderPath: string, paths: string[]): Promise<void> {
+  const markerdownDir = path.join(folderPath, MARKERDOWN_DIR)
+  await fs.promises.mkdir(markerdownDir, { recursive: true })
+  const archivePath = getArchivePath(folderPath)
+  await fs.promises.writeFile(archivePath, JSON.stringify(paths, null, 2))
+}
+
+ipcMain.handle('archive:getArchivedPaths', async (_event, folderPath: string) => {
+  return loadArchivedPaths(folderPath)
+})
+
+ipcMain.handle('archive:setArchivedPaths', async (_event, folderPath: string, paths: string[]) => {
+  await saveArchivedPaths(folderPath, paths)
+})
+
 ipcMain.handle('window:setTitle', (_event, title: string) => {
   if (mainWindow) {
     mainWindow.setTitle(title)

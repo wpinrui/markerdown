@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getExpandedPaths: (): Promise<string[]> => ipcRenderer.invoke('settings:getExpandedPaths'),
   setExpandedPaths: (paths: string[]): Promise<void> =>
     ipcRenderer.invoke('settings:setExpandedPaths', paths),
+  getArchivedPaths: (folderPath: string): Promise<string[]> =>
+    ipcRenderer.invoke('archive:getArchivedPaths', folderPath),
+  setArchivedPaths: (folderPath: string, paths: string[]): Promise<void> =>
+    ipcRenderer.invoke('archive:setArchivedPaths', folderPath, paths),
   setWindowTitle: (title: string): Promise<void> =>
     ipcRenderer.invoke('window:setTitle', title),
   watchFolder: (folderPath: string): Promise<void> =>

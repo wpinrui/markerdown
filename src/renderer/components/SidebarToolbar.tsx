@@ -1,12 +1,20 @@
-import { Plus, Folder, Settings } from 'lucide-react'
+import { Plus, Folder, Settings, Archive } from 'lucide-react'
 
 interface SidebarToolbarProps {
   onNewNote: () => void
   onOpenFolder: () => void
   onOpenOptions: () => void
+  showArchived: boolean
+  onToggleArchived: () => void
 }
 
-export function SidebarToolbar({ onNewNote, onOpenFolder, onOpenOptions }: SidebarToolbarProps) {
+export function SidebarToolbar({
+  onNewNote,
+  onOpenFolder,
+  onOpenOptions,
+  showArchived,
+  onToggleArchived,
+}: SidebarToolbarProps) {
   return (
     <div className="sidebar-toolbar">
       <button
@@ -22,6 +30,13 @@ export function SidebarToolbar({ onNewNote, onOpenFolder, onOpenOptions }: Sideb
         title="Open in File Explorer"
       >
         <Folder size={18} strokeWidth={1.5} />
+      </button>
+      <button
+        className={`sidebar-toolbar-btn ${showArchived ? 'active' : ''}`}
+        onClick={onToggleArchived}
+        title={showArchived ? 'Hide Archived Items' : 'Show Archived Items'}
+      >
+        <Archive size={18} strokeWidth={1.5} />
       </button>
       <button
         className="sidebar-toolbar-btn"

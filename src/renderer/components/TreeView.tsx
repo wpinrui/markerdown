@@ -219,6 +219,7 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     isSuggestion && 'suggestion',
     isBeingDragged && 'dragging',
     isDropTarget && 'drop-target',
+    node.isArchived && 'archived',
   ].filter(Boolean).join(' ')
 
   return (

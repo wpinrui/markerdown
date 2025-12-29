@@ -25,7 +25,7 @@ import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isImageFile, getImageExtension, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode, SearchResult } from '@shared/types'
-import { Edit3, Trash2, FolderOpen, FilePlus, ArrowUpToLine } from 'lucide-react'
+import { Edit3, Trash2, FolderOpen, FilePlus, ArrowUpToLine, Archive, ArchiveRestore } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
@@ -95,6 +95,10 @@ function App() {
   const [contentSearchResults, setContentSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
 
+  // Archive state
+  const [archivedPaths, setArchivedPaths] = useState<Set<string>>(new Set())
+  const [showArchived, setShowArchived] = useState(false)
+
   // Drag-to-reparent state
   const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null)
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
@@ -113,23 +117,35 @@ function App() {
     setWidth: setSidebarWidth,
   })
 
-  // Filter tree nodes by search query
-  const filteredTreeNodes = useMemo(() => {
-    if (!searchQuery.trim()) return treeNodes
+  // Check if a path is archived (path-separator agnostic)
+  const isPathArchived = useCallback((nodePath: string): boolean => {
+    const normalizedPath = normalizePath(nodePath)
+    for (const archivedPath of archivedPaths) {
+      if (normalizePath(archivedPath) === normalizedPath) return true
+    }
+    return false
+  }, [archivedPaths])
 
+  // Filter tree nodes by search query and archive status
+  const filteredTreeNodes = useMemo(() => {
     const query = searchQuery.toLowerCase()
 
     function filterNodes(nodes: TreeNode[]): TreeNode[] {
       const result: TreeNode[] = []
       for (const node of nodes) {
-        const nameMatches = node.name.toLowerCase().includes(query)
+        // Skip archived nodes unless showArchived is true
+        const nodeIsArchived = isPathArchived(node.path)
+        if (nodeIsArchived && !showArchived) continue
+
+        const nameMatches = !query || node.name.toLowerCase().includes(query)
         const filteredChildren = node.children ? filterNodes(node.children) : undefined
 
-        // Include node if it matches or has matching descendants
+        // Include node if it matches search (or no search) and has matching descendants
         if (nameMatches || (filteredChildren && filteredChildren.length > 0)) {
           result.push({
             ...node,
             children: filteredChildren,
+            isArchived: nodeIsArchived,
           })
         }
       }
@@ -137,7 +153,7 @@ function App() {
     }
 
     return filterNodes(treeNodes)
-  }, [treeNodes, searchQuery])
+  }, [treeNodes, searchQuery, showArchived, isPathArchived])
 
   // Content search effect
   useEffect(() => {
@@ -256,6 +272,54 @@ function App() {
       console.error('Failed to save expanded paths:', err)
     })
   }, [expandedPaths])
+
+  // Load archived paths when folder changes
+  useEffect(() => {
+    if (!folderPath) {
+      setArchivedPaths(new Set())
+      return
+    }
+    window.electronAPI.getArchivedPaths(folderPath).then((paths) => {
+      setArchivedPaths(new Set(paths))
+    }).catch((err) => {
+      console.error('Failed to load archived paths:', err)
+      setArchivedPaths(new Set())
+    })
+  }, [folderPath])
+
+  // Archive/unarchive handler
+  const handleToggleArchive = useCallback(async (node: TreeNode) => {
+    if (!folderPath) return
+
+    const nodePath = node.path
+    const isCurrentlyArchived = isPathArchived(nodePath)
+
+    // Update local state
+    const newArchivedPaths = new Set(archivedPaths)
+    if (isCurrentlyArchived) {
+      // Unarchive: remove from set
+      for (const path of archivedPaths) {
+        if (normalizePath(path) === normalizePath(nodePath)) {
+          newArchivedPaths.delete(path)
+          break
+        }
+      }
+    } else {
+      // Archive: add to set
+      newArchivedPaths.add(nodePath)
+    }
+
+    setArchivedPaths(newArchivedPaths)
+
+    // Persist to disk
+    try {
+      await window.electronAPI.setArchivedPaths(folderPath, [...newArchivedPaths])
+    } catch (err) {
+      console.error('Failed to save archived paths:', err)
+    }
+
+    setContextMenu(null)
+  }, [folderPath, archivedPaths, isPathArchived])
 
   // Pane toggle helper
   const handlePaneToggle = useCallback((pane: PaneType) => {
@@ -1362,9 +1426,23 @@ function App() {
       },
     }
 
-    // Directories get New Child Note, Delete and Reveal in Explorer
+    // Archive/Unarchive option
+    const archiveItem: ContextMenuItem = isPathArchived(node.path)
+      ? {
+          label: 'Unarchive',
+          icon: ArchiveRestore,
+          onClick: () => handleToggleArchive(node),
+        }
+      : {
+          label: 'Archive',
+          icon: Archive,
+          onClick: () => handleToggleArchive(node),
+        }
+
+    // Directories get New Child Note, Archive, Delete and Reveal in Explorer
     if (node.isDirectory) {
       items.push(newChildNoteItem)
+      items.push(archiveItem)
       items.push({
         label: 'Delete',
         icon: Trash2,
@@ -1384,7 +1462,7 @@ function App() {
       return items
     }
 
-    // Files and entities get New Child Note, Rename, Move to Root (if not at root), Delete, Reveal
+    // Files and entities get New Child Note, Rename, Move to Root (if not at root), Archive, Delete, Reveal
     items.push(newChildNoteItem)
 
     items.push({
@@ -1404,6 +1482,8 @@ function App() {
       })
     }
 
+    items.push(archiveItem)
+
     items.push({
       label: 'Delete',
       icon: Trash2,
@@ -1418,7 +1498,7 @@ function App() {
     })
 
     return items
-  }, [handleRevealInExplorer, openNewNoteDialog, folderPath, handleMoveToRoot])
+  }, [handleRevealInExplorer, openNewNoteDialog, folderPath, handleMoveToRoot, isPathArchived, handleToggleArchive])
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
@@ -1554,6 +1634,8 @@ function App() {
               onNewNote={() => openNewNoteDialog(selectedNode?.path ?? null)}
               onOpenFolder={handleOpenInExplorer}
               onOpenOptions={() => setShowOptionsModal(true)}
+              showArchived={showArchived}
+              onToggleArchived={() => setShowArchived((v) => !v)}
             />
             <div
               className="sidebar-resize-handle"

@@ -95,6 +95,7 @@ export interface TreeNode {
   entity?: Entity // if this node represents an entity (grouped files)
   children?: TreeNode[]
   isSuggestion?: 'todos' | 'events' // if this is a suggestion draft file
+  isArchived?: boolean // if this node is archived (hidden from view unless toggle is on)
 }
 
 export type FileChangeEventType = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir'
@@ -202,6 +203,8 @@ export interface ElectronAPI {
   setShowClaudeMd: (show: boolean) => Promise<void>
   getExpandedPaths: () => Promise<string[]>
   setExpandedPaths: (paths: string[]) => Promise<void>
+  getArchivedPaths: (folderPath: string) => Promise<string[]>
+  setArchivedPaths: (folderPath: string, paths: string[]) => Promise<void>
   setWindowTitle: (title: string) => Promise<void>
   watchFolder: (folderPath: string) => Promise<void>
   unwatchFolder: () => Promise<void>
