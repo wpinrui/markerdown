@@ -13,9 +13,15 @@ interface TreeViewProps {
   onToggleExpand: (path: string) => void
   summarizingPaths?: Set<string>
   onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
+  // Drag-to-reparent props
+  onDragStart?: (node: TreeNode) => void
+  onDragEnd?: () => void
+  onDrop?: (draggedNode: TreeNode, targetNode: TreeNode) => void
+  dropTargetPath?: string | null
+  draggedPath?: string | null
 }
 
-export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu }: TreeViewProps) {
+export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDrop, dropTargetPath, draggedPath }: TreeViewProps) {
   return (
     <div className="tree-view">
       {nodes.map((node) => (
@@ -29,6 +35,11 @@ export function TreeView({ nodes, selectedPath, expandedPaths, onSelect, onToggl
           onToggleExpand={onToggleExpand}
           summarizingPaths={summarizingPaths}
           onContextMenu={onContextMenu}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDrop={onDrop}
+          dropTargetPath={dropTargetPath}
+          draggedPath={draggedPath}
         />
       ))}
     </div>
@@ -44,9 +55,15 @@ interface TreeItemProps {
   onToggleExpand: (path: string) => void
   summarizingPaths?: Set<string>
   onContextMenu?: (e: React.MouseEvent, node: TreeNode) => void
+  // Drag-to-reparent props
+  onDragStart?: (node: TreeNode) => void
+  onDragEnd?: () => void
+  onDrop?: (draggedNode: TreeNode, targetNode: TreeNode) => void
+  dropTargetPath?: string | null
+  draggedPath?: string | null
 }
 
-function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu }: TreeItemProps) {
+function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggleExpand, summarizingPaths, onContextMenu, onDragStart, onDragEnd, onDrop, dropTargetPath, draggedPath }: TreeItemProps) {
   const expanded = expandedPaths.has(normalizePath(node.path))
   const hasChildren = node.children && node.children.length > 0
   const isSelected = node.path === selectedPath
@@ -58,6 +75,13 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
   const isEntity = !!node.entity
   const isSuggestion = !!node.isSuggestion
   const isSelectable = isMarkdown || isPdf || isVideo || isAudio || isEntity || isSuggestion
+
+  // Drag-to-reparent: only markdown files and entities can be dragged (not directories, not suggestions)
+  const isDraggable = (isMarkdown || isEntity) && !node.isDirectory && !isSuggestion
+  // Valid drop targets: markdown files and entities (will become parent)
+  const isValidDropTarget = (isMarkdown || isEntity) && !node.isDirectory && !isSuggestion
+  const isDropTarget = dropTargetPath === node.path
+  const isBeingDragged = draggedPath === node.path
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -81,6 +105,55 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     e.preventDefault()
     e.stopPropagation()
     onContextMenu?.(e, node)
+  }
+
+  // Drag event handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!isDraggable) {
+      e.preventDefault()
+      return
+    }
+    e.dataTransfer.setData('text/plain', node.path)
+    e.dataTransfer.effectAllowed = 'move'
+    onDragStart?.(node)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!isValidDropTarget) return
+    // Prevent dropping on self
+    if (draggedPath === node.path) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!isValidDropTarget) return
+    if (draggedPath === node.path) return
+    e.preventDefault()
+  }
+
+  const handleDragLeave = (_e: React.DragEvent) => {
+    // Visual feedback is handled by dropTargetPath state in parent
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isValidDropTarget) return
+    if (draggedPath === node.path) return
+
+    const draggedNodePath = e.dataTransfer.getData('text/plain')
+    if (!draggedNodePath || draggedNodePath === node.path) return
+
+    // Find the dragged node - we pass it via the callback which has access to it
+    onDrop?.(
+      { path: draggedNodePath } as TreeNode, // Parent will find actual node
+      node
+    )
+  }
+
+  const handleDragEnd = () => {
+    onDragEnd?.()
   }
 
   const getIcon = () => {
@@ -116,14 +189,30 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
     ? node.entity.members.length
     : null
 
+  // Build className for tree-item-row
+  const rowClasses = [
+    'tree-item-row',
+    isSelected && 'selected',
+    isSuggestion && 'suggestion',
+    isBeingDragged && 'dragging',
+    isDropTarget && 'drop-target',
+  ].filter(Boolean).join(' ')
+
   return (
     <div className="tree-item">
       <div
-        className={`tree-item-row ${isSelected ? 'selected' : ''} ${isSuggestion ? 'suggestion' : ''}`}
+        className={rowClasses}
         style={{ paddingLeft: `${depth * INDENT_PX + BASE_PADDING_PX}px` }}
         onClick={handleRowClick}
         onDoubleClick={handleRowDoubleClick}
         onContextMenu={handleContextMenu}
+        draggable={isDraggable}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onDragEnd={handleDragEnd}
       >
         {hasChildren && (
           <span
@@ -158,6 +247,11 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
               onToggleExpand={onToggleExpand}
               summarizingPaths={summarizingPaths}
               onContextMenu={onContextMenu}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              onDrop={onDrop}
+              dropTargetPath={dropTargetPath}
+              draggedPath={draggedPath}
             />
           ))}
         </div>
