@@ -735,10 +735,14 @@ function App() {
     setDraggedNode(node)
   }, [])
 
-  const handleDragEnd = useCallback(() => {
+  const clearDragState = useCallback(() => {
     setDraggedNode(null)
     setDropTargetPath(null)
   }, [])
+
+  const handleDragEnd = useCallback(() => {
+    clearDragState()
+  }, [clearDragState])
 
   const handleDragEnterTarget = useCallback((targetPath: string) => {
     setDropTargetPath(targetPath)
@@ -835,10 +839,8 @@ function App() {
       setPendingSelectionPath(result.destPath)
     }
 
-    // Clear drag state
-    setDraggedNode(null)
-    setDropTargetPath(null)
-  }, [folderPath, treeNodes, moveNodeToFolder])
+    clearDragState()
+  }, [folderPath, treeNodes, moveNodeToFolder, clearDragState])
 
   const handleDrop = useCallback((draggedPath: string, targetNode: TreeNode) => {
     handleReparent(draggedPath, targetNode)
@@ -871,9 +873,7 @@ function App() {
     const nodeDir = normalizePath(getDirname(draggedNodePath))
     const rootDir = normalizePath(folderPath)
     if (nodeDir === rootDir) {
-      // Already at root, nothing to do
-      setDraggedNode(null)
-      setDropTargetPath(null)
+      clearDragState()
       return
     }
 
@@ -882,10 +882,8 @@ function App() {
       setPendingSelectionPath(result.destPath)
     }
 
-    // Clear drag state
-    setDraggedNode(null)
-    setDropTargetPath(null)
-  }, [folderPath, treeNodes, moveNodeToFolder])
+    clearDragState()
+  }, [folderPath, treeNodes, moveNodeToFolder, clearDragState])
 
   // Sidebar tree drop handlers (for dropping on empty space)
   const handleSidebarTreeDragOver = useCallback((e: React.DragEvent) => {
@@ -894,13 +892,6 @@ function App() {
     e.dataTransfer.dropEffect = 'move'
   }, [draggedNode])
 
-  const handleSidebarTreeDragEnter = useCallback((e: React.DragEvent) => {
-    // Only set drop target if entering the sidebar-tree directly (not a child node)
-    const target = e.target as HTMLElement
-    if (target.classList.contains('sidebar-tree')) {
-      setDropTargetPath('__ROOT__')
-    }
-  }, [])
 
   const handleSidebarTreeDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -1466,7 +1457,6 @@ function App() {
               <div
                 className="sidebar-tree"
                 onDragOver={handleSidebarTreeDragOver}
-                onDragEnter={handleSidebarTreeDragEnter}
                 onDrop={handleSidebarTreeDrop}
               >
                 {folderPath ? (
