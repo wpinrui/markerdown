@@ -24,7 +24,7 @@ import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode, SearchResult } from '@shared/types'
-import { Edit3, Trash2, FolderOpen, FilePlus } from 'lucide-react'
+import { Edit3, Trash2, FolderOpen, FilePlus, ArrowUpToLine } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
@@ -93,6 +93,10 @@ function App() {
   const [searchMode, setSearchMode] = useState<'name' | 'content'>('name')
   const [contentSearchResults, setContentSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
+
+  // Drag-to-reparent state
+  const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null)
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
 
   // Resize handlers
   const { handleMouseDown: handleAgentPanelMouseDown } = useHorizontalResize({
@@ -726,6 +730,175 @@ function App() {
     setContextMenu(null)
   }, [])
 
+  // Drag-to-reparent handlers
+  const handleDragStart = useCallback((node: TreeNode) => {
+    setDraggedNode(node)
+  }, [])
+
+  const clearDragState = useCallback(() => {
+    setDraggedNode(null)
+    setDropTargetPath(null)
+  }, [])
+
+  const handleDragEnd = useCallback(() => {
+    clearDragState()
+  }, [clearDragState])
+
+  const handleDragEnterTarget = useCallback((targetPath: string) => {
+    setDropTargetPath(targetPath)
+  }, [])
+
+  const handleDragLeaveTarget = useCallback(() => {
+    setDropTargetPath(null)
+  }, [])
+
+  // Helper: move a node (and its sidecar if present) to a destination folder
+  const moveNodeToFolder = useCallback(async (
+    node: TreeNode,
+    destFolder: string,
+    opts: { createDestFolder?: boolean } = {}
+  ): Promise<{ success: boolean; destPath?: string }> => {
+    const nodeName = getBasename(node.path)
+    const destPath = `${destFolder}/${nodeName}`
+
+    // Check if destination file already exists
+    const fileExists = await window.electronAPI.exists(destPath)
+    if (fileExists) {
+      setError(`A file named "${nodeName}" already exists in the target location`)
+      return { success: false }
+    }
+
+    // If node has a sidecar, check if sidecar destination exists
+    const hasSidecar = node.hasSidecar && node.sidecarName
+    const destSidecarPath = hasSidecar ? `${destFolder}/${node.sidecarName}` : null
+    if (destSidecarPath) {
+      const sidecarExists = await window.electronAPI.exists(destSidecarPath)
+      if (sidecarExists) {
+        setError(`A folder named "${node.sidecarName}" already exists in the target location`)
+        return { success: false }
+      }
+    }
+
+    // Create destination folder if requested
+    if (opts.createDestFolder) {
+      const mkdirResult = await window.electronAPI.mkdir(destFolder)
+      if (!mkdirResult.success) {
+        setError(`Failed to create folder: ${mkdirResult.error}`)
+        return { success: false }
+      }
+    }
+
+    // Move the file
+    const moveResult = await window.electronAPI.move(node.path, destPath)
+    if (!moveResult.success) {
+      setError(`Failed to move file: ${moveResult.error}`)
+      return { success: false }
+    }
+
+    // If the node has a sidecar folder, move it too
+    if (hasSidecar && destSidecarPath) {
+      const sidecarPath = `${getDirname(node.path)}/${node.sidecarName}`
+      const sidecarMoveResult = await window.electronAPI.move(sidecarPath, destSidecarPath)
+      if (!sidecarMoveResult.success) {
+        setError(`File moved but sidecar folder failed to move: ${sidecarMoveResult.error}`)
+        return { success: false }
+      }
+    }
+
+    return { success: true, destPath }
+  }, [])
+
+  // Reparent: move dragged file into target's sidecar folder
+  const handleReparent = useCallback(async (draggedNodePath: string, targetNode: TreeNode) => {
+    if (!folderPath) return
+
+    // Find the actual dragged node in the tree
+    const actualDraggedNode = findNodeByPath(treeNodes, draggedNodePath)
+    if (!actualDraggedNode) {
+      console.error('Could not find dragged node:', draggedNodePath)
+      return
+    }
+
+    // Prevent dropping on self
+    if (normalizePath(draggedNodePath) === normalizePath(targetNode.path)) return
+
+    // Prevent dropping onto a descendant of the dragged node (would create a cycle)
+    if (actualDraggedNode.hasSidecar && actualDraggedNode.sidecarName) {
+      const draggedSidecarPrefix = normalizePath(`${getDirname(draggedNodePath)}/${actualDraggedNode.sidecarName}/`)
+      if (normalizePath(targetNode.path).startsWith(draggedSidecarPrefix)) {
+        return
+      }
+    }
+
+    const targetDir = getDirname(targetNode.path)
+    const targetBaseName = stripExtension(getBasename(targetNode.path))
+    const sidecarPath = `${targetDir}/${targetBaseName}`
+
+    const result = await moveNodeToFolder(actualDraggedNode, sidecarPath, { createDestFolder: true })
+    if (result.success && result.destPath) {
+      setPendingSelectionPath(result.destPath)
+    }
+
+    clearDragState()
+  }, [folderPath, treeNodes, moveNodeToFolder, clearDragState])
+
+  const handleDrop = useCallback((draggedPath: string, targetNode: TreeNode) => {
+    handleReparent(draggedPath, targetNode)
+  }, [handleReparent])
+
+  // Move a file to root level (out of its current sidecar folder)
+  const handleMoveToRoot = useCallback(async (node: TreeNode) => {
+    if (!folderPath) return
+
+    const result = await moveNodeToFolder(node, folderPath)
+    if (result.success && result.destPath) {
+      setPendingSelectionPath(result.destPath)
+    }
+
+    setContextMenu(null)
+  }, [folderPath, moveNodeToFolder])
+
+  // Drop to root: move dragged file to root level
+  const handleDropToRoot = useCallback(async (draggedNodePath: string) => {
+    if (!folderPath) return
+
+    // Find the actual dragged node in the tree
+    const actualDraggedNode = findNodeByPath(treeNodes, draggedNodePath)
+    if (!actualDraggedNode) {
+      console.error('Could not find dragged node:', draggedNodePath)
+      return
+    }
+
+    // Check if already at root
+    const nodeDir = normalizePath(getDirname(draggedNodePath))
+    const rootDir = normalizePath(folderPath)
+    if (nodeDir === rootDir) {
+      clearDragState()
+      return
+    }
+
+    const result = await moveNodeToFolder(actualDraggedNode, folderPath)
+    if (result.success && result.destPath) {
+      setPendingSelectionPath(result.destPath)
+    }
+
+    clearDragState()
+  }, [folderPath, treeNodes, moveNodeToFolder, clearDragState])
+
+  // Sidebar tree drop handlers (for dropping on empty space)
+  const handleSidebarTreeDragOver = useCallback((e: React.DragEvent) => {
+    if (!draggedNode) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [draggedNode])
+
+  const handleSidebarTreeDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const draggedPath = e.dataTransfer.getData('text/plain')
+    if (!draggedPath) return
+    handleDropToRoot(draggedPath)
+  }, [handleDropToRoot])
+
   const handleToggleExpand = useCallback((path: string) => {
     const normalized = normalizePath(path)
     setExpandedPaths((prev) => {
@@ -1145,7 +1318,7 @@ function App() {
       return items
     }
 
-    // Files and entities get New Child Note, Rename, Delete, Reveal
+    // Files and entities get New Child Note, Rename, Move to Root (if not at root), Delete, Reveal
     items.push(newChildNoteItem)
 
     items.push({
@@ -1153,6 +1326,17 @@ function App() {
       icon: Edit3,
       onClick: () => setRenameTarget({ node }),
     })
+
+    // Show "Move to Root" if node is not at root level
+    const nodeDir = normalizePath(getDirname(node.path))
+    const rootDir = normalizePath(folderPath || '')
+    if (nodeDir !== rootDir) {
+      items.push({
+        label: 'Move to Root',
+        icon: ArrowUpToLine,
+        onClick: () => handleMoveToRoot(node),
+      })
+    }
 
     items.push({
       label: 'Delete',
@@ -1168,7 +1352,7 @@ function App() {
     })
 
     return items
-  }, [handleRevealInExplorer, openNewNoteDialog])
+  }, [handleRevealInExplorer, openNewNoteDialog, folderPath, handleMoveToRoot])
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
@@ -1269,7 +1453,11 @@ function App() {
                 onResultClick={handleSearchResultClick}
               />
             ) : (
-              <div className="sidebar-tree">
+              <div
+                className="sidebar-tree"
+                onDragOver={handleSidebarTreeDragOver}
+                onDrop={handleSidebarTreeDrop}
+              >
                 {folderPath ? (
                   <TreeView
                     nodes={filteredTreeNodes}
@@ -1279,6 +1467,13 @@ function App() {
                     onToggleExpand={handleToggleExpand}
                     summarizingPaths={summarizingPaths}
                     onContextMenu={handleTreeContextMenu}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragEnter={handleDragEnterTarget}
+                    onDragLeave={handleDragLeaveTarget}
+                    onDrop={handleDrop}
+                    dropTargetPath={dropTargetPath}
+                    draggedPath={draggedNode?.path ?? null}
                   />
                 ) : (
                   <p className="placeholder">No folder opened</p>
