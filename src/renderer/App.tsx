@@ -475,9 +475,7 @@ function App() {
     if (!container || !activeFilePath) return
 
     const handleScroll = () => {
-      if (activeFilePath) {
-        scrollPositions.set(activeFilePath, container.scrollTop)
-      }
+      scrollPositions.set(activeFilePath, container.scrollTop)
     }
 
     container.addEventListener('scroll', handleScroll)
