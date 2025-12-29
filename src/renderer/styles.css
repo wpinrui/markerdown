@@ -707,6 +707,11 @@ audio.media-player {
   border-radius: 4px;
 }
 
+.image-error {
+  color: #808080;
+  font-size: 14px;
+}
+
 /* Markdown Viewer */
 .markdown-viewer {
   font-size: 15px;
