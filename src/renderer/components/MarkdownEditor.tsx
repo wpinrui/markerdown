@@ -24,6 +24,8 @@ export interface MarkdownEditorRef {
   insertCodeBlock: () => void
   insertTable: () => void
   getActiveFormats: () => ActiveFormats
+  undo: () => void
+  redo: () => void
 }
 
 interface MarkdownEditorProps {
@@ -119,6 +121,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
         else if (mode === 'code') codemirrorRef.current?.insertTable()
       },
       getActiveFormats,
+      undo: () => {
+        if (mode === 'visual') milkdownRef.current?.undo()
+        else if (mode === 'code') codemirrorRef.current?.undo()
+      },
+      redo: () => {
+        if (mode === 'visual') milkdownRef.current?.redo()
+        else if (mode === 'code') codemirrorRef.current?.redo()
+      },
     }))
 
     // Track content changes

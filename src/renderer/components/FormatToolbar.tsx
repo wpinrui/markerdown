@@ -11,6 +11,9 @@ export function FormatToolbar({
 }: FormatToolbarProps) {
   return (
     <div className="editor-format-toolbar" onMouseDown={(e) => e.preventDefault()}>
+      <button onClick={() => editorRef.current?.undo()} title="Undo (Ctrl+Z)">↶</button>
+      <button onClick={() => editorRef.current?.redo()} title="Redo (Ctrl+Y)">↷</button>
+      <span className="toolbar-divider" />
       <button className={activeFormats.bold ? 'active' : ''} onClick={() => editorRef.current?.bold()} title="Bold (Ctrl+B)">B</button>
       <button className={activeFormats.italic ? 'active' : ''} onClick={() => editorRef.current?.italic()} title="Italic (Ctrl+I)"><em>I</em></button>
       <button className={activeFormats.strikethrough ? 'active' : ''} onClick={() => editorRef.current?.strikethrough()} title="Strikethrough"><s>S</s></button>

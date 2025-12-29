@@ -2,7 +2,7 @@ import { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 
 import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx, editorViewCtx } from '@milkdown/core'
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, wrapInOrderedListCommand, wrapInBlockquoteCommand, insertHrCommand, insertImageCommand, toggleInlineCodeCommand } from '@milkdown/preset-commonmark'
 import { gfm, toggleStrikethroughCommand, insertTableCommand } from '@milkdown/preset-gfm'
-import { history } from '@milkdown/plugin-history'
+import { history, undoCommand, redoCommand } from '@milkdown/plugin-history'
 import { clipboard } from '@milkdown/plugin-clipboard'
 import { listener, listenerCtx } from '@milkdown/plugin-listener'
 import { callCommand } from '@milkdown/utils'
@@ -30,6 +30,8 @@ export interface MilkdownEditorRef {
   insertLink: (href: string, text?: string) => void
   insertCode: () => void
   insertCodeBlock: () => void
+  undo: () => void
+  redo: () => void
 }
 
 interface MilkdownEditorProps {
@@ -156,6 +158,12 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
       insertCodeBlock: () => {
         // TODO: Milkdown requires more complex prosemirror integration for code blocks
         // Use code mode for explicit code block insertion
+      },
+      undo: () => {
+        editorRef.current?.action(callCommand(undoCommand.key))
+      },
+      redo: () => {
+        editorRef.current?.action(callCommand(redoCommand.key))
       },
     }))
 

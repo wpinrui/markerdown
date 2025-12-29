@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, lineNumbers, highlightActiveLine, keymap } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, undo, redo } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { ActiveFormats, defaultFormats } from './editorTypes'
@@ -26,6 +26,8 @@ export interface CodeMirrorEditorRef {
   insertCodeBlock: () => void
   insertTable: () => void
   getActiveFormats: () => ActiveFormats
+  undo: () => void
+  redo: () => void
 }
 
 interface CodeMirrorEditorProps {
@@ -194,6 +196,14 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       insertCodeBlock: () => insertAtCursor('\n```\n\n```\n'),
       insertTable: () => insertAtCursor('\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell 1   | Cell 2   | Cell 3   |\n'),
       getActiveFormats,
+      undo: () => {
+        const view = viewRef.current
+        if (view) undo(view)
+      },
+      redo: () => {
+        const view = viewRef.current
+        if (view) redo(view)
+      },
     }))
 
     const handleChange = useCallback((update: { docChanged: boolean; selectionSet: boolean; state: EditorState }) => {
