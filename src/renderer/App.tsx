@@ -16,13 +16,14 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { RenameModal } from './components/RenameModal'
 import { NewMemberModal } from './components/NewMemberModal'
 import { SidebarSearch } from './components/SidebarSearch'
+import { ContentSearchResults } from './components/ContentSearchResults'
 import { useAutoSave } from './hooks/useAutoSave'
 import { useHorizontalResize } from './hooks/useHorizontalResize'
 import { defaultFormats } from './components/editorTypes'
 import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
-import type { TreeNode, FileChangeEvent, EntityMember, EditMode } from '@shared/types'
+import type { TreeNode, FileChangeEvent, EntityMember, EditMode, SearchResult } from '@shared/types'
 import { Edit3, Trash2, FolderOpen, FilePlus } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
@@ -47,6 +48,7 @@ const MAX_AGENT_PANEL_WIDTH = 800
 const SAVE_IN_PROGRESS_DELAY_MS = 500
 const TREE_REFRESH_DELAY_MS = 100
 const SCROLL_RESTORE_DELAY_MS = 50
+const CONTENT_SEARCH_DEBOUNCE_MS = 300
 
 // Persist scroll positions across tab switches (session only)
 const scrollPositions = new Map<string, number>()
@@ -88,6 +90,9 @@ function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchMode, setSearchMode] = useState<'name' | 'content'>('name')
+  const [contentSearchResults, setContentSearchResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
 
   // Resize handlers
   const { handleMouseDown: handleAgentPanelMouseDown } = useHorizontalResize({
@@ -128,6 +133,71 @@ function App() {
 
     return filterNodes(treeNodes)
   }, [treeNodes, searchQuery])
+
+  // Content search effect
+  useEffect(() => {
+    if (searchMode !== 'content' || !folderPath || !searchQuery.trim()) {
+      setContentSearchResults([])
+      return
+    }
+
+    const searchTimeout = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const results = await window.electronAPI.searchContent(folderPath, searchQuery)
+        setContentSearchResults(results)
+      } catch (err) {
+        console.error('Search failed:', err)
+        setContentSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }, CONTENT_SEARCH_DEBOUNCE_MS)
+
+    return () => clearTimeout(searchTimeout)
+  }, [searchMode, folderPath, searchQuery])
+
+  // Handle content search result click - navigate to file
+  const handleSearchResultClick = useCallback((filePath: string, _lineNumber: number) => {
+    const node = findNodeByPath(treeNodes, filePath)
+    if (!node) return
+
+    // Expand parent directories by walking up the path
+    const pathsToExpand: string[] = []
+    let parentPath = getDirname(filePath)
+    while (parentPath && parentPath !== filePath) {
+      const parentNode = findNodeByPath(treeNodes, parentPath)
+      if (parentNode?.isDirectory) {
+        pathsToExpand.push(parentNode.path)
+      }
+      const nextParent = getDirname(parentPath)
+      if (nextParent === parentPath) break // Reached root
+      parentPath = nextParent
+    }
+
+    if (pathsToExpand.length > 0) {
+      setExpandedPaths((prev) => {
+        const next = new Set(prev)
+        for (const p of pathsToExpand) {
+          next.add(p)
+        }
+        return next
+      })
+    }
+
+    // Select the node
+    setSelectedNode(node)
+    if (node.entity) {
+      const defaultMember = node.entity.defaultMember ?? node.entity.members[0]
+      setActiveMember(defaultMember)
+    } else {
+      setActiveMember(null)
+    }
+
+    // Update window title
+    const filename = node.entity?.baseName || getBasename(node.path)
+    window.electronAPI.setWindowTitle(`${filename} - Markerdown`).catch(console.error)
+  }, [treeNodes])
 
   // Editor state
   const [editMode, setEditMode] = useState<EditMode>('view')
@@ -1154,26 +1224,51 @@ function App() {
         {sidebarVisible && (
           <aside className="sidebar" style={{ width: sidebarWidth }}>
             {folderPath && (
-              <SidebarSearch
-                value={searchQuery}
-                onChange={setSearchQuery}
-              />
-            )}
-            <div className="sidebar-tree">
-              {folderPath ? (
-                <TreeView
-                  nodes={filteredTreeNodes}
-                  selectedPath={selectedNode?.path ?? null}
-                  expandedPaths={expandedPaths}
-                  onSelect={handleSelectNode}
-                  onToggleExpand={handleToggleExpand}
-                  summarizingPaths={summarizingPaths}
-                  onContextMenu={handleTreeContextMenu}
+              <>
+                <SidebarSearch
+                  value={searchQuery}
+                  onChange={setSearchQuery}
                 />
-              ) : (
-                <p className="placeholder">No folder opened</p>
-              )}
-            </div>
+                <div className="search-mode-toggle">
+                  <button
+                    className={`search-mode-btn ${searchMode === 'name' ? 'active' : ''}`}
+                    onClick={() => setSearchMode('name')}
+                  >
+                    Names
+                  </button>
+                  <button
+                    className={`search-mode-btn ${searchMode === 'content' ? 'active' : ''}`}
+                    onClick={() => setSearchMode('content')}
+                  >
+                    Content
+                  </button>
+                </div>
+              </>
+            )}
+            {searchMode === 'content' && folderPath && searchQuery.trim() ? (
+              <ContentSearchResults
+                results={contentSearchResults}
+                query={searchQuery}
+                isSearching={isSearching}
+                onResultClick={handleSearchResultClick}
+              />
+            ) : (
+              <div className="sidebar-tree">
+                {folderPath ? (
+                  <TreeView
+                    nodes={filteredTreeNodes}
+                    selectedPath={selectedNode?.path ?? null}
+                    expandedPaths={expandedPaths}
+                    onSelect={handleSelectNode}
+                    onToggleExpand={handleToggleExpand}
+                    summarizingPaths={summarizingPaths}
+                    onContextMenu={handleTreeContextMenu}
+                  />
+                ) : (
+                  <p className="placeholder">No folder opened</p>
+                )}
+              </div>
+            )}
             <SidebarToolbar
               onNewNote={() => openNewNoteDialog(selectedNode?.path ?? null)}
               onOpenFolder={handleOpenInExplorer}
