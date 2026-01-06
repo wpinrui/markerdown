@@ -84,12 +84,13 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
   const isImage = isImageFile(node.name)
   const isEntity = !!node.entity
   const isSuggestion = !!node.isSuggestion
-  const isSelectable = isMarkdown || isPdf || isVideo || isAudio || isImage || isEntity || isSuggestion
+  const isSupportedFileType = isMarkdown || isPdf || isVideo || isAudio || isImage || isEntity
+  const isSelectable = isSupportedFileType || isSuggestion
 
-  // Drag-to-reparent: all supported file types and entities can be dragged (not directories, not suggestions)
-  const isDraggable = (isMarkdown || isPdf || isVideo || isAudio || isImage || isEntity) && !node.isDirectory && !isSuggestion
-  // Valid drop targets: all supported file types and entities (will become parent)
-  const isValidDropTarget = (isMarkdown || isPdf || isVideo || isAudio || isImage || isEntity) && !node.isDirectory && !isSuggestion
+  // Drag-to-reparent: supported file types can be dragged (not directories, not suggestions)
+  const isDraggable = isSupportedFileType && !node.isDirectory && !isSuggestion
+  // Valid drop targets: supported file types (will become parent)
+  const isValidDropTarget = isSupportedFileType && !node.isDirectory && !isSuggestion
   const isDropTarget = dropTargetPath === node.path
   const isBeingDragged = draggedPath === node.path
 
