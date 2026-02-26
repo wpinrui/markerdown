@@ -188,6 +188,7 @@ export function NewNoteWindow() {
           handleCancel()
         }
       } else if (e.key === 'Enter' && !showParentDropdown && canSubmit) {
+        e.preventDefault()
         handleSubmit()
       }
     }
