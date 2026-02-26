@@ -56,7 +56,7 @@ function formatTodayDate(): string {
   return `${day} ${month}`
 }
 
-function buildEntityName(prefix: string, number: number, date: string): string {
+export function buildEntityName(prefix: string, number: number, date: string): string {
   return `${prefix}${number} (${date})`
 }
 

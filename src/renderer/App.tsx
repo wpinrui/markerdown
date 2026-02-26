@@ -16,7 +16,7 @@ import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { RenameModal } from './components/RenameModal'
 import { NewMemberModal } from './components/NewMemberModal'
-import { NewClassLogModal, ClassLogConfig } from './components/NewClassLogModal'
+import { NewClassLogModal, ClassLogConfig, buildEntityName } from './components/NewClassLogModal'
 import { SidebarSearch } from './components/SidebarSearch'
 import { ContentSearchResults } from './components/ContentSearchResults'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -796,7 +796,7 @@ function App() {
   const handleClassLogSubmit = useCallback(async (config: ClassLogConfig) => {
     if (!classLogTarget) return
     const { folderPath: targetFolder } = classLogTarget
-    const entityName = `${config.prefix}${config.number} (${config.date})`
+    const entityName = buildEntityName(config.prefix, config.number, config.date)
 
     // Copy and rename attached file
     if (config.attachedFilePath) {
@@ -1534,16 +1534,18 @@ function App() {
           onClick: () => handleToggleArchive(node),
         }
 
+    const newClassLogItem: ContextMenuItem = {
+      label: 'New Class Log',
+      icon: BookPlus,
+      onClick: () => {
+        setContextMenu(null)
+        openClassLogDialog(node)
+      },
+    }
+
     // Directories get New Class Log, New Child Note, Archive, Delete and Reveal in Explorer
     if (node.isDirectory) {
-      items.push({
-        label: 'New Class Log',
-        icon: BookPlus,
-        onClick: () => {
-          setContextMenu(null)
-          openClassLogDialog(node)
-        },
-      })
+      items.push(newClassLogItem)
       items.push(newChildNoteItem)
       items.push(archiveItem)
       items.push({
@@ -1567,14 +1569,7 @@ function App() {
 
     // Files and entities with sidecar folders get New Class Log
     if (node.hasSidecar && node.sidecarName) {
-      items.push({
-        label: 'New Class Log',
-        icon: BookPlus,
-        onClick: () => {
-          setContextMenu(null)
-          openClassLogDialog(node)
-        },
-      })
+      items.push(newClassLogItem)
     }
 
     // Files and entities get New Child Note, Rename, Move to Root (if not at root), Archive, Delete, Reveal
