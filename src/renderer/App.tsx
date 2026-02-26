@@ -1039,6 +1039,17 @@ Format as clean markdown. Be thorough but concise.`
       return
     }
 
+    // Sidecar nodes (files with child folders): open New Class Log dialog
+    if (targetNode.hasSidecar && targetNode.sidecarName) {
+      const sidecarPath = `${getDirname(targetNode.path)}/${targetNode.sidecarName}`
+      setClassLogTarget({
+        folderPath: sidecarPath,
+        folderChildren: targetNode.children ?? [],
+        attachedFilePath: filePaths[0],
+      })
+      return
+    }
+
     // Non-directories: copy to sidecar folder
     const targetDir = getDirname(targetNode.path)
     const targetBaseName = stripExtension(getBasename(targetNode.path))
@@ -1568,6 +1579,22 @@ Format as clean markdown. Be thorough but concise.`
     // Don't show context menu for suggestion drafts
     if (node.isSuggestion) {
       return items
+    }
+
+    // Files and entities with sidecar folders get New Class Log
+    if (node.hasSidecar && node.sidecarName) {
+      const sidecarPath = `${getDirname(node.path)}/${node.sidecarName}`
+      items.push({
+        label: 'New Class Log',
+        icon: BookPlus,
+        onClick: () => {
+          setContextMenu(null)
+          setClassLogTarget({
+            folderPath: sidecarPath,
+            folderChildren: node.children ?? [],
+          })
+        },
+      })
     }
 
     // Files and entities get New Child Note, Rename, Move to Root (if not at root), Archive, Delete, Reveal
