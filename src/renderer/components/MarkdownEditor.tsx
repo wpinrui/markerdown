@@ -46,6 +46,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     const milkdownRef = useRef<MilkdownEditorRef>(null)
     const codemirrorRef = useRef<CodeMirrorEditorRef>(null)
     const currentContentRef = useRef(content)
+    const prevFilePathRef = useRef(filePath)
+    // Sync ref when file changes (tab switch), not during active editing
+    if (filePath !== prevFilePathRef.current) {
+      currentContentRef.current = content
+      prevFilePathRef.current = filePath
+    }
 
     // Helper to get active formats from current editor
     const getActiveFormats = useCallback((): ActiveFormats => {
@@ -175,6 +181,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
 
           {mode === 'code' && (
             <CodeMirrorEditor
+              key={filePath}
               ref={codemirrorRef}
               content={currentContentRef.current}
               filePath={filePath}
