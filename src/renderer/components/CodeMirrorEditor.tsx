@@ -227,6 +227,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
           markdown(),
           oneDark,
           keymap.of([...defaultKeymap, ...historyKeymap]),
+          EditorView.lineWrapping,
           EditorView.updateListener.of(handleChange),
           EditorView.theme({
             '&': {
