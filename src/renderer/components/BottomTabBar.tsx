@@ -63,6 +63,8 @@ export function BottomTabBar({
 
   if (!hasTabs) return null
 
+  const standaloneColors = selectedFileName ? stringToColors(selectedFileName) : null
+
   return (
     <div className="bottom-tab-bar">
       {entity && activeMember && onTabChange ? (
@@ -101,14 +103,14 @@ export function BottomTabBar({
             </button>
           )}
         </>
-      ) : selectedFileName ? (
+      ) : selectedFileName && standaloneColors ? (
         <>
           <button
             type="button"
             className="entity-tab active"
             style={{
-              backgroundColor: stringToColors(selectedFileName).base,
-              borderColor: stringToColors(selectedFileName).light,
+              backgroundColor: standaloneColors.base,
+              borderColor: standaloneColors.light,
               fontWeight: 'bold',
             }}
           >
