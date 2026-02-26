@@ -191,6 +191,7 @@ export interface SearchResult {
 
 export interface ElectronAPI {
   openFolder: () => Promise<string | null>
+  openFile: () => Promise<string | null>
   openNewNote: (treeNodes: TreeNode[], selectedPath: string | null) => Promise<NewNoteResult | null>
   readDirectory: (dirPath: string) => Promise<FileEntry[]>
   readFile: (filePath: string) => Promise<string | null>

@@ -16,6 +16,7 @@ import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { RenameModal } from './components/RenameModal'
 import { NewMemberModal } from './components/NewMemberModal'
+import { NewClassLogModal, ClassLogConfig } from './components/NewClassLogModal'
 import { SidebarSearch } from './components/SidebarSearch'
 import { ContentSearchResults } from './components/ContentSearchResults'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -25,7 +26,7 @@ import { buildFileTree, BuildFileTreeOptions } from '@shared/fileTree'
 import { getBasename, getDirname, getExtension, stripExtension, normalizePath } from '@shared/pathUtils'
 import { isMarkdownFile, isPdfFile, isMediaFile, isImageFile, getImageExtension, isStructureChange, MARKERDOWN_DIR } from '@shared/types'
 import type { TreeNode, FileChangeEvent, EntityMember, EditMode, SearchResult } from '@shared/types'
-import { Edit3, Trash2, FolderOpen, FilePlus, ArrowUpToLine, Archive, ArchiveRestore } from 'lucide-react'
+import { Edit3, Trash2, FolderOpen, FilePlus, ArrowUpToLine, Archive, ArchiveRestore, BookPlus } from 'lucide-react'
 
 const DEFAULT_AGENT_PANEL_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 280
@@ -75,6 +76,13 @@ function App() {
 
   // Rename modal state
   const [renameTarget, setRenameTarget] = useState<{ node?: TreeNode; member?: EntityMember } | null>(null)
+
+  // New Class Log modal state
+  const [classLogTarget, setClassLogTarget] = useState<{
+    folderPath: string
+    folderChildren: TreeNode[]
+    attachedFilePath?: string
+  } | null>(null)
   // After rename, store the new path to re-select once tree refreshes
   const [pendingSelectionPath, setPendingSelectionPath] = useState<string | null>(null)
   // For member rename, store the new member path to set as active after refresh
@@ -784,6 +792,85 @@ function App() {
   const summarizeBaseName = selectedNode?.entity?.baseName
     ?? (selectedNode ? stripMdExtension(stripPdfExtension(stripImageExtension(selectedNode.name))) : '')
 
+  // Handle New Class Log submission
+  const handleClassLogSubmit = useCallback(async (config: ClassLogConfig) => {
+    if (!classLogTarget) return
+    const { folderPath: targetFolder } = classLogTarget
+    const entityName = `${config.prefix}${config.number} (${config.date})`
+
+    // Copy and rename attached file
+    if (config.attachedFilePath) {
+      const ext = getExtension(config.attachedFilePath)
+      const destPath = `${targetFolder}/${entityName}${ext}`
+
+      const exists = await window.electronAPI.exists(destPath)
+      if (exists) {
+        setError(`File already exists: ${getBasename(destPath)}`)
+        return
+      }
+
+      const result = await window.electronAPI.copyFile(config.attachedFilePath, destPath)
+      if (!result.success) {
+        setError(`Failed to copy file: ${result.error}`)
+        return
+      }
+    }
+
+    // Create .md note
+    if (config.createMd) {
+      const mdPath = `${targetFolder}/${entityName}.md`
+
+      const exists = await window.electronAPI.exists(mdPath)
+      if (!exists) {
+        const result = await window.electronAPI.writeFile(mdPath, `# ${entityName}\n\n`)
+        if (!result.success) {
+          setError(`Failed to create note: ${result.error}`)
+          return
+        }
+      }
+    }
+
+    setClassLogTarget(null)
+
+    // Trigger summarisation in background (after dialog closes)
+    if (config.summarise && config.attachedFilePath && folderPath) {
+      const ext = getExtension(config.attachedFilePath)
+      const sourcePath = `${targetFolder}/${entityName}${ext}`
+      const outputPath = `${targetFolder}/${entityName}.slides.md`
+
+      const autoPrompt = `Read this PDF and create comprehensive notes with these sections:
+
+## Take Note!
+Extract critical information: important tasks, deadlines, dates, gotchas, and anything requiring immediate attention.
+
+## [Content Sections]
+Organize the main content into logical sections with clear headers. Summarize key information without duplicating content across sections.
+
+## Appendix
+Collect reference information: links, contact details, administrative instructions, and other details that may be useful later.
+
+Format as clean markdown. Be thorough but concise.`
+
+      try {
+        const result = await window.electronAPI.summarize({
+          sourcePath,
+          outputPath,
+          prompt: autoPrompt,
+          workingDir: folderPath,
+        })
+        if (!result.success) {
+          setError(result.error || 'Summarization failed')
+        }
+      } catch (err) {
+        setError(`Summarization failed: ${err}`)
+      }
+    }
+  }, [classLogTarget, folderPath])
+
+  const handleClassLogBrowseFile = useCallback(async (): Promise<string | null> => {
+    return window.electronAPI.openFile()
+  }, [])
+
   const isEditing = editMode !== 'view'
 
   // Open in file explorer handler (for sidebar toolbar)
@@ -942,7 +1029,17 @@ function App() {
   const handleExternalFileDrop = useCallback(async (filePaths: string[], targetNode: TreeNode) => {
     if (!folderPath || filePaths.length === 0) return
 
-    // Determine destination folder: the target's sidecar folder
+    // Directories: open New Class Log dialog with attached file
+    if (targetNode.isDirectory) {
+      setClassLogTarget({
+        folderPath: targetNode.path,
+        folderChildren: targetNode.children ?? [],
+        attachedFilePath: filePaths[0],
+      })
+      return
+    }
+
+    // Non-directories: copy to sidecar folder
     const targetDir = getDirname(targetNode.path)
     const targetBaseName = stripExtension(getBasename(targetNode.path))
     const sidecarPath = `${targetDir}/${targetBaseName}`
@@ -1439,8 +1536,19 @@ function App() {
           onClick: () => handleToggleArchive(node),
         }
 
-    // Directories get New Child Note, Archive, Delete and Reveal in Explorer
+    // Directories get New Class Log, New Child Note, Archive, Delete and Reveal in Explorer
     if (node.isDirectory) {
+      items.push({
+        label: 'New Class Log',
+        icon: BookPlus,
+        onClick: () => {
+          setContextMenu(null)
+          setClassLogTarget({
+            folderPath: node.path,
+            folderChildren: node.children ?? [],
+          })
+        },
+      })
       items.push(newChildNoteItem)
       items.push(archiveItem)
       items.push({
@@ -1727,6 +1835,14 @@ function App() {
         onSubmit={handleSummarize}
         entityBaseName={summarizeBaseName}
         existingVariants={existingVariants}
+      />
+      <NewClassLogModal
+        isOpen={!!classLogTarget}
+        onClose={() => setClassLogTarget(null)}
+        onSubmit={handleClassLogSubmit}
+        onBrowseFile={handleClassLogBrowseFile}
+        folderChildren={classLogTarget?.folderChildren ?? []}
+        attachedFilePath={classLogTarget?.attachedFilePath}
       />
       <OptionsModal
         isOpen={showOptionsModal}

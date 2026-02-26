@@ -3,6 +3,7 @@ import type { FileEntry, FileChangeEvent, SummarizeRequest, SummarizeResult, Age
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFolder'),
+  openFile: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFile'),
   openNewNote: (treeNodes: TreeNode[], selectedPath: string | null): Promise<NewNoteResult | null> =>
     ipcRenderer.invoke('dialog:openNewNote', { treeNodes, selectedPath }),
   readDirectory: (dirPath: string): Promise<FileEntry[]> =>

@@ -129,9 +129,9 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
   }
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (!isValidDropTarget) return
-    // Check if this is an external file drop
     const isExternalFile = e.dataTransfer.types.includes('Files')
+    // Directories accept external file drops only; files accept both
+    if (!isValidDropTarget && !(node.isDirectory && isExternalFile)) return
     // Prevent dropping internal item on self
     if (!isExternalFile && draggedPath === node.path) return
     e.preventDefault()
@@ -139,8 +139,8 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
   }
 
   const handleDragEnter = (e: React.DragEvent) => {
-    if (!isValidDropTarget) return
     const isExternalFile = e.dataTransfer.types.includes('Files')
+    if (!isValidDropTarget && !(node.isDirectory && isExternalFile)) return
     if (!isExternalFile && draggedPath === node.path) return
     e.preventDefault()
     onDragEnter?.(node.path)
@@ -157,10 +157,10 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!isValidDropTarget) return
 
-    // Check for external files first
+    // Check for external files first (allowed on both files and directories)
     if (e.dataTransfer.files.length > 0) {
+      if (!isValidDropTarget && !node.isDirectory) return
       const filePaths = Array.from(e.dataTransfer.files).map((f) => f.path)
       if (filePaths.length > 0 && filePaths[0]) {
         onExternalFileDrop?.(filePaths, node)
@@ -168,7 +168,8 @@ function TreeItem({ node, depth, selectedPath, expandedPaths, onSelect, onToggle
       return
     }
 
-    // Internal drag
+    // Internal drag (only on valid drop targets, not directories)
+    if (!isValidDropTarget) return
     if (draggedPath === node.path) return
     const draggedNodePath = e.dataTransfer.getData('text/plain')
     if (!draggedNodePath || draggedNodePath === node.path) return

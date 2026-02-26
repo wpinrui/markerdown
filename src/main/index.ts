@@ -218,6 +218,14 @@ ipcMain.handle('dialog:openFolder', async () => {
   return result.filePaths[0]
 })
 
+ipcMain.handle('dialog:openFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+  })
+  if (result.canceled) return null
+  return result.filePaths[0] ?? null
+})
+
 ipcMain.handle('fs:readDirectory', async (_event, dirPath: string) => {
   try {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
