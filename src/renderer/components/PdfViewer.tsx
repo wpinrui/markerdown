@@ -496,6 +496,11 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
                     renderTextLayer={true}
                     renderAnnotationLayer={true}
                     customTextRenderer={searchText ? createSearchHighlighter(searchText) : undefined}
+                    loading={
+                      <div className="pdf-page-placeholder" style={{ width: pageWidth, height: scaledHeight }}>
+                        <div className="pdf-page-spinner" />
+                      </div>
+                    }
                   />
                 ) : (
                   <div
