@@ -175,6 +175,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
 
           {mode === 'code' && (
             <CodeMirrorEditor
+              key={filePath}
               ref={codemirrorRef}
               content={currentContentRef.current}
               filePath={filePath}
