@@ -309,17 +309,29 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
     // Pre-fetch all page dimensions (metadata only, no rendering)
     const dims = new Map<number, { width: number; height: number }>()
+    let firstWidth = 0
+    let firstHeight = 0
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i)
-      const viewport = page.getViewport({ scale: 1 })
-      dims.set(i, { width: viewport.width, height: viewport.height })
+      try {
+        const page = await pdf.getPage(i)
+        const viewport = page.getViewport({ scale: 1 })
+        dims.set(i, { width: viewport.width, height: viewport.height })
+        if (firstWidth === 0) {
+          firstWidth = viewport.width
+          firstHeight = viewport.height
+        }
+      } catch {
+        // Use first page dimensions as fallback, or a default aspect ratio
+        const fallbackWidth = firstWidth || 612 // US Letter at 72 DPI
+        const fallbackHeight = firstHeight || 792
+        dims.set(i, { width: fallbackWidth, height: fallbackHeight })
+      }
     }
     setPageDimensions(dims)
 
-    const firstPage = dims.get(1)
-    if (firstPage) {
-      setOriginalPageWidth(firstPage.width)
-      setOriginalPageHeight(firstPage.height)
+    if (firstWidth > 0) {
+      setOriginalPageWidth(firstWidth)
+      setOriginalPageHeight(firstHeight)
     }
   }
 
