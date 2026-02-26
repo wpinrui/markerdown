@@ -671,6 +671,8 @@ function App() {
   }
 
   const handleTabChange = (member: EntityMember) => {
+    setEditContent(null)
+    setIsDirty(false)
     setActiveMember(member)
   }
 
