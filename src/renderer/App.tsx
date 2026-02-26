@@ -672,6 +672,7 @@ function App() {
 
   const handleTabChange = (member: EntityMember) => {
     setEditContent(null)
+    setFileContent(null)
     setIsDirty(false)
     setActiveMember(member)
   }
