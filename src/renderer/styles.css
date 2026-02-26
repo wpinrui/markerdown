@@ -493,9 +493,18 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 4px 12px;
   border-top: 1px solid #3c3c3c;
   flex-shrink: 0;
+}
+
+.bottom-tab-bar .entity-tab {
+  padding: 3px 10px;
+}
+
+.bottom-tab-bar .entity-tab-add {
+  width: 26px;
+  height: 26px;
 }
 
 .tab-action-btn {
