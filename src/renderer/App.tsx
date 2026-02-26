@@ -5,7 +5,7 @@ import { MarkdownEditor, MarkdownEditorRef, ActiveFormats } from './components/M
 import { PdfViewer } from './components/PdfViewer'
 import { MediaViewer } from './components/MediaViewer'
 import { ImageViewer } from './components/ImageViewer'
-import { SummarizeModal } from './components/SummarizeModal'
+import { SummarizeModal, AUTO_PROMPT } from './components/SummarizeModal'
 import { AgentPanel } from './components/AgentPanel'
 import { TodoPanel } from './components/TodoPanel'
 import { EventPanel } from './components/EventPanel'
@@ -838,24 +838,11 @@ function App() {
       const sourcePath = `${targetFolder}/${entityName}${ext}`
       const outputPath = `${targetFolder}/${entityName}.slides.md`
 
-      const autoPrompt = `Read this PDF and create comprehensive notes with these sections:
-
-## Take Note!
-Extract critical information: important tasks, deadlines, dates, gotchas, and anything requiring immediate attention.
-
-## [Content Sections]
-Organize the main content into logical sections with clear headers. Summarize key information without duplicating content across sections.
-
-## Appendix
-Collect reference information: links, contact details, administrative instructions, and other details that may be useful later.
-
-Format as clean markdown. Be thorough but concise.`
-
       try {
         const result = await window.electronAPI.summarize({
           sourcePath,
           outputPath,
-          prompt: autoPrompt,
+          prompt: AUTO_PROMPT,
           workingDir: folderPath,
         })
         if (!result.success) {
@@ -1025,30 +1012,30 @@ Format as clean markdown. Be thorough but concise.`
     refreshTree()
   }, [refreshTree])
 
+  // Get the folder path for a node that can host class logs (directory or sidecar parent)
+  const getClassLogFolder = useCallback((node: TreeNode): string | null => {
+    if (node.isDirectory) return node.path
+    if (node.hasSidecar && node.sidecarName) return `${getDirname(node.path)}/${node.sidecarName}`
+    return null
+  }, [])
+
+  const openClassLogDialog = useCallback((node: TreeNode, attachedFilePath?: string) => {
+    const targetFolder = getClassLogFolder(node)
+    if (!targetFolder) return false
+    setClassLogTarget({
+      folderPath: targetFolder,
+      folderChildren: node.children ?? [],
+      attachedFilePath,
+    })
+    return true
+  }, [getClassLogFolder])
+
   // Handle external file drop onto a tree item
   const handleExternalFileDrop = useCallback(async (filePaths: string[], targetNode: TreeNode) => {
     if (!folderPath || filePaths.length === 0) return
 
-    // Directories: open New Class Log dialog with attached file
-    if (targetNode.isDirectory) {
-      setClassLogTarget({
-        folderPath: targetNode.path,
-        folderChildren: targetNode.children ?? [],
-        attachedFilePath: filePaths[0],
-      })
-      return
-    }
-
-    // Sidecar nodes (files with child folders): open New Class Log dialog
-    if (targetNode.hasSidecar && targetNode.sidecarName) {
-      const sidecarPath = `${getDirname(targetNode.path)}/${targetNode.sidecarName}`
-      setClassLogTarget({
-        folderPath: sidecarPath,
-        folderChildren: targetNode.children ?? [],
-        attachedFilePath: filePaths[0],
-      })
-      return
-    }
+    // Directories and sidecar nodes: open New Class Log dialog with attached file
+    if (openClassLogDialog(targetNode, filePaths[0])) return
 
     // Non-directories: copy to sidecar folder
     const targetDir = getDirname(targetNode.path)
@@ -1063,7 +1050,7 @@ Format as clean markdown. Be thorough but concise.`
     }
 
     await copyExternalFilesToFolder(filePaths, sidecarPath)
-  }, [folderPath, copyExternalFilesToFolder])
+  }, [folderPath, copyExternalFilesToFolder, openClassLogDialog])
 
   // Handle external file drop to root level
   const handleExternalFileDropToRoot = useCallback(async (filePaths: string[]) => {
@@ -1554,10 +1541,7 @@ Format as clean markdown. Be thorough but concise.`
         icon: BookPlus,
         onClick: () => {
           setContextMenu(null)
-          setClassLogTarget({
-            folderPath: node.path,
-            folderChildren: node.children ?? [],
-          })
+          openClassLogDialog(node)
         },
       })
       items.push(newChildNoteItem)
@@ -1583,16 +1567,12 @@ Format as clean markdown. Be thorough but concise.`
 
     // Files and entities with sidecar folders get New Class Log
     if (node.hasSidecar && node.sidecarName) {
-      const sidecarPath = `${getDirname(node.path)}/${node.sidecarName}`
       items.push({
         label: 'New Class Log',
         icon: BookPlus,
         onClick: () => {
           setContextMenu(null)
-          setClassLogTarget({
-            folderPath: sidecarPath,
-            folderChildren: node.children ?? [],
-          })
+          openClassLogDialog(node)
         },
       })
     }
@@ -1633,7 +1613,7 @@ Format as clean markdown. Be thorough but concise.`
     })
 
     return items
-  }, [handleRevealInExplorer, openNewNoteDialog, folderPath, handleMoveToRoot, isPathArchived, handleToggleArchive])
+  }, [handleRevealInExplorer, openNewNoteDialog, openClassLogDialog, folderPath, handleMoveToRoot, isPathArchived, handleToggleArchive])
 
   // Determine if mode toggle should show (markdown content is active)
   const isMarkdownActive = activeMember?.type === 'markdown' ||
