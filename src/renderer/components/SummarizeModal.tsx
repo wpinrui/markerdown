@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 
-const AUTO_PROMPT = `Read this PDF and create comprehensive notes with these sections:
+export const AUTO_PROMPT = `Read this PDF and create comprehensive notes with these sections:
 
 ## Take Note!
 Extract critical information: important tasks, deadlines, dates, gotchas, and anything requiring immediate attention.
