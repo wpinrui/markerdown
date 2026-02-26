@@ -14,6 +14,11 @@ interface PdfViewerProps {
 
 type FitMode = 'width' | 'page' | 'custom'
 
+interface PdfDocumentProxy {
+  numPages: number
+  getPage: (n: number) => Promise<{ getViewport: (opts: { scale: number }) => { width: number; height: number } }>
+}
+
 const ZOOM_STEP = 0.25
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
@@ -21,7 +26,10 @@ const SCROLL_RESTORE_DELAY_MS = 100
 const CONTAINER_PADDING_WITH_SCROLLBAR = 24
 const TOOLBAR_HEIGHT = 32
 const DEFAULT_ASPECT_RATIO = 8.5 / 11 // US Letter fallback before page dimensions load
+const US_LETTER_WIDTH = 612 // US Letter width at 72 DPI
+const US_LETTER_HEIGHT = 792 // US Letter height at 72 DPI
 const PAGE_OVERSCAN = 2 // Number of pages to pre-render above/below viewport
+const OBSERVER_ROOT_MARGIN = '200px 0px'
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -76,6 +84,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const zoomInputRef = useRef<HTMLInputElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const intersectingPagesRef = useRef<Set<number>>(new Set())
+  const visiblePagesRef = useRef(visiblePages)
+  visiblePagesRef.current = visiblePages
   const currentPageRef = useRef(currentPage)
   currentPageRef.current = currentPage
 
@@ -159,7 +169,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     const containerRect = containerRef.current.getBoundingClientRect()
 
     // Only check pages near the viewport instead of all pages
-    visiblePages.forEach((pageNum) => {
+    visiblePagesRef.current.forEach((pageNum) => {
       const el = pageRefs.current.get(pageNum)
       if (!el) return
       const rect = el.getBoundingClientRect()
@@ -177,7 +187,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
     // Save scroll position
     scrollPositions.set(filePath, containerRef.current.scrollTop)
-  }, [numPages, filePath, visiblePages])
+  }, [numPages, filePath])
 
   useEffect(() => {
     const container = containerRef.current
@@ -192,8 +202,6 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   useEffect(() => {
     const container = containerRef.current
     if (!container || numPages === 0 || pageDimensions.size === 0) return
-
-    observerRef.current?.disconnect()
 
     intersectingPagesRef.current = new Set()
 
@@ -212,8 +220,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
 
         // Build visible set: intersecting pages + overscan
         const newVisible = new Set<number>()
-        intersectingPagesRef.current.forEach((p) => {
-          for (let i = Math.max(1, p - PAGE_OVERSCAN); i <= Math.min(numPages, p + PAGE_OVERSCAN); i++) {
+        intersectingPagesRef.current.forEach((pageNum) => {
+          for (let i = Math.max(1, pageNum - PAGE_OVERSCAN); i <= Math.min(numPages, pageNum + PAGE_OVERSCAN); i++) {
             newVisible.add(i)
           }
         })
@@ -222,7 +230,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
         if (newVisible.size === 0) newVisible.add(1)
 
         setVisiblePages((prev) => {
-          if (newVisible.size === prev.size && [...newVisible].every((p) => prev.has(p))) {
+          if (newVisible.size === prev.size && [...newVisible].every((n) => prev.has(n))) {
             return prev
           }
           return newVisible
@@ -230,7 +238,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
       },
       {
         root: container,
-        rootMargin: '200px 0px',
+        rootMargin: OBSERVER_ROOT_MARGIN,
         threshold: 0
       }
     )
@@ -303,7 +311,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [searchOpen, goToPage, closeSearch, openSearch])
 
-  async function onDocumentLoadSuccess(pdf: { numPages: number; getPage: (n: number) => Promise<{ getViewport: (opts: { scale: number }) => { width: number; height: number } }> }) {
+  async function onDocumentLoadSuccess(pdf: PdfDocumentProxy) {
     setNumPages(pdf.numPages)
     setCurrentPage(1)
 
@@ -322,8 +330,8 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
         }
       } catch {
         // Use first page dimensions as fallback, or a default aspect ratio
-        const fallbackWidth = firstWidth || 612 // US Letter at 72 DPI
-        const fallbackHeight = firstHeight || 792
+        const fallbackWidth = firstWidth || US_LETTER_WIDTH
+        const fallbackHeight = firstHeight || US_LETTER_HEIGHT
         dims.set(i, { width: fallbackWidth, height: fallbackHeight })
       }
     }
