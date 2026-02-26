@@ -67,7 +67,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [scale, setScale] = useState<number>(1)
-  const [fitMode, setFitMode] = useState<FitMode>('width')
+  const [fitMode, setFitMode] = useState<FitMode>('page')
   const [containerWidth, setContainerWidth] = useState<number>(800)
   const [containerHeight, setContainerHeight] = useState<number>(600)
   const [originalPageWidth, setOriginalPageWidth] = useState<number>(0)
