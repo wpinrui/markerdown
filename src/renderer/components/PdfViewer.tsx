@@ -14,6 +14,11 @@ interface PdfViewerProps {
 
 type FitMode = 'width' | 'page' | 'custom'
 
+interface PdfDocumentProxy {
+  numPages: number
+  getPage: (n: number) => Promise<{ getViewport: (opts: { scale: number }) => { width: number; height: number } }>
+}
+
 const ZOOM_STEP = 0.25
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
@@ -21,6 +26,10 @@ const SCROLL_RESTORE_DELAY_MS = 100
 const CONTAINER_PADDING_WITH_SCROLLBAR = 24
 const TOOLBAR_HEIGHT = 32
 const DEFAULT_ASPECT_RATIO = 8.5 / 11 // US Letter fallback before page dimensions load
+const US_LETTER_WIDTH = 612 // US Letter width at 72 DPI
+const US_LETTER_HEIGHT = 792 // US Letter height at 72 DPI
+const PAGE_OVERSCAN = 2 // Number of pages to pre-render above/below viewport
+const OBSERVER_ROOT_MARGIN = '200px 0px'
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -58,7 +67,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [scale, setScale] = useState<number>(1)
-  const [fitMode, setFitMode] = useState<FitMode>('width')
+  const [fitMode, setFitMode] = useState<FitMode>('page')
   const [containerWidth, setContainerWidth] = useState<number>(800)
   const [containerHeight, setContainerHeight] = useState<number>(600)
   const [originalPageWidth, setOriginalPageWidth] = useState<number>(0)
@@ -67,10 +76,16 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const [searchOpen, setSearchOpen] = useState<boolean>(false)
   const [zoomInputValue, setZoomInputValue] = useState<string>('')
   const [isEditingZoom, setIsEditingZoom] = useState<boolean>(false)
+  const [pageDimensions, setPageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map())
+  const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([1]))
   const containerRef = useRef<HTMLDivElement>(null)
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const searchInputRef = useRef<HTMLInputElement>(null)
   const zoomInputRef = useRef<HTMLInputElement>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const intersectingPagesRef = useRef<Set<number>>(new Set())
+  const visiblePagesRef = useRef(visiblePages)
+  visiblePagesRef.current = visiblePages
   const currentPageRef = useRef(currentPage)
   currentPageRef.current = currentPage
 
@@ -123,9 +138,9 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     return () => observer.disconnect()
   }, [loading]) // Re-run when loading changes so container exists
 
-  // Restore scroll position after pages render
+  // Restore scroll position after pages render (wait for dimensions so placeholders have correct heights)
   useEffect(() => {
-    if (!containerRef.current || numPages === 0) return
+    if (!containerRef.current || numPages === 0 || pageDimensions.size === 0) return
     const savedPosition = scrollPositions.get(filePath)
     if (savedPosition !== undefined) {
       const timer = setTimeout(() => {
@@ -135,7 +150,7 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
       }, SCROLL_RESTORE_DELAY_MS)
       return () => clearTimeout(timer)
     }
-  }, [filePath, numPages])
+  }, [filePath, numPages, pageDimensions])
 
   // Save scroll position before unmount or file change
   useEffect(() => {
@@ -149,23 +164,26 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
   const handleScroll = useCallback(() => {
     if (!containerRef.current || numPages === 0) return
 
-    let visiblePage = 1
+    let mostVisiblePage = currentPageRef.current
     let maxVisibleArea = 0
+    const containerRect = containerRef.current.getBoundingClientRect()
 
-    pageRefs.current.forEach((el, pageNum) => {
+    // Only check pages near the viewport instead of all pages
+    visiblePagesRef.current.forEach((pageNum) => {
+      const el = pageRefs.current.get(pageNum)
+      if (!el) return
       const rect = el.getBoundingClientRect()
-      const containerRect = containerRef.current!.getBoundingClientRect()
       const top = Math.max(rect.top, containerRect.top)
       const bottom = Math.min(rect.bottom, containerRect.bottom)
       const visibleHeight = Math.max(0, bottom - top)
 
       if (visibleHeight > maxVisibleArea) {
         maxVisibleArea = visibleHeight
-        visiblePage = pageNum
+        mostVisiblePage = pageNum
       }
     })
 
-    setCurrentPage(visiblePage)
+    setCurrentPage(mostVisiblePage)
 
     // Save scroll position
     scrollPositions.set(filePath, containerRef.current.scrollTop)
@@ -179,6 +197,59 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     handleScroll()
     return () => container.removeEventListener('scroll', handleScroll)
   }, [handleScroll, numPages])
+
+  // IntersectionObserver for lazy page rendering
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || numPages === 0 || pageDimensions.size === 0) return
+
+    intersectingPagesRef.current = new Set()
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        // Update the set of actually-intersecting pages based on entry changes
+        entries.forEach((entry) => {
+          const pageNum = parseInt(entry.target.getAttribute('data-page-number') || '0', 10)
+          if (pageNum <= 0) return
+          if (entry.isIntersecting) {
+            intersectingPagesRef.current.add(pageNum)
+          } else {
+            intersectingPagesRef.current.delete(pageNum)
+          }
+        })
+
+        // Build visible set: intersecting pages + overscan
+        const newVisible = new Set<number>()
+        intersectingPagesRef.current.forEach((pageNum) => {
+          for (let i = Math.max(1, pageNum - PAGE_OVERSCAN); i <= Math.min(numPages, pageNum + PAGE_OVERSCAN); i++) {
+            newVisible.add(i)
+          }
+        })
+
+        // Ensure at least page 1 is visible (e.g. during fast scroll)
+        if (newVisible.size === 0) newVisible.add(1)
+
+        setVisiblePages((prev) => {
+          if (newVisible.size === prev.size && [...newVisible].every((n) => prev.has(n))) {
+            return prev
+          }
+          return newVisible
+        })
+      },
+      {
+        root: container,
+        rootMargin: OBSERVER_ROOT_MARGIN,
+        threshold: 0
+      }
+    )
+
+    // Observe all page wrapper divs
+    pageRefs.current.forEach((el) => {
+      observerRef.current?.observe(el)
+    })
+
+    return () => observerRef.current?.disconnect()
+  }, [numPages, pageDimensions])
 
   // Navigate to a specific page
   const goToPage = useCallback((pageNum: number) => {
@@ -240,15 +311,35 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [searchOpen, goToPage, closeSearch, openSearch])
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages)
+  async function onDocumentLoadSuccess(pdf: PdfDocumentProxy) {
+    setNumPages(pdf.numPages)
     setCurrentPage(1)
-  }
 
-  function onPageLoadSuccess({ width, height }: { width: number; height: number }) {
-    if (originalPageWidth === 0) {
-      setOriginalPageWidth(width)
-      setOriginalPageHeight(height)
+    // Pre-fetch all page dimensions (metadata only, no rendering)
+    const dims = new Map<number, { width: number; height: number }>()
+    let firstWidth = 0
+    let firstHeight = 0
+    for (let i = 1; i <= pdf.numPages; i++) {
+      try {
+        const page = await pdf.getPage(i)
+        const viewport = page.getViewport({ scale: 1 })
+        dims.set(i, { width: viewport.width, height: viewport.height })
+        if (firstWidth === 0) {
+          firstWidth = viewport.width
+          firstHeight = viewport.height
+        }
+      } catch {
+        // Use first page dimensions as fallback, or a default aspect ratio
+        const fallbackWidth = firstWidth || US_LETTER_WIDTH
+        const fallbackHeight = firstHeight || US_LETTER_HEIGHT
+        dims.set(i, { width: fallbackWidth, height: fallbackHeight })
+      }
+    }
+    setPageDimensions(dims)
+
+    if (firstWidth > 0) {
+      setOriginalPageWidth(firstWidth)
+      setOriginalPageHeight(firstHeight)
     }
   }
 
@@ -408,18 +499,38 @@ export function PdfViewer({ filePath }: PdfViewerProps) {
           loading={<div className="pdf-loading">Loading PDF...</div>}
           error={<div className="pdf-error">Failed to load PDF</div>}
         >
-          {Array.from(new Array(numPages), (_, index) => (
-            <div key={`page_${index + 1}`} ref={setPageRef(index + 1)} className="pdf-page-wrapper">
-              <Page
-                pageNumber={index + 1}
-                width={pageWidth}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-                onLoadSuccess={index === 0 ? onPageLoadSuccess : undefined}
-                customTextRenderer={searchText ? createSearchHighlighter(searchText) : undefined}
-              />
-            </div>
-          ))}
+          {Array.from(new Array(numPages), (_, index) => {
+            const pageNum = index + 1
+            const isVisible = visiblePages.has(pageNum)
+            const dims = pageDimensions.get(pageNum)
+            const scaledHeight = dims
+              ? (pageWidth / dims.width) * dims.height
+              : pageWidth / DEFAULT_ASPECT_RATIO
+
+            return (
+              <div key={`page_${pageNum}`} ref={setPageRef(pageNum)} className="pdf-page-wrapper" data-page-number={pageNum}>
+                {isVisible ? (
+                  <Page
+                    pageNumber={pageNum}
+                    width={pageWidth}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    customTextRenderer={searchText ? createSearchHighlighter(searchText) : undefined}
+                    loading={
+                      <div className="pdf-page-placeholder" style={{ width: pageWidth, height: scaledHeight }}>
+                        <div className="pdf-page-spinner" />
+                      </div>
+                    }
+                  />
+                ) : (
+                  <div
+                    className="pdf-page-placeholder"
+                    style={{ width: pageWidth, height: scaledHeight }}
+                  />
+                )}
+              </div>
+            )
+          })}
         </Document>
       </div>
     </div>
