@@ -488,6 +488,16 @@ body {
   border-color: rgba(128, 128, 128, 0.5);
 }
 
+/* Bottom Tab Bar - always visible below content */
+.bottom-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid #3c3c3c;
+  flex-shrink: 0;
+}
+
 .tab-action-btn {
   display: flex;
   align-items: center;

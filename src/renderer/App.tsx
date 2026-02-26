@@ -11,6 +11,7 @@ import { TodoPanel } from './components/TodoPanel'
 import { EventPanel } from './components/EventPanel'
 import { OptionsModal } from './components/OptionsModal'
 import { TopToolbar, PaneType } from './components/TopToolbar'
+import { BottomTabBar } from './components/BottomTabBar'
 import { SidebarToolbar } from './components/SidebarToolbar'
 import { ContextMenu, ContextMenuItem } from './components/ContextMenu'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
@@ -1755,12 +1756,6 @@ function App() {
         )}
         <section className="content">
           <TopToolbar
-            entity={selectedNode?.entity}
-            activeMember={activeMember ?? undefined}
-            onTabChange={handleTabChange}
-            selectedFileName={selectedFileName}
-            selectedFileType={selectedFileType}
-            onTabContextMenu={handleTabContextMenu}
             editMode={editMode}
             onEditModeChange={setEditMode}
             editorRef={editorRef}
@@ -1777,7 +1772,6 @@ function App() {
             onDiscardSuggestion={handleDiscardSuggestion}
             sidebarVisible={sidebarVisible}
             onSidebarToggle={() => setSidebarVisible((v) => !v)}
-            onCreateMember={handleCreateMember}
           />
           <div className="content-body-wrapper">
             <div className="content-body" ref={contentBodyRef}>
@@ -1829,6 +1823,15 @@ function App() {
               />
             </aside>
           </div>
+          <BottomTabBar
+            entity={selectedNode?.entity}
+            activeMember={activeMember ?? undefined}
+            onTabChange={handleTabChange}
+            selectedFileName={selectedFileName}
+            selectedFileType={selectedFileType}
+            onTabContextMenu={handleTabContextMenu}
+            onCreateMember={handleCreateMember}
+          />
         </section>
       </main>
       <SummarizeModal
