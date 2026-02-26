@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { TreeNode } from '@shared/types'
-import { getBasename, getExtension } from '@shared/pathUtils'
+import { getBasename, getExtension, stripExtension } from '@shared/pathUtils'
 
 export interface ClassLogConfig {
   prefix: string
@@ -145,7 +145,7 @@ export function NewClassLogModal({
   const existingNames = useMemo(() => {
     const names = new Set<string>()
     for (const child of folderChildren) {
-      const baseName = child.entity?.baseName ?? getBasename(child.name)
+      const baseName = child.entity?.baseName ?? stripExtension(getBasename(child.name))
       names.add(baseName.toLowerCase())
     }
     return names
